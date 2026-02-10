@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Visit, UserRole } from '../types';
 import { formatDate, generateId } from '../utils';
 import { api } from '../services/api';
@@ -15,6 +15,8 @@ interface WeeklyVisitFormProps {
 
 const WeeklyVisitForm: React.FC<WeeklyVisitFormProps> = ({ episodeId, lastVisit, onSubmit, onCancel, role, authToken }) => {
   const [showOther, setShowOther] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isProcessingImage, setIsProcessingImage] = useState(false);
   
   const [formData, setFormData] = useState<Partial<Visit>>({
     date: new Date().toISOString().split('T')[0],
@@ -24,7 +26,6 @@ const WeeklyVisitForm: React.FC<WeeklyVisitFormProps> = ({ episodeId, lastVisit,
     infectionToday: { has: false },
     plan: '',
     atb: lastVisit?.atb || { inCourse: false },
-    // Fix: resultStatus is a required property of the culture object in the Visit interface.
     culture: { taken: false, resultStatus: 'No tomado' },
     isClinicalAlert: false,
     nursingTactics: {
@@ -135,7 +136,6 @@ const WeeklyVisitForm: React.FC<WeeklyVisitFormProps> = ({ episodeId, lastVisit,
 
         <form onSubmit={handleSubmit} className="p-6 space-y-8">
            
-           {/* SECCIÓN FOTOGRÁFICA COMPARATIVA */}
            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-slate-50 rounded-2xl border border-slate-200">
               <div>
                  <p className="text-[10px] font-black uppercase text-slate-400 mb-2">Control Anterior ({lastVisit ? formatDate(lastVisit.date) : 'N/A'})</p>
@@ -160,7 +160,6 @@ const WeeklyVisitForm: React.FC<WeeklyVisitFormProps> = ({ episodeId, lastVisit,
               </div>
            </div>
 
-           {/* NÚCLEO MÍNIMO CLÍNICO */}
            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="md:col-span-2">
                 <label className="block text-sm font-bold text-slate-700 mb-3">Evolución Clínica</label>
@@ -197,7 +196,6 @@ const WeeklyVisitForm: React.FC<WeeklyVisitFormProps> = ({ episodeId, lastVisit,
               </div>
            </div>
 
-           {/* FORMULARIO TÁCTICO ENFERMERÍA (Botones rápidos) */}
            <div className="space-y-6 pt-6 border-t border-slate-100">
               
               <div>

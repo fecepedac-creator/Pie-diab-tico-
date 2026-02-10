@@ -1,8 +1,10 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Patient, Episode, Visit } from '../types';
 import { formatDate, calculateWifi } from '../utils';
 import { GoogleGenAI } from "@google/genai";
+import { jsPDF } from 'jspdf';
+import html2canvas from 'html2canvas';
 
 interface PresentationViewProps {
   patient: Patient;
@@ -15,11 +17,46 @@ const PresentationView: React.FC<PresentationViewProps> = ({ patient, episode, v
   const [currentSlide, setCurrentSlide] = useState(0);
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const pdfRef = useRef<HTMLDivElement>(null);
 
   const sortedVisits = Array.isArray(visits) ? [...visits].sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime()) : [];
   const firstVisit = sortedVisits.length > 0 ? sortedVisits[0] : null;
   const lastVisit = sortedVisits.length > 0 ? sortedVisits[sortedVisits.length - 1] : null;
   const wifi = calculateWifi(episode, lastVisit || undefined);
+
+  const exportToPDF = async () => {
+    if (!pdfRef.current) return;
+    setIsExporting(true);
+    
+    try {
+      const canvas = await html2canvas(pdfRef.current, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff'
+      });
+      
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4'
+      });
+      
+      const imgProps = pdf.getImageProperties(imgData);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`Comite_${patient.rut}_${new Date().toISOString().split('T')[0]}.pdf`);
+    } catch (error) {
+      console.error("PDF Export Error:", error);
+      alert("Error al generar el PDF. Asegúrese de que todas las imágenes han cargado correctamente.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const generateAIAnalysis = async () => {
     setIsAnalyzing(true);
@@ -62,7 +99,7 @@ const PresentationView: React.FC<PresentationViewProps> = ({ patient, episode, v
       title: "Antecedentes del Paciente",
       content: (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-in fade-in duration-500">
-           <div className="space-y-4">
+           <div className="space-y-4 text-left">
               <h4 className="text-lg font-bold text-blue-800 border-b pb-2">Identificación</h4>
               <p className="text-3xl font-black text-slate-800">{patient.name}</p>
               <p className="text-xl font-medium text-slate-600">{patient.rut} | {patient.comuna}</p>
@@ -70,7 +107,7 @@ const PresentationView: React.FC<PresentationViewProps> = ({ patient, episode, v
                  {patient.comorbidities.map(c => <span key={c} className="bg-slate-100 px-4 py-2 rounded-xl text-sm font-bold border border-slate-200">{c}</span>)}
               </div>
            </div>
-           <div className="space-y-4">
+           <div className="space-y-4 text-left">
               <h4 className="text-lg font-bold text-rose-800 border-b pb-2">Complicaciones Crónicas</h4>
               <ul className="space-y-4 text-xl">
                  <li className="flex items-center gap-3">
@@ -133,7 +170,7 @@ const PresentationView: React.FC<PresentationViewProps> = ({ patient, episode, v
       title: "Análisis Multidisciplinario (Gemini IA)",
       content: (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 animate-in slide-in-from-right duration-500">
-           <div className="md:col-span-1 bg-slate-900 p-8 rounded-3xl text-white shadow-2xl space-y-8">
+           <div className="md:col-span-1 bg-slate-900 p-8 rounded-3xl text-white shadow-2xl space-y-8 text-left">
               <h4 className="text-xl font-bold border-b border-white/10 pb-4">Indicadores SVS/WIfI</h4>
               <div className="grid grid-cols-1 gap-4">
                  <div className="bg-white/5 p-4 rounded-2xl">
@@ -179,7 +216,7 @@ const PresentationView: React.FC<PresentationViewProps> = ({ patient, episode, v
                     <p className="text-indigo-800 font-black text-xl animate-pulse">Cruzando historial con guías internacionales...</p>
                  </div>
               ) : (
-                 <div className="prose prose-indigo max-w-none text-indigo-900 overflow-y-auto max-h-[350px] font-medium leading-relaxed">
+                 <div className="prose prose-indigo max-w-none text-indigo-900 overflow-y-auto max-h-[350px] font-medium leading-relaxed text-left">
                     <div className="whitespace-pre-wrap text-lg">{aiAnalysis}</div>
                  </div>
               )}
@@ -194,14 +231,14 @@ const PresentationView: React.FC<PresentationViewProps> = ({ patient, episode, v
 
   return (
     <div className="fixed inset-0 bg-slate-900 flex flex-col z-[200] overflow-hidden animate-in fade-in duration-300">
-       <header className="p-8 border-b border-white/10 flex justify-between items-center text-white bg-slate-900/50 backdrop-blur-md">
+       <header className="p-8 border-b border-white/10 flex justify-between items-center text-white bg-slate-900/50 backdrop-blur-md shrink-0">
           <div className="flex items-center gap-4">
              <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center text-2xl shadow-lg shadow-blue-500/20">
                 <i className="fa-solid fa-users-viewfinder"></i>
              </div>
-             <div>
-                <h2 className="text-3xl font-black tracking-tight">Comité de Salvataje</h2>
-                <p className="text-sm text-slate-400 font-bold uppercase tracking-widest">{patient.name} • {episode.location}</p>
+             <div className="text-left">
+                <h2 className="text-3xl font-black tracking-tight leading-none">Comité de Salvataje</h2>
+                <p className="text-sm text-slate-400 font-bold uppercase tracking-widest mt-1">{patient.name} • {episode.location}</p>
              </div>
           </div>
           <button 
@@ -212,8 +249,12 @@ const PresentationView: React.FC<PresentationViewProps> = ({ patient, episode, v
           </button>
        </header>
 
-       <main className="flex-1 flex items-center justify-center p-8 md:p-16 bg-gradient-to-b from-slate-900 to-slate-800">
-          <div className="w-full max-w-7xl bg-white rounded-[50px] shadow-[0_40px_100px_-20px_rgba(0,0,0,0.5)] p-16 min-h-[700px] flex flex-col justify-center animate-in slide-in-from-bottom-20 duration-700">
+       <main className="flex-1 flex items-center justify-center p-8 md:p-16 bg-gradient-to-b from-slate-900 to-slate-800 overflow-auto">
+          {/* Contenedor Ref para PDF */}
+          <div 
+            ref={pdfRef}
+            className="w-full max-w-7xl bg-white rounded-[50px] shadow-[0_40px_100px_-20px_rgba(0,0,0,0.5)] p-16 min-h-[700px] flex flex-col justify-center animate-in slide-in-from-bottom-20 duration-700"
+          >
              <div className="mb-16 flex items-center justify-between">
                 <h3 className="text-5xl font-black text-slate-900 border-l-[12px] border-blue-600 pl-8 leading-none">
                   {slides[currentSlide].title}
@@ -228,10 +269,19 @@ const PresentationView: React.FC<PresentationViewProps> = ({ patient, episode, v
                    {slides[currentSlide].content}
                 </div>
              </div>
+             
+             {/* Firma en PDF */}
+             <div className="mt-8 hidden pdf-only pt-8 border-t border-slate-100 flex justify-between items-end">
+                <div className="text-left">
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Generado automáticamente por</p>
+                  <p className="text-sm font-black text-blue-600">Sistema PD Gestión Clínica v2.0</p>
+                </div>
+                <div className="w-40 h-1 bg-slate-900"></div>
+             </div>
           </div>
        </main>
 
-       <footer className="p-8 border-t border-white/10 flex justify-between items-center bg-slate-950 px-16">
+       <footer className="p-8 border-t border-white/10 flex justify-between items-center bg-slate-950 px-16 shrink-0">
           <div className="flex gap-6">
              <button 
                 onClick={prev} 
@@ -268,7 +318,12 @@ const PresentationView: React.FC<PresentationViewProps> = ({ patient, episode, v
               }} 
               className="px-10 py-4 rounded-2xl bg-slate-800 text-white font-black text-sm hover:bg-slate-700 transition-all active:scale-95 flex items-center gap-3"
              >
-                <i className="fa-solid fa-file-pdf"></i> EXPORTAR COMITÉ
+                {isExporting ? (
+                  <i className="fa-solid fa-circle-notch animate-spin"></i>
+                ) : (
+                  <i className="fa-solid fa-file-pdf"></i>
+                )}
+                {isExporting ? 'GENERANDO PDF...' : 'EXPORTAR PDF COMITÉ'}
              </button>
           </div>
        </footer>
