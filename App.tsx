@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { UserRole, Patient, Episode, Visit, Alert, ReferralReport } from './types.ts';
+import { UserRole, Patient, Episode, Visit, Alert, ReferralReport, User } from './types.ts';
 import { generateId } from './utils.ts';
 import Sidebar from './components/Sidebar.tsx';
 import Dashboard from './components/Dashboard.tsx';
@@ -12,48 +12,37 @@ import AlertCenter from './components/AlertCenter.tsx';
 import RoleSelector from './components/RoleSelector.tsx';
 import SurgicalInbox from './components/SurgicalInbox.tsx';
 import PresentationView from './components/PresentationView.tsx';
+import Login from './components/Login.tsx';
 
 const App: React.FC = () => {
-  const [currentUserRole, setCurrentUserRole] = useState<UserRole>(UserRole.ADMIN);
+  const [user, setUser] = useState<User | null>(() => {
+    const saved = sessionStorage.getItem('pd_session');
+    return saved ? JSON.parse(saved) : null;
+  });
+  
   const [currentView, setCurrentView] = useState<'dashboard' | 'patients' | 'alerts' | 'profile' | 'episode' | 'new-visit' | 'inbox' | 'presentation'>('dashboard');
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
   const [selectedEpisodeId, setSelectedEpisodeId] = useState<string | null>(null);
   
-  // Persistencia segura
+  // Persistencia (Simulando API Backend)
   const [patients, setPatients] = useState<Patient[]>(() => {
-    try {
-      const saved = localStorage.getItem('pd_patients');
-      return saved ? JSON.parse(saved) : [];
-    } catch (e) {
-      return [];
-    }
+    const saved = localStorage.getItem('pd_patients');
+    return saved ? JSON.parse(saved) : [];
   });
 
   const [episodes, setEpisodes] = useState<Episode[]>(() => {
-    try {
-      const saved = localStorage.getItem('pd_episodes');
-      return saved ? JSON.parse(saved) : [];
-    } catch (e) {
-      return [];
-    }
+    const saved = localStorage.getItem('pd_episodes');
+    return saved ? JSON.parse(saved) : [];
   });
 
   const [visits, setVisits] = useState<Visit[]>(() => {
-    try {
-      const saved = localStorage.getItem('pd_visits');
-      return saved ? JSON.parse(saved) : [];
-    } catch (e) {
-      return [];
-    }
+    const saved = localStorage.getItem('pd_visits');
+    return saved ? JSON.parse(saved) : [];
   });
 
   const [referrals, setReferrals] = useState<ReferralReport[]>(() => {
-    try {
-      const saved = localStorage.getItem('pd_referrals');
-      return saved ? JSON.parse(saved) : [];
-    } catch (e) {
-      return [];
-    }
+    const saved = localStorage.getItem('pd_referrals');
+    return saved ? JSON.parse(saved) : [];
   });
 
   const [alerts, setAlerts] = useState<Alert[]>([]);
@@ -64,6 +53,14 @@ const App: React.FC = () => {
     localStorage.setItem('pd_visits', JSON.stringify(visits));
     localStorage.setItem('pd_referrals', JSON.stringify(referrals));
   }, [patients, episodes, visits, referrals]);
+
+  useEffect(() => {
+    if (user) {
+      sessionStorage.setItem('pd_session', JSON.stringify(user));
+    } else {
+      sessionStorage.removeItem('pd_session');
+    }
+  }, [user]);
 
   useEffect(() => {
     const newAlerts: Alert[] = [];
@@ -105,6 +102,16 @@ const App: React.FC = () => {
     setAlerts(newAlerts);
   }, [episodes, visits, patients]);
 
+  const handleLogin = (userData: User) => {
+    setUser(userData);
+    setCurrentView('dashboard');
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    setCurrentView('dashboard');
+  };
+
   const addReferral = (report: string, epId: string, patId: string) => {
     const newRef: ReferralReport = {
       id: generateId(),
@@ -113,11 +120,15 @@ const App: React.FC = () => {
       date: new Date().toISOString(),
       content: report,
       status: 'Pendiente',
-      senderRole: currentUserRole
+      senderRole: user?.role || UserRole.DOCTOR
     };
     setReferrals(prev => [...prev, newRef]);
     alert('Solicitud enviada a Cirugía.');
   };
+
+  if (!user) {
+    return <Login onLogin={handleLogin} />;
+  }
 
   const selectedEpisode = episodes.find(e => e.id === selectedEpisodeId);
   const selectedPatient = selectedEpisode 
@@ -126,7 +137,7 @@ const App: React.FC = () => {
 
   return (
     <div className="flex min-h-screen bg-slate-50">
-      <Sidebar currentView={currentView} setView={setCurrentView} role={currentUserRole} />
+      <Sidebar currentView={currentView} setView={setCurrentView} role={user.role} onLogout={handleLogout} />
       <main className="flex-1 overflow-auto p-4 md:p-8">
         <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
           <div>
@@ -134,7 +145,16 @@ const App: React.FC = () => {
             <p className="text-slate-500">Unidad de Heridas Complejas - Ecosistema Quirúrgico</p>
           </div>
           <div className="flex items-center gap-4">
-            {(currentUserRole === UserRole.VASCULAR || currentUserRole === UserRole.SURGERY) && (
+            <div className="bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm flex items-center gap-3">
+              <div className="w-8 h-8 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center font-bold">
+                {user.name.charAt(0)}
+              </div>
+              <div className="text-left leading-none">
+                <p className="text-sm font-bold text-slate-800">{user.name}</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{user.role}</p>
+              </div>
+            </div>
+            {(user.role === UserRole.VASCULAR || user.role === UserRole.SURGERY) && (
               <button 
                 onClick={() => setCurrentView('inbox')}
                 className="relative bg-white p-2 rounded-lg border border-slate-200 shadow-sm text-slate-600 hover:text-blue-600 transition-colors"
@@ -147,12 +167,11 @@ const App: React.FC = () => {
                 )}
               </button>
             )}
-            <RoleSelector currentRole={currentUserRole} onRoleChange={setCurrentUserRole} />
           </div>
         </header>
 
         {currentView === 'dashboard' && <Dashboard patients={patients} episodes={episodes} visits={visits} alerts={alerts} onNavigateEpisode={(id) => { setSelectedEpisodeId(id); setCurrentView('episode'); }} />}
-        {currentView === 'patients' && <PatientList patients={patients} onSelectPatient={(id) => { setSelectedPatientId(id); setCurrentView('profile'); }} onAddPatient={(p) => setPatients(prev => [...prev, p])} role={currentUserRole} />}
+        {currentView === 'patients' && <PatientList patients={patients} onSelectPatient={(id) => { setSelectedPatientId(id); setCurrentView('profile'); }} onAddPatient={(p) => setPatients(prev => [...prev, p])} role={user.role} />}
         {currentView === 'inbox' && <SurgicalInbox referrals={referrals} onMarkAsRead={(id) => setReferrals(prev => prev.map(r => r.id === id ? {...r, status: 'Revisado'} : r))} onNavigateEpisode={(id) => { setSelectedEpisodeId(id); setCurrentView('episode'); }} />}
         
         {currentView === 'profile' && selectedPatient && (
@@ -161,7 +180,7 @@ const App: React.FC = () => {
             episodes={episodes.filter(e => e.patientId === selectedPatient.id)} 
             onSelectEpisode={(id) => { setSelectedEpisodeId(id); setCurrentView('episode'); }} 
             onAddEpisode={(e) => setEpisodes(prev => [...prev, e])} 
-            role={currentUserRole} 
+            role={user.role} 
             onUpdatePatient={(updated) => setPatients(prev => prev.map(p => p.id === updated.id ? updated : p))} 
           />
         )}
@@ -173,7 +192,7 @@ const App: React.FC = () => {
             visits={visits.filter(v => v.episodeId === selectedEpisode.id)} 
             onNewVisit={() => setCurrentView('new-visit')} 
             onUpdateEpisode={(updated) => setEpisodes(prev => prev.map(e => e.id === updated.id ? updated : e))} 
-            role={currentUserRole} 
+            role={user.role} 
             onSendReferral={addReferral} 
             onOpenPresentation={() => setCurrentView('presentation')} 
           />
@@ -185,7 +204,7 @@ const App: React.FC = () => {
             lastVisit={visits.filter(v => v.episodeId === selectedEpisode.id).pop()} 
             onSubmit={(v) => { setVisits(prev => [...prev, v]); setCurrentView('episode'); }} 
             onCancel={() => setCurrentView('episode')} 
-            role={currentUserRole} 
+            role={user.role} 
           />
         )}
 

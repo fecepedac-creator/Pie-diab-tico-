@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Visit, UserRole } from '../types';
 import { formatDate, generateId } from '../utils';
 
@@ -13,16 +13,17 @@ interface WeeklyVisitFormProps {
 
 const WeeklyVisitForm: React.FC<WeeklyVisitFormProps> = ({ episodeId, lastVisit, onSubmit, onCancel, role }) => {
   const [showOther, setShowOther] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isProcessingImage, setIsProcessingImage] = useState(false);
   
   const [formData, setFormData] = useState<Partial<Visit>>({
     date: new Date().toISOString().split('T')[0],
-    photoUrl: `https://picsum.photos/seed/${Math.random()}/600/400`,
+    photoUrl: '',
     evolution: 'Igual',
     size: lastVisit?.size || { length: 0, width: 0, depth: 0 },
     infectionToday: { has: false },
     plan: '',
     atb: lastVisit?.atb || { inCourse: false },
-    // Fix: resultStatus is a required property of the culture object in the Visit interface.
     culture: { taken: false, resultStatus: 'No tomado' },
     isClinicalAlert: false,
     nursingTactics: {
@@ -34,6 +35,19 @@ const WeeklyVisitForm: React.FC<WeeklyVisitFormProps> = ({ episodeId, lastVisit,
     },
     responsiblePlan: role
   });
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setIsProcessingImage(true);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData(prev => ({ ...prev, photoUrl: reader.result as string }));
+        setIsProcessingImage(false);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const checkConsecutiveWorse = () => {
     return lastVisit?.evolution === 'Peor' && formData.evolution === 'Peor';
@@ -110,7 +124,6 @@ const WeeklyVisitForm: React.FC<WeeklyVisitFormProps> = ({ episodeId, lastVisit,
 
         <form onSubmit={handleSubmit} className="p-6 space-y-8">
            
-           {/* SECCIÓN FOTOGRÁFICA COMPARATIVA */}
            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-slate-50 rounded-2xl border border-slate-200">
               <div>
                  <p className="text-[10px] font-black uppercase text-slate-400 mb-2">Control Anterior ({lastVisit ? formatDate(lastVisit.date) : 'N/A'})</p>
@@ -124,17 +137,46 @@ const WeeklyVisitForm: React.FC<WeeklyVisitFormProps> = ({ episodeId, lastVisit,
               </div>
               <div className="relative">
                  <p className="text-[10px] font-black uppercase text-blue-500 mb-2">Captura Actual (Obligatoria *)</p>
-                 <div className="aspect-video bg-white border-2 border-dashed border-blue-200 rounded-xl overflow-hidden relative group cursor-pointer hover:border-blue-400 transition-all">
-                    <img src={formData.photoUrl} className="absolute inset-0 w-full h-full object-cover opacity-30" alt="Preview" />
-                    <div className="absolute inset-0 flex flex-col items-center justify-center">
-                       <i className="fa-solid fa-camera text-3xl text-blue-400 group-hover:scale-110 transition-transform"></i>
-                       <span className="text-[10px] font-bold text-blue-500 mt-2 uppercase tracking-wider">Tomar Foto Herida</span>
-                    </div>
+                 <input 
+                  type="file" 
+                  accept="image/*" 
+                  className="hidden" 
+                  ref={fileInputRef} 
+                  onChange={handleFileChange}
+                 />
+                 <div 
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`aspect-video border-2 border-dashed rounded-xl overflow-hidden relative group cursor-pointer transition-all ${
+                    formData.photoUrl ? 'border-emerald-200 bg-emerald-50' : 'border-blue-200 bg-white hover:border-blue-400'
+                  }`}
+                 >
+                    {formData.photoUrl ? (
+                      <img src={formData.photoUrl} className="absolute inset-0 w-full h-full object-cover" alt="Preview" />
+                    ) : (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center">
+                         {isProcessingImage ? (
+                           <i className="fa-solid fa-circle-notch animate-spin text-3xl text-blue-400"></i>
+                         ) : (
+                           <>
+                             <i className="fa-solid fa-camera text-3xl text-blue-400 group-hover:scale-110 transition-transform"></i>
+                             <span className="text-[10px] font-bold text-blue-500 mt-2 uppercase tracking-wider">Subir Foto Herida</span>
+                           </>
+                         )}
+                      </div>
+                    )}
                  </div>
+                 {formData.photoUrl && (
+                   <button 
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setFormData({...formData, photoUrl: ''}); }}
+                    className="absolute top-2 right-2 bg-rose-500 text-white w-6 h-6 rounded-full flex items-center justify-center shadow-lg"
+                   >
+                     <i className="fa-solid fa-xmark"></i>
+                   </button>
+                 )}
               </div>
            </div>
 
-           {/* NÚCLEO MÍNIMO CLÍNICO */}
            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="md:col-span-2">
                 <label className="block text-sm font-bold text-slate-700 mb-3">Evolución Clínica</label>
@@ -171,7 +213,6 @@ const WeeklyVisitForm: React.FC<WeeklyVisitFormProps> = ({ episodeId, lastVisit,
               </div>
            </div>
 
-           {/* FORMULARIO TÁCTICO ENFERMERÍA (Botones rápidos) */}
            <div className="space-y-6 pt-6 border-t border-slate-100">
               
               <div>

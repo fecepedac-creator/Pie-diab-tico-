@@ -16,6 +16,13 @@
           background-color: #f8fafc;
         }
         #root { min-height: 100vh; }
+        
+        /* Estilos para PDF Export */
+        .pdf-content {
+          background: white;
+          padding: 40px;
+          color: #1e293b;
+        }
     </style>
 <script type="importmap">
 {
@@ -24,6 +31,8 @@
     "react-dom": "https://esm.sh/react-dom@19.0.0?dev",
     "react-dom/client": "https://esm.sh/react-dom@19.0.0/client?dev",
     "@google/genai": "https://esm.sh/@google/genai@1.40.0",
+    "jspdf": "https://esm.sh/jspdf@2.5.1",
+    "html2canvas": "https://esm.sh/html2canvas@1.4.1",
     "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
     "react/": "https://esm.sh/react@^19.2.4/"
   }
@@ -32,6 +41,5 @@
 </head>
 <body>
     <div id="root"></div>
-    <script type="module" src="/index.tsx"></script>
 </body>
 </html>
