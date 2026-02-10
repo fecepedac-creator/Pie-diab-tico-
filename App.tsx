@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserRole, Patient, Episode, Visit, Alert, ReferralReport } from './types.ts';
+import { UserRole, Patient, Episode, Visit, Alert, ReferralReport, User } from './types.ts';
 import { generateId } from './utils.ts';
 import { api } from './services/api.ts';
 import Sidebar from './components/Sidebar.tsx';
@@ -117,11 +117,15 @@ const App: React.FC = () => {
       date: new Date().toISOString(),
       content: report,
       status: 'Pendiente',
-      senderRole: currentUserRole
+      senderRole: user?.role || UserRole.DOCTOR
     };
     setReferrals(prev => [...prev, newRef]);
     alert('Solicitud enviada a Cirugía.');
   };
+
+  if (!user) {
+    return <Login onLogin={handleLogin} />;
+  }
 
   const selectedEpisode = episodes.find(e => e.id === selectedEpisodeId);
   const selectedPatient = selectedEpisode
@@ -134,7 +138,7 @@ const App: React.FC = () => {
 
   return (
     <div className="flex min-h-screen bg-slate-50">
-      <Sidebar currentView={currentView} setView={setCurrentView} role={currentUserRole} />
+      <Sidebar currentView={currentView} setView={setCurrentView} role={user.role} onLogout={handleLogout} />
       <main className="flex-1 overflow-auto p-4 md:p-8">
         <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
           <div>
@@ -156,7 +160,7 @@ const App: React.FC = () => {
         </header>
 
         {currentView === 'dashboard' && <Dashboard patients={patients} episodes={episodes} visits={visits} alerts={alerts} onNavigateEpisode={(id) => { setSelectedEpisodeId(id); setCurrentView('episode'); }} />}
-        {currentView === 'patients' && <PatientList patients={patients} onSelectPatient={(id) => { setSelectedPatientId(id); setCurrentView('profile'); }} onAddPatient={(p) => setPatients(prev => [...prev, p])} role={currentUserRole} />}
+        {currentView === 'patients' && <PatientList patients={patients} onSelectPatient={(id) => { setSelectedPatientId(id); setCurrentView('profile'); }} onAddPatient={(p) => setPatients(prev => [...prev, p])} role={user.role} />}
         {currentView === 'inbox' && <SurgicalInbox referrals={referrals} onMarkAsRead={(id) => setReferrals(prev => prev.map(r => r.id === id ? {...r, status: 'Revisado'} : r))} onNavigateEpisode={(id) => { setSelectedEpisodeId(id); setCurrentView('episode'); }} />}
 
         {currentView === 'profile' && selectedPatient && (

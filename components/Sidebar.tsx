@@ -6,9 +6,10 @@ interface SidebarProps {
   currentView: string;
   setView: (view: any) => void;
   role: UserRole;
+  onLogout: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, role }) => {
+const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, role, onLogout }) => {
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: 'fa-chart-line' },
     { id: 'patients', label: 'Pacientes', icon: 'fa-user-injured' },
@@ -41,10 +42,13 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, role }) => {
 
       <div className="p-6 border-t border-slate-800">
         <div className="hidden md:block mb-4">
-          <p className="text-xs uppercase tracking-wider font-bold mb-1">Rol Actual</p>
+          <p className="text-xs uppercase tracking-wider font-bold mb-1">Sesión Activa</p>
           <p className="text-sm text-blue-400 font-medium truncate">{role}</p>
         </div>
-        <button className="flex items-center gap-4 w-full hover:text-white transition-colors">
+        <button 
+          onClick={onLogout}
+          className="flex items-center gap-4 w-full hover:text-rose-400 transition-colors"
+        >
           <i className="fa-solid fa-right-from-bracket w-5"></i>
           <span className="hidden md:block font-medium">Cerrar Sesión</span>
         </button>
