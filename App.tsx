@@ -70,14 +70,6 @@ const App: React.FC = () => {
   }, [patients, episodes, visits, referrals, authToken]);
 
   useEffect(() => {
-    if (user) {
-      sessionStorage.setItem('pd_session', JSON.stringify(user));
-    } else {
-      sessionStorage.removeItem('pd_session');
-    }
-  }, [user]);
-
-  useEffect(() => {
     const newAlerts: Alert[] = [];
     const now = new Date();
 
