@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserRole, Patient, Episode, Visit, Alert, ReferralReport, User } from './types.ts';
+import { UserRole, Patient, Episode, Visit, Alert, ReferralReport } from './types.ts';
 import { generateId } from './utils.ts';
 import { api } from './services/api.ts';
 import Sidebar from './components/Sidebar.tsx';
