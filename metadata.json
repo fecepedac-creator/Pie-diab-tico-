@@ -1,0 +1,7 @@
+{
+  "name": "Pie Diabético - Gestión Clínica Multidisciplinaria",
+  "description": "Plataforma integral para el seguimiento longitudinal de pacientes con pie diabético, facilitando la coordinación entre Diabetología, Cirugía, Enfermería y Fisiatría.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
