@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { Visit, UserRole } from '../types';
 import { formatDate, generateId } from '../utils';
+import { api } from '../services/api';
 
 interface WeeklyVisitFormProps {
   episodeId: string;
@@ -9,14 +10,15 @@ interface WeeklyVisitFormProps {
   onSubmit: (v: Visit) => void;
   onCancel: () => void;
   role: UserRole;
+  authToken?: string | null;
 }
 
-const WeeklyVisitForm: React.FC<WeeklyVisitFormProps> = ({ episodeId, lastVisit, onSubmit, onCancel, role }) => {
+const WeeklyVisitForm: React.FC<WeeklyVisitFormProps> = ({ episodeId, lastVisit, onSubmit, onCancel, role, authToken }) => {
   const [showOther, setShowOther] = useState(false);
   
   const [formData, setFormData] = useState<Partial<Visit>>({
     date: new Date().toISOString().split('T')[0],
-    photoUrl: `https://picsum.photos/seed/${Math.random()}/600/400`,
+    photoUrl: '',
     evolution: 'Igual',
     size: lastVisit?.size || { length: 0, width: 0, depth: 0 },
     infectionToday: { has: false },
@@ -34,6 +36,29 @@ const WeeklyVisitForm: React.FC<WeeklyVisitFormProps> = ({ episodeId, lastVisit,
     },
     responsiblePlan: role
   });
+
+
+  const fileToDataUrl = (file: File) => new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+
+  const handlePhotoUpload = async (file?: File) => {
+    if (!file) return;
+    const dataUrl = await fileToDataUrl(file);
+    if (authToken) {
+      try {
+        const uploaded = await api.uploadPhoto(authToken, dataUrl, file.name);
+        setFormData(prev => ({ ...prev, photoUrl: uploaded.url }));
+        return;
+      } catch (e) {
+        // fallback local data url
+      }
+    }
+    setFormData(prev => ({ ...prev, photoUrl: dataUrl }));
+  };
 
   const checkConsecutiveWorse = () => {
     return lastVisit?.evolution === 'Peor' && formData.evolution === 'Peor';
@@ -128,9 +153,10 @@ const WeeklyVisitForm: React.FC<WeeklyVisitFormProps> = ({ episodeId, lastVisit,
                     <img src={formData.photoUrl} className="absolute inset-0 w-full h-full object-cover opacity-30" alt="Preview" />
                     <div className="absolute inset-0 flex flex-col items-center justify-center">
                        <i className="fa-solid fa-camera text-3xl text-blue-400 group-hover:scale-110 transition-transform"></i>
-                       <span className="text-[10px] font-bold text-blue-500 mt-2 uppercase tracking-wider">Tomar Foto Herida</span>
+                       <span className="text-[10px] font-bold text-blue-500 mt-2 uppercase tracking-wider">Subir Foto Herida</span>
                     </div>
                  </div>
+                 <input type="file" accept="image/*" className="mt-3 text-xs" onChange={e => handlePhotoUpload(e.target.files?.[0])} />
               </div>
            </div>
 
