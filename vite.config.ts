@@ -4,12 +4,12 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   server: {
-    host: '0.0.0.0',
-    port: Number(process.env.PORT) || 8080,
-    strictPort: true,
+    host: '0.0.0.0', // Obligatorio: permite conexiones externas
+    port: 8080,      // Obligatorio: puerto que exige Firebase
+    strictPort: true // Obligatorio: para que no intente usar otro puerto
   },
   preview: {
     host: '0.0.0.0',
-    port: Number(process.env.PORT) || 8080,
+    port: 8080
   }
 });
