@@ -48,7 +48,9 @@ const SurgicalReferralModal: React.FC<SurgicalReferralModalProps> = ({ patient, 
     setIsGenerating(true);
     const data = generateDataSnapshot();
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const key = import.meta.env.VITE_GEMINI_API_KEY;
+      if (!key) throw new Error('Falta VITE_GEMINI_API_KEY en .env.local');
+      const ai = new GoogleGenAI({ apiKey: key });
       const prompt = `Actúa como un Especialista Senior en Pie Diabético y Cirugía Vascular. 
       Tu objetivo es redactar una INTERCONSULTA QUIRÚRGICA COHERENTE y RIGUROSA para un colega cirujano.
       
