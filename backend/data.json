@@ -1,5 +1,12 @@
 {
-  "users": [],
+  "users": [
+    {
+      "id": "6a793df3-6157-4f61-91ae-599fa1f02f2b",
+      "email": "doctor@test.cl",
+      "passwordHash": "ee8feb15d8f15ea9426f2c460222019a:713acb9794dc723a2be0cf1823e5df6e663af5bea18fd6e2aec1138ece3b6b4e6b43ab93c59f3cf1550b08c43ef7afd8c2ecac035ddabfd64988ae8028822283",
+      "role": "Médico Diabetología"
+    }
+  ],
   "appState": {
     "patients": [],
     "episodes": [],
