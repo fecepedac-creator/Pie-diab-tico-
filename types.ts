@@ -9,6 +9,13 @@ export enum UserRole {
   AUDITOR = 'Auditor'
 }
 
+export interface User {
+  id: string;
+  name: string;
+  role: UserRole;
+  email: string;
+}
+
 export interface LabResult {
   id: string;
   date: string;
@@ -33,7 +40,7 @@ export interface MedicalDocument {
   date: string;
   type: 'Epicrisis' | 'Protocolo Operatorio' | 'Informe de Alta' | 'Interconsulta' | 'Otros';
   title: string;
-  content: string; // Resumen o contenido del documento
+  content: string; 
   authorRole: UserRole;
 }
 
@@ -41,7 +48,7 @@ export interface SurgicalProcedure {
   id: string;
   date: string;
   type: 'Vascular' | 'General';
-  description: string; // ATP, Bypass, Aseo, etc.
+  description: string; 
   specialistId: string;
   specialistRole: UserRole;
   notes?: string;
