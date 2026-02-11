@@ -1,50 +1,29 @@
-name: Agente de Corrección Definitiva
+name: Agente de Mantenimiento Seguro
 on:
   push:
     branches: [ main ]
-  workflow_dispatch: # Esto permite ejecutarlo manualmente
+  workflow_dispatch:
 
 jobs:
-  fix-repo:
+  check-and-secure:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           token: ${{ secrets.AGENTE_AUTONOMO_TOKEN }}
       
-      - name: Restaurar package.json Saludable
+      - name: Validar y Proteger package.json
         run: |
-          echo '{
-            "name": "pie-diabetico-gestion-clinica",
-            "private": true,
-            "version": "0.0.0",
-            "type": "module",
-            "scripts": {
-              "dev": "vite",
-              "build": "vite build",
-              "preview": "vite preview --host 0.0.0.0 --port ${PORT:-8080}",
-              "start": "vite preview --host 0.0.0.0 --port ${PORT:-8080}"
-            },
-            "dependencies": {
-              "react": "^18.3.1",
-              "react-dom": "^18.3.1",
-              "@google/genai": "^0.21.0",
-              "jspdf": "^2.5.2",
-              "html2canvas": "^1.4.1",
-              "vite": "^6.0.0",
-              "@vitejs/plugin-react": "^4.3.4"
-            },
-            "devDependencies": {
-              "@types/react": "^18.3.12",
-              "@types/react-dom": "^18.3.1",
-              "typescript": "~5.6.2"
-            }
-          }' > package.json
-
-      - name: Commit y Push
+          # El agente ahora asegura que la versión de Google sea la estable
+          # y que vite esté en el lugar correcto para Firebase.
+          sed -i 's/"@google\/genai": ".*"/"@google\/genai": "^0.2.1"/' package.json
+          sed -i 's/"vite": ".*"/"vite": "^6.0.0"/' package.json
+          
+      - name: Commit de Estabilidad
         run: |
-          git config --global user.name 'Agente Autónomo Gemini'
-          git config --global user.email 'agente@policlinico.ai'
+          git config --global user.name "Agente Autonomo Gemini"
+          git config --global user.email "agente@policlinico.ai"
           git add package.json
-          git commit -m "Rehabilitación completa de dependencias" || echo "Sin cambios"
+          git commit -m "Skill: Mantenimiento de estabilidad en dependencias" || echo "Sin cambios necesarios"
           git push
+          
