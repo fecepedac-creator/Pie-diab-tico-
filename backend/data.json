@@ -1,0 +1,9 @@
+{
+  "users": [],
+  "appState": {
+    "patients": [],
+    "episodes": [],
+    "visits": [],
+    "referrals": []
+  }
+}
