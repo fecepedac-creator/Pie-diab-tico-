@@ -1,20 +1,36 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Pie Diabético - Gestión Clínica Multidisciplinaria
 
-# Run and deploy your AI Studio app
+Aplicación clínica con:
+- **Backend persistente multiusuario** (API + almacenamiento de estado en servidor, lista para migración a PostgreSQL/MongoDB).
+- **Autenticación real** (registro/login con roles y token).
+- **Funciones IA con Gemini** vía `VITE_GEMINI_API_KEY`.
+- **Subida de fotos reales** de heridas.
+- **Exportación de comité a PDF** con `jsPDF`.
 
-This contains everything you need to run your app locally.
+## 1) Configuración de entorno
+Crea `.env.local` para frontend y `.env` para backend (puedes usar `.env.example`):
 
-View your app in AI Studio: https://ai.studio/apps/drive/1Ln8OBd_Z8zCjxVwLEw2qlgOUEweEqkIl
+```bash
+cp .env.example .env.local
+cp .env.example .env
+```
 
-## Run Locally
+Variables relevantes:
+- `VITE_API_URL=http://localhost:4000`
+- `VITE_GEMINI_API_KEY=...`
+- `API_PORT=4000`
+- `JWT_SECRET=...`
 
-**Prerequisites:**  Node.js
+## 2) Ejecutar backend
+```bash
+npm run server
+```
 
+## 3) Ejecutar frontend
+```bash
+npm run dev
+```
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## Nota de persistencia
+El backend incluido persiste en `server/data.json` para funcionar sin dependencias externas.
+Está preparado para migrar a PostgreSQL/MongoDB reemplazando la capa de almacenamiento en `server/index.js`.
