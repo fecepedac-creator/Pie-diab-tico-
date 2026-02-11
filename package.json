@@ -1,13 +1,13 @@
 {
-  "name": "pie-diabético---gestión-clínica-multidisciplinaria",
+  "name": "pie-diabetico-gestion-clinica",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build --emptyOutDir",
-    "start": "vite preview --host 0.0.0.0 --port 8080",
-    "preview": "vite preview --host 0.0.0.0 --port 8080"
+    "start": "vite preview --host 0.0.0.0 --port ${PORT:-8080}",
+    "preview": "vite preview --host 0.0.0.0 --port ${PORT:-8080}"
   },
   "dependencies": {
     "@google/genai": "1.40.0",
