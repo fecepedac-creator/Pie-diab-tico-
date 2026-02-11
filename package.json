@@ -6,12 +6,14 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "start": "vite preview --host 0.0.0.0 --port 8080",
+    "preview": "vite preview --host 0.0.0.0 --port 8080",
+    "server": "node server/index.js"
   },
   "dependencies": {
+    "@google/genai": "1.40.0",
     "react": "^19.2.4",
-    "react-dom": "^19.2.4",
-    "@google/genai": "1.40.0"
+    "react-dom": "^19.2.4"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
