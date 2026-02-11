@@ -1,24 +1,50 @@
-name: Agente de Corrección Autónoma
+name: Agente de Corrección Definitiva
 on:
   push:
     branches: [ main ]
+  workflow_dispatch: # Esto permite ejecutarlo manualmente
+
 jobs:
-  fix-build:
+  fix-repo:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           token: ${{ secrets.AGENTE_AUTONOMO_TOKEN }}
-      - name: Saneamiento de package.json
+      
+      - name: Restaurar package.json Saludable
         run: |
-          # Asegura que vite esté en dependencies y no solo en devDependencies
-          sed -i 's/"vite":/"_vite_":/' package.json
-          # (El agente puede realizar más cambios médicos-técnicos aquí)
-      - name: Guardar cambios
+          echo '{
+            "name": "pie-diabetico-gestion-clinica",
+            "private": true,
+            "version": "0.0.0",
+            "type": "module",
+            "scripts": {
+              "dev": "vite",
+              "build": "vite build",
+              "preview": "vite preview --host 0.0.0.0 --port ${PORT:-8080}",
+              "start": "vite preview --host 0.0.0.0 --port ${PORT:-8080}"
+            },
+            "dependencies": {
+              "react": "^18.3.1",
+              "react-dom": "^18.3.1",
+              "@google/genai": "^0.21.0",
+              "jspdf": "^2.5.2",
+              "html2canvas": "^1.4.1",
+              "vite": "^6.0.0",
+              "@vitejs/plugin-react": "^4.3.4"
+            },
+            "devDependencies": {
+              "@types/react": "^18.3.12",
+              "@types/react-dom": "^18.3.1",
+              "typescript": "~5.6.2"
+            }
+          }' > package.json
+
+      - name: Commit y Push
         run: |
           git config --global user.name 'Agente Autónomo Gemini'
           git config --global user.email 'agente@policlinico.ai'
-          git add .
-          git commit -m "Cirugía técnica: Corrección de dependencias para Firebase" || echo "Sin cambios"
+          git add package.json
+          git commit -m "Rehabilitación completa de dependencias" || echo "Sin cambios"
           git push
-          
