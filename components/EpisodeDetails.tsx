@@ -289,7 +289,7 @@ const EpisodeDetails: React.FC<EpisodeDetailsProps> = ({ episode, patient, visit
                             />
                             <button className="bg-blue-600 text-white px-3 rounded"><i className="fa-solid fa-check"></i></button>
                          </div>
-                         <p className="text-[10px] text-slate-400 mt-2 italic">Valores < 0.5 sugieren isquemia crítica.</p>
+                         <p className="text-[10px] text-slate-400 mt-2 italic">Valores &lt; 0.5 sugieren isquemia crítica.</p>
                       </div>
                       <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
                          <label className="block text-xs font-bold text-slate-500 mb-2 uppercase">Decisión Táctica</label>
