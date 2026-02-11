@@ -1,0 +1,91 @@
+name: Agente Final - Normalizar package.json
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  sync-package-versions:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.AGENTE_AUTONOMO_TOKEN }}
+
+      - name: Configurar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Normalizar versiones objetivo en package.json
+        id: normalize
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const path = 'package.json';
+          const pkg = JSON.parse(fs.readFileSync(path, 'utf8'));
+
+          const target = {
+            '@google/genai': '0.2.1',
+            'jspdf': '2.5.1',
+            'html2canvas': '1.4.1',
+            'vite': '6.0.0',
+            '@vitejs/plugin-react': '5.0.0'
+          };
+
+          pkg.dependencies = pkg.dependencies || {};
+          pkg.devDependencies = pkg.devDependencies || {};
+
+          // mover vite y plugin-react a dependencies
+          if (pkg.devDependencies['vite']) delete pkg.devDependencies['vite'];
+          if (pkg.devDependencies['@vitejs/plugin-react']) delete pkg.devDependencies['@vitejs/plugin-react'];
+
+          let changed = false;
+          for (const [dep, version] of Object.entries(target)) {
+            const current = pkg.dependencies[dep];
+            if (current !== version) {
+              pkg.dependencies[dep] = version;
+              changed = true;
+            }
+          }
+
+          pkg.scripts = pkg.scripts || {};
+          const startCmd = 'npx vite preview --host 0.0.0.0 --port ${PORT:-8080}';
+          const previewCmd = 'vite preview --host 0.0.0.0 --port ${PORT:-8080}';
+          if (pkg.scripts.start !== startCmd) {
+            pkg.scripts.start = startCmd;
+            changed = true;
+          }
+          if (pkg.scripts.preview !== previewCmd) {
+            pkg.scripts.preview = previewCmd;
+            changed = true;
+          }
+
+          fs.writeFileSync(path, JSON.stringify(pkg, null, 2) + '\n');
+          console.log(changed ? 'changed=true' : 'changed=false');
+          NODE
+
+      - name: Detectar cambios de versión en package.json
+        id: diff
+        run: |
+          if git diff --quiet -- package.json; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit automático (solo si hubo cambios de versión)
+        if: steps.diff.outputs.has_changes == 'true'
+        run: |
+          git config user.name "agente-autonomo[bot]"
+          git config user.email "agente-autonomo[bot]@users.noreply.github.com"
+          git add package.json
+          git commit -m "chore(ci): normalizar versiones de package.json para App Hosting"
+          git push
