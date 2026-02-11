@@ -5,10 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build --emptyOutDir",
     "start": "vite preview --host 0.0.0.0 --port 8080",
-    "preview": "vite preview --host 0.0.0.0 --port 8080",
-    "server": "node server/index.js"
+    "preview": "vite preview --host 0.0.0.0 --port 8080"
   },
   "dependencies": {
     "@google/genai": "1.40.0",
