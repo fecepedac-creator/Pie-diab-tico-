@@ -1,0 +1,29 @@
+name: Agente de Mantenimiento Seguro
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  check-and-secure:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.AGENTE_AUTONOMO_TOKEN }}
+      
+      - name: Validar y Proteger package.json
+        run: |
+          # El agente ahora asegura que la versión de Google sea la estable
+          # y que vite esté en el lugar correcto para Firebase.
+          sed -i 's/"@google\/genai": ".*"/"@google\/genai": "^0.2.1"/' package.json
+          sed -i 's/"vite": ".*"/"vite": "^6.0.0"/' package.json
+          
+      - name: Commit de Estabilidad
+        run: |
+          git config --global user.name "Agente Autonomo Gemini"
+          git config --global user.email "agente@policlinico.ai"
+          git add package.json
+          git commit -m "Skill: Mantenimiento de estabilidad en dependencias" || echo "Sin cambios necesarios"
+          git push
+          
