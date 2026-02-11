@@ -2,9 +2,6 @@
 import React, { useState, useRef } from 'react';
 import { Patient, Episode, Visit } from '../types';
 import { formatDate, calculateWifi } from '../utils';
-import { GoogleGenAI } from "@google/genai";
-import { jsPDF } from 'jspdf';
-import html2canvas from 'html2canvas';
 
 interface PresentationViewProps {
   patient: Patient;
@@ -63,7 +60,6 @@ const PresentationView: React.FC<PresentationViewProps> = ({ patient, episode, v
     try {
       const key = import.meta.env.VITE_GEMINI_API_KEY;
       if (!key) throw new Error('Falta VITE_GEMINI_API_KEY en .env.local');
-      const ai = new GoogleGenAI({ apiKey: key });
       const prompt = `Analiza este caso clínico de Pie Diabético para una reunión de comité médico multidisciplinario:
       - Paciente: ${patient.name}, RUT: ${patient.rut}.
       - Comorbilidades: ${patient.comorbidities.join(', ')}.
@@ -81,11 +77,24 @@ const PresentationView: React.FC<PresentationViewProps> = ({ patient, episode, v
       
       Formato: Markdown profesional, breve y directo.`;
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: prompt,
-      });
-      setAiAnalysis(response.text || 'Análisis no disponible.');
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${key}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Gemini API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      setAiAnalysis(text || 'Análisis no disponible.');
     } catch (e) {
       console.error(e);
       setAiAnalysis("Error al generar análisis con IA. Verifique su conexión y API Key.");

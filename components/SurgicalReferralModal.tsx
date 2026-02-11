@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import { Patient, Episode, Visit, WifiScore } from '../types';
 import { formatDate } from '../utils';
-import { GoogleGenAI } from "@google/genai";
 
 interface SurgicalReferralModalProps {
   patient: Patient;
@@ -50,7 +49,6 @@ const SurgicalReferralModal: React.FC<SurgicalReferralModalProps> = ({ patient, 
     try {
       const key = import.meta.env.VITE_GEMINI_API_KEY;
       if (!key) throw new Error('Falta VITE_GEMINI_API_KEY en .env.local');
-      const ai = new GoogleGenAI({ apiKey: key });
       const prompt = `Actúa como un Especialista Senior en Pie Diabético y Cirugía Vascular. 
       Tu objetivo es redactar una INTERCONSULTA QUIRÚRGICA COHERENTE y RIGUROSA para un colega cirujano.
       
@@ -69,12 +67,24 @@ const SurgicalReferralModal: React.FC<SurgicalReferralModalProps> = ({ patient, 
       
       Respuesta en español, tono formal, técnico y conciso.`;
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-pro-preview',
-        contents: prompt,
-      });
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent?key=${key}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+          }),
+        }
+      );
 
-      setReportContent(response.text || 'Error al procesar la narrativa clínica.');
+      if (!response.ok) {
+        throw new Error(`Gemini API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      setReportContent(text || 'Error al procesar la narrativa clínica.');
     } catch (error) {
       console.error("AI Error:", error);
       alert("Error de conexión con el motor de IA clínica. Verifique su API Key.");
