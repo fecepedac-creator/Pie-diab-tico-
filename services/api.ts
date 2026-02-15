@@ -41,7 +41,7 @@ export const api = {
   },
   async saveState(token: string, state: { patients: any[]; episodes: any[]; visits: any[]; referrals: any[] }) {
     return request<{ ok: boolean }>('/api/state', {
-      method: 'PUT',
+      method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify(state),
     });
