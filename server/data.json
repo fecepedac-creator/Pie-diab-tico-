@@ -50,9 +50,126 @@
     }
   ],
   "appState": {
-    "patients": [],
-    "episodes": [],
-    "visits": [],
+    "patients": [
+      {
+        "id": "pac-001",
+        "rut": "12.345.678-9",
+        "name": "Juan Pérez González",
+        "birthDate": "1958-03-15",
+        "comuna": "Santiago Centro",
+        "comorbidities": [
+          "DM2",
+          "HTA",
+          "Dislipidemia"
+        ],
+        "complications": {
+          "retinopathy": true,
+          "nephropathy": true,
+          "ercStage": "G3a",
+          "iam": {
+            "has": false
+          },
+          "acv": {
+            "has": false
+          }
+        },
+        "neuropathy": {
+          "has": true,
+          "method": "Monofilamento",
+          "lastUpdate": "2024-01-15"
+        },
+        "metabolicTargets": {
+          "hba1c": "8.2%",
+          "pa": "140/85",
+          "ldl": "120",
+          "lastDate": "2024-02-01"
+        },
+        "socialDeterminants": {
+          "hasEffectiveSupport": true,
+          "livingConditions": "Vive con esposa"
+        },
+        "labHistory": [
+          {
+            "id": "lab-1",
+            "date": "2024-02-01",
+            "albumin": 3.2,
+            "pcr": 45
+          }
+        ],
+        "imagingHistory": [],
+        "createdAt": "2024-01-01"
+      }
+    ],
+    "episodes": [
+      {
+        "id": "ep-001",
+        "patientId": "pac-001",
+        "startDate": "2024-01-15",
+        "side": "D",
+        "location": "Talón Derecho",
+        "etiology": "Neuropática",
+        "vascularStatus": {
+          "pulses": {
+            "dp": "Débil",
+            "pt": "Ausente"
+          },
+          "abi": 0.65,
+          "revascularizable": "En estudio"
+        },
+        "infectionBasal": {
+          "has": true,
+          "severity": "Moderada"
+        },
+        "strategy": "Salvataje",
+        "amputationMajorRisk": {
+          "enabled": false
+        },
+        "procedures": [],
+        "documents": [],
+        "isActive": true
+      }
+    ],
+    "visits": [
+      {
+        "id": "v-001",
+        "episodeId": "ep-001",
+        "date": "2024-02-10",
+        "professionalId": "user-1",
+        "professionalRole": "Enfermería",
+        "photoUrl": "https://placehold.co/400x300/e2e8f0/64748b?text=Herida",
+        "evolution": "Igual",
+        "size": {
+          "length": 3.5,
+          "width": 2.8,
+          "depth": 0.5
+        },
+        "infectionToday": {
+          "has": true,
+          "severity": "Grado 2 (Leve)"
+        },
+        "atb": {
+          "inCourse": true,
+          "scheme": "Amoxicilina/Clav 875mg c/12h"
+        },
+        "culture": {
+          "taken": true,
+          "resultStatus": "Pendiente"
+        },
+        "nursingTactics": {
+          "cleaning": "Lavado SF",
+          "debridement": "Mecánico/Curetaje",
+          "dressings": [
+            "Alginatos",
+            "Plata"
+          ],
+          "advancedTherapies": [
+            "Miel Médica"
+          ]
+        },
+        "plan": "Continuar curaciones cada 48h",
+        "responsiblePlan": "Enfermería"
+      }
+    ],
     "referrals": []
   }
 }
