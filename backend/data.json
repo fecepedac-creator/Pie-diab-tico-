@@ -102,7 +102,7 @@
           {
             "id": "lab-2",
             "date": "2024-01-15",
-            "albumin": 3.0,
+            "albumin": 3,
             "pcr": 68,
             "vhs": 55,
             "leucocitos": 14200,
@@ -126,7 +126,7 @@
             "pcr": 35,
             "vhs": 38,
             "leucocitos": 11200,
-            "hba1c": 8.0,
+            "hba1c": 8,
             "vfg": 58
           }
         ],
