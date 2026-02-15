@@ -13,10 +13,30 @@ interface WeeklyVisitFormProps {
   authToken?: string | null;
 }
 
+// Determinar si es rol médico
+const isMedicoRole = (role: UserRole) => {
+  return role === UserRole.DOCTOR || role === UserRole.ADMIN;
+};
+
 const WeeklyVisitForm: React.FC<WeeklyVisitFormProps> = ({ episodeId, lastVisit, onSubmit, onCancel, role, authToken }) => {
   const [showOther, setShowOther] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isProcessingImage, setIsProcessingImage] = useState(false);
+  
+  // Estado adicional para formulario médico
+  const [medicoData, setMedicoData] = useState({
+    woundDescription: '',
+    woundSize: { length: lastVisit?.size?.length || 0, width: lastVisit?.size?.width || 0, depth: lastVisit?.size?.depth || 0 },
+    woundType: '',
+    infectionSigns: [] as string[],
+    infectionSeverity: '',
+    atbIndication: { indicated: lastVisit?.atb?.inCourse || false, scheme: lastVisit?.atb?.scheme || '', duration: '' },
+    labResults: { hba1c: '', albumin: '', pcr: '', vhs: '', creatinine: '' },
+    treatmentPlan: '',
+    nextControl: '',
+    referToSurgery: false,
+    surgeryType: '' as 'Vascular' | 'General' | ''
+  });
   
   const [formData, setFormData] = useState<Partial<Visit>>({
     date: new Date().toISOString().split('T')[0],
