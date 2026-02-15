@@ -1,5 +1,36 @@
 {
-  "users": [],
+  "users": [
+    {
+      "id": "20880658-ad8f-46df-a37c-4bcd9aa5ae85",
+      "email": "admin@demo.cl",
+      "passwordHash": "713ebab377de5c6de305a8918af9c5fa:658aca31a42ff137f9a118eb8e8ea4337eab273acef1bedab87247397f11e832795e26a8232ed282b417a792538949713fe2d472d7864de832cd8aceb9cbdd25",
+      "role": "Admin"
+    },
+    {
+      "id": "5f068f63-f65b-4f88-a397-2b11cccfdea9",
+      "email": "medico@demo.cl",
+      "passwordHash": "7578e7bc77462ffd6a42bfbef6f589dc:864c65749406d96a1d663736c9c375e1766636d367b2cbe577bf482e862def7e65a1ea793d8002f47135cbd3bfd303057ee8fe8159d42bfad669867165ebf6ad",
+      "role": "Médico Diabetología"
+    },
+    {
+      "id": "7faff40b-f3da-4343-a02a-d61458ca560e",
+      "email": "enfermeria@demo.cl",
+      "passwordHash": "d4ce547beb4832d26f40e44488a15961:e4105a6a11c6d8c806ded96385e41bbf9bf1bef8f9d5839b33f1010b8f6c68626383b7aad5a7ac95fb2700279c41ee8d54ee357b32ab1f9476e52b42803dca01",
+      "role": "Enfermería"
+    },
+    {
+      "id": "9860ab5a-ca69-4bea-b1d4-0954fcb8d6cf",
+      "email": "vascular@demo.cl",
+      "passwordHash": "7ffabaf0aaa805c115ce4f2d59f89893:5c82f8ec26c826e8307df660e3bd5edc776d69e23a74020bd26f69c3712dd13c7d61c6e8a9e9a2038150d227f06988b48ec31821672dfa4c9bfdf3030507ff12",
+      "role": "Cirugía Vascular"
+    },
+    {
+      "id": "cddc2c1d-8800-451b-8d28-c8cfa4a1d49e",
+      "email": "cirugia@demo.cl",
+      "passwordHash": "1db937c9b85496fa29e7bf36b0ea4e75:e75071d9878f829d9a6c8ffa49dc9ff80a81ce49a3d8b35b52a39b9f62ccc0ef11453caef169d909633e394a42dab539752c997f09c74ce33e0f33fc64b2533a",
+      "role": "Cirugía General"
+    }
+  ],
   "appState": {
     "patients": [],
     "episodes": [],
