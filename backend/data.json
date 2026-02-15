@@ -93,7 +93,41 @@
             "id": "lab-1",
             "date": "2024-02-01",
             "albumin": 3.2,
-            "pcr": 45
+            "pcr": 45,
+            "vhs": 42,
+            "leucocitos": 12500,
+            "hba1c": 8.2,
+            "vfg": 55
+          },
+          {
+            "id": "lab-2",
+            "date": "2024-01-15",
+            "albumin": 3.0,
+            "pcr": 68,
+            "vhs": 55,
+            "leucocitos": 14200,
+            "hba1c": 8.5,
+            "vfg": 52
+          },
+          {
+            "id": "lab-3",
+            "date": "2023-12-20",
+            "albumin": 2.9,
+            "pcr": 82,
+            "vhs": 60,
+            "leucocitos": 15800,
+            "hba1c": 8.8,
+            "vfg": 48
+          },
+          {
+            "id": "lab-4",
+            "date": "2023-11-10",
+            "albumin": 3.1,
+            "pcr": 35,
+            "vhs": 38,
+            "leucocitos": 11200,
+            "hba1c": 8.0,
+            "vfg": 58
           }
         ],
         "imagingHistory": [],
