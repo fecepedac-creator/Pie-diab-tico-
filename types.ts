@@ -180,6 +180,15 @@ export interface Visit {
     advancedTherapies: string[];
     otherTechnique?: string;
   };
+  labResults?: {
+    date: string;
+    albumin?: number;
+    vfg?: number;
+    pcr?: number;
+    vhs?: number;
+    leucocitos?: number;
+    hba1c?: number;
+  };
   plan: string;
   responsiblePlan: UserRole;
   isClinicalAlert?: boolean;
