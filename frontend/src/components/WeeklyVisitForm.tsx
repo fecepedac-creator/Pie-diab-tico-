@@ -450,74 +450,128 @@ const WeeklyVisitForm: React.FC<WeeklyVisitFormProps> = ({ episodeId, lastVisit,
 
             {/* SECCIÓN 4: Exámenes de Laboratorio */}
             <div className="space-y-4 pt-6 border-t border-slate-100">
-              <h4 className="text-sm font-black uppercase text-slate-500 flex items-center gap-2">
-                <i className="fa-solid fa-flask text-indigo-500"></i> 4. Exámenes de Laboratorio (últimos resultados)
-              </h4>
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-black uppercase text-slate-500 flex items-center gap-2">
+                  <i className="fa-solid fa-flask text-indigo-500"></i> 4. Exámenes de Laboratorio
+                </h4>
+                <div className="flex items-center gap-2 bg-white px-3 py-1 rounded-lg border border-indigo-200">
+                  <label className="text-xs font-bold text-slate-600">Fecha de exámenes:</label>
+                  <input
+                    type="date"
+                    className="border-0 text-sm font-bold text-indigo-700 bg-transparent focus:ring-0 outline-none"
+                    value={medicoData.labResults.date}
+                    onChange={e => setMedicoData({
+                      ...medicoData,
+                      labResults: { ...medicoData.labResults, date: e.target.value }
+                    })}
+                    data-testid="lab-date-input"
+                  />
+                </div>
+              </div>
               
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 p-4 bg-indigo-50 rounded-xl border border-indigo-200">
-                <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1">HbA1c (%)</label>
+              <p className="text-xs text-slate-500 italic">
+                <i className="fa-solid fa-lightbulb text-amber-500 mr-1"></i>
+                Pase el cursor sobre cada campo para ver el historial de valores anteriores
+              </p>
+              
+              <div className="grid grid-cols-2 md:grid-cols-6 gap-4 p-4 bg-gradient-to-br from-indigo-50 to-violet-50 rounded-xl border border-indigo-200">
+                <LabHistoryTooltip fieldName="HbA1c" fieldKey="hba1c" labHistory={patient?.labHistory || []}>
+                  <div className="bg-white rounded-xl p-3 border border-slate-200 hover:border-indigo-400 transition-all cursor-help shadow-sm">
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">HbA1c (%)</label>
+                    <input
+                      type="text"
+                      className="w-full text-lg font-bold text-slate-800 border-0 p-0 focus:ring-0 bg-transparent"
+                      placeholder="--"
+                      value={medicoData.labResults.hba1c}
+                      onChange={e => setMedicoData({
+                        ...medicoData,
+                        labResults: { ...medicoData.labResults, hba1c: e.target.value }
+                      })}
+                      data-testid="lab-hba1c-input"
+                    />
+                  </div>
+                </LabHistoryTooltip>
+
+                <LabHistoryTooltip fieldName="Albúmina" fieldKey="albumin" labHistory={patient?.labHistory || []}>
+                  <div className="bg-white rounded-xl p-3 border border-slate-200 hover:border-indigo-400 transition-all cursor-help shadow-sm">
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Albúmina (g/dL)</label>
+                    <input
+                      type="text"
+                      className="w-full text-lg font-bold text-slate-800 border-0 p-0 focus:ring-0 bg-transparent"
+                      placeholder="--"
+                      value={medicoData.labResults.albumin}
+                      onChange={e => setMedicoData({
+                        ...medicoData,
+                        labResults: { ...medicoData.labResults, albumin: e.target.value }
+                      })}
+                      data-testid="lab-albumin-input"
+                    />
+                  </div>
+                </LabHistoryTooltip>
+
+                <LabHistoryTooltip fieldName="PCR" fieldKey="pcr" labHistory={patient?.labHistory || []}>
+                  <div className="bg-white rounded-xl p-3 border border-slate-200 hover:border-indigo-400 transition-all cursor-help shadow-sm">
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">PCR (mg/L)</label>
+                    <input
+                      type="text"
+                      className="w-full text-lg font-bold text-slate-800 border-0 p-0 focus:ring-0 bg-transparent"
+                      placeholder="--"
+                      value={medicoData.labResults.pcr}
+                      onChange={e => setMedicoData({
+                        ...medicoData,
+                        labResults: { ...medicoData.labResults, pcr: e.target.value }
+                      })}
+                      data-testid="lab-pcr-input"
+                    />
+                  </div>
+                </LabHistoryTooltip>
+
+                <LabHistoryTooltip fieldName="VHS" fieldKey="vhs" labHistory={patient?.labHistory || []}>
+                  <div className="bg-white rounded-xl p-3 border border-slate-200 hover:border-indigo-400 transition-all cursor-help shadow-sm">
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">VHS (mm/h)</label>
+                    <input
+                      type="text"
+                      className="w-full text-lg font-bold text-slate-800 border-0 p-0 focus:ring-0 bg-transparent"
+                      placeholder="--"
+                      value={medicoData.labResults.vhs}
+                      onChange={e => setMedicoData({
+                        ...medicoData,
+                        labResults: { ...medicoData.labResults, vhs: e.target.value }
+                      })}
+                      data-testid="lab-vhs-input"
+                    />
+                  </div>
+                </LabHistoryTooltip>
+
+                <LabHistoryTooltip fieldName="Leucocitos" fieldKey="leucocitos" labHistory={patient?.labHistory || []}>
+                  <div className="bg-white rounded-xl p-3 border border-slate-200 hover:border-indigo-400 transition-all cursor-help shadow-sm">
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Leucocitos (/µL)</label>
+                    <input
+                      type="text"
+                      className="w-full text-lg font-bold text-slate-800 border-0 p-0 focus:ring-0 bg-transparent"
+                      placeholder="--"
+                      value={medicoData.labResults.leucocitos}
+                      onChange={e => setMedicoData({
+                        ...medicoData,
+                        labResults: { ...medicoData.labResults, leucocitos: e.target.value }
+                      })}
+                      data-testid="lab-leucocitos-input"
+                    />
+                  </div>
+                </LabHistoryTooltip>
+
+                <div className="bg-white rounded-xl p-3 border border-slate-200 shadow-sm">
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Creatinina</label>
                   <input
                     type="text"
-                    className="w-full border border-slate-200 rounded-lg p-2 text-sm"
-                    placeholder="ej: 8.2"
-                    value={medicoData.labResults.hba1c}
-                    onChange={e => setMedicoData({
-                      ...medicoData,
-                      labResults: { ...medicoData.labResults, hba1c: e.target.value }
-                    })}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1">Albúmina (g/dL)</label>
-                  <input
-                    type="text"
-                    className="w-full border border-slate-200 rounded-lg p-2 text-sm"
-                    placeholder="ej: 3.5"
-                    value={medicoData.labResults.albumin}
-                    onChange={e => setMedicoData({
-                      ...medicoData,
-                      labResults: { ...medicoData.labResults, albumin: e.target.value }
-                    })}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1">PCR (mg/L)</label>
-                  <input
-                    type="text"
-                    className="w-full border border-slate-200 rounded-lg p-2 text-sm"
-                    placeholder="ej: 45"
-                    value={medicoData.labResults.pcr}
-                    onChange={e => setMedicoData({
-                      ...medicoData,
-                      labResults: { ...medicoData.labResults, pcr: e.target.value }
-                    })}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1">VHS (mm/h)</label>
-                  <input
-                    type="text"
-                    className="w-full border border-slate-200 rounded-lg p-2 text-sm"
-                    placeholder="ej: 60"
-                    value={medicoData.labResults.vhs}
-                    onChange={e => setMedicoData({
-                      ...medicoData,
-                      labResults: { ...medicoData.labResults, vhs: e.target.value }
-                    })}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1">Creatinina</label>
-                  <input
-                    type="text"
-                    className="w-full border border-slate-200 rounded-lg p-2 text-sm"
-                    placeholder="ej: 1.2"
+                    className="w-full text-lg font-bold text-slate-800 border-0 p-0 focus:ring-0 bg-transparent"
+                    placeholder="--"
                     value={medicoData.labResults.creatinine}
                     onChange={e => setMedicoData({
                       ...medicoData,
                       labResults: { ...medicoData.labResults, creatinine: e.target.value }
                     })}
+                    data-testid="lab-creatinine-input"
                   />
                 </div>
               </div>
