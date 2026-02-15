@@ -1,0 +1,175 @@
+{
+  "users": [
+    {
+      "id": "20880658-ad8f-46df-a37c-4bcd9aa5ae85",
+      "email": "admin@demo.cl",
+      "passwordHash": "713ebab377de5c6de305a8918af9c5fa:658aca31a42ff137f9a118eb8e8ea4337eab273acef1bedab87247397f11e832795e26a8232ed282b417a792538949713fe2d472d7864de832cd8aceb9cbdd25",
+      "role": "Admin"
+    },
+    {
+      "id": "5f068f63-f65b-4f88-a397-2b11cccfdea9",
+      "email": "medico@demo.cl",
+      "passwordHash": "7578e7bc77462ffd6a42bfbef6f589dc:864c65749406d96a1d663736c9c375e1766636d367b2cbe577bf482e862def7e65a1ea793d8002f47135cbd3bfd303057ee8fe8159d42bfad669867165ebf6ad",
+      "role": "Médico Diabetología"
+    },
+    {
+      "id": "7faff40b-f3da-4343-a02a-d61458ca560e",
+      "email": "enfermeria@demo.cl",
+      "passwordHash": "d4ce547beb4832d26f40e44488a15961:e4105a6a11c6d8c806ded96385e41bbf9bf1bef8f9d5839b33f1010b8f6c68626383b7aad5a7ac95fb2700279c41ee8d54ee357b32ab1f9476e52b42803dca01",
+      "role": "Enfermería"
+    },
+    {
+      "id": "9860ab5a-ca69-4bea-b1d4-0954fcb8d6cf",
+      "email": "vascular@demo.cl",
+      "passwordHash": "7ffabaf0aaa805c115ce4f2d59f89893:5c82f8ec26c826e8307df660e3bd5edc776d69e23a74020bd26f69c3712dd13c7d61c6e8a9e9a2038150d227f06988b48ec31821672dfa4c9bfdf3030507ff12",
+      "role": "Cirugía Vascular"
+    },
+    {
+      "id": "cddc2c1d-8800-451b-8d28-c8cfa4a1d49e",
+      "email": "cirugia@demo.cl",
+      "passwordHash": "1db937c9b85496fa29e7bf36b0ea4e75:e75071d9878f829d9a6c8ffa49dc9ff80a81ce49a3d8b35b52a39b9f62ccc0ef11453caef169d909633e394a42dab539752c997f09c74ce33e0f33fc64b2533a",
+      "role": "Cirugía General"
+    },
+    {
+      "id": "54afdd6d-8eaf-456c-a304-b59d9958747b",
+      "email": "paramedico@demo.cl",
+      "passwordHash": "31806a7c67c298d4a69d0f3c527c9aef:b683cbad0646b59c9f02174d2e0b14dcebb9eaec45df49d2356d42678ba65bad95ffd8d450b66b4d61053e886ad061edca507df0f4cb3b3ccd61655fb73309a1",
+      "role": "Paramédico"
+    },
+    {
+      "id": "9302be5a-72c0-4735-9103-d2499ad6a434",
+      "email": "fisiatra@demo.cl",
+      "passwordHash": "2197d8ef817079937d1e53d9cf884c11:0ca0b08f75d6d76bf9d1a74088fedf112833332e928bea6671f9008117cc2ab69fe156e63f84517743eb937651135d4cd71929ae802d61bfd57ed84fde814cbc",
+      "role": "Fisiatría"
+    },
+    {
+      "id": "4de46a65-6af2-4c41-b0a2-483804d1588a",
+      "email": "auditor@demo.cl",
+      "passwordHash": "021affd8beac429336905e93aa2687e6:45daa27910646d31a76921dbe21c0f5d23f95f9db093a00c1a8366361832f0ebef86ceb4dc7109974e900f20ad82b25c10a1bc375645bce68f41c32f04b70869",
+      "role": "Auditor"
+    }
+  ],
+  "appState": {
+    "patients": [
+      {
+        "id": "pac-001",
+        "rut": "12.345.678-9",
+        "name": "Juan Pérez González",
+        "birthDate": "1958-03-15",
+        "comuna": "Santiago Centro",
+        "comorbidities": [
+          "DM2",
+          "HTA",
+          "Dislipidemia"
+        ],
+        "complications": {
+          "retinopathy": true,
+          "nephropathy": true,
+          "ercStage": "G3a",
+          "iam": {
+            "has": false
+          },
+          "acv": {
+            "has": false
+          }
+        },
+        "neuropathy": {
+          "has": true,
+          "method": "Monofilamento",
+          "lastUpdate": "2024-01-15"
+        },
+        "metabolicTargets": {
+          "hba1c": "8.2%",
+          "pa": "140/85",
+          "ldl": "120",
+          "lastDate": "2024-02-01"
+        },
+        "socialDeterminants": {
+          "hasEffectiveSupport": true,
+          "livingConditions": "Vive con esposa"
+        },
+        "labHistory": [
+          {
+            "id": "lab-1",
+            "date": "2024-02-01",
+            "albumin": 3.2,
+            "pcr": 45
+          }
+        ],
+        "imagingHistory": [],
+        "createdAt": "2024-01-01"
+      }
+    ],
+    "episodes": [
+      {
+        "id": "ep-001",
+        "patientId": "pac-001",
+        "startDate": "2024-01-15",
+        "side": "D",
+        "location": "Talón Derecho",
+        "etiology": "Neuropática",
+        "vascularStatus": {
+          "pulses": {
+            "dp": "Débil",
+            "pt": "Ausente"
+          },
+          "abi": 0.65,
+          "revascularizable": "En estudio"
+        },
+        "infectionBasal": {
+          "has": true,
+          "severity": "Moderada"
+        },
+        "strategy": "Salvataje",
+        "amputationMajorRisk": {
+          "enabled": false
+        },
+        "procedures": [],
+        "documents": [],
+        "isActive": true
+      }
+    ],
+    "visits": [
+      {
+        "id": "v-001",
+        "episodeId": "ep-001",
+        "date": "2024-02-10",
+        "professionalId": "user-1",
+        "professionalRole": "Enfermería",
+        "photoUrl": "https://placehold.co/400x300/e2e8f0/64748b?text=Herida",
+        "evolution": "Igual",
+        "size": {
+          "length": 3.5,
+          "width": 2.8,
+          "depth": 0.5
+        },
+        "infectionToday": {
+          "has": true,
+          "severity": "Grado 2 (Leve)"
+        },
+        "atb": {
+          "inCourse": true,
+          "scheme": "Amoxicilina/Clav 875mg c/12h"
+        },
+        "culture": {
+          "taken": true,
+          "resultStatus": "Pendiente"
+        },
+        "nursingTactics": {
+          "cleaning": "Lavado SF",
+          "debridement": "Mecánico/Curetaje",
+          "dressings": [
+            "Alginatos",
+            "Plata"
+          ],
+          "advancedTherapies": [
+            "Miel Médica"
+          ]
+        },
+        "plan": "Continuar curaciones cada 48h",
+        "responsiblePlan": "Enfermería"
+      }
+    ],
+    "referrals": []
+  }
+}
