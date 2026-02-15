@@ -47,10 +47,15 @@ const App: React.FC = () => {
     if (authToken) {
       api.getState(authToken)
         .then(state => {
-          setPatients(state.patients as Patient[]);
-          setEpisodes(state.episodes as Episode[]);
-          setVisits(state.visits as Visit[]);
-          setReferrals(state.referrals as ReferralReport[]);
+          // Solo actualizar si hay datos en el servidor
+          if (state.patients?.length > 0) setPatients(state.patients as Patient[]);
+          if (state.episodes?.length > 0) setEpisodes(state.episodes as Episode[]);
+          if (state.visits?.length > 0) setVisits(state.visits as Visit[]);
+          if (state.referrals?.length > 0) setReferrals(state.referrals as ReferralReport[]);
+          // Si servidor está vacío, cargar de local
+          if (!state.patients?.length && !state.episodes?.length) {
+            loadFromLocal();
+          }
         })
         .catch(() => loadFromLocal());
     } else {
