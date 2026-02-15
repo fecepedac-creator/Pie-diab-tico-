@@ -117,15 +117,11 @@ const App: React.FC = () => {
       date: new Date().toISOString(),
       content: report,
       status: 'Pendiente',
-      senderRole: user?.role || UserRole.DOCTOR
+      senderRole: currentUserRole
     };
     setReferrals(prev => [...prev, newRef]);
     alert('Solicitud enviada a Cirugía.');
   };
-
-  if (!user) {
-    return <Login onLogin={handleLogin} />;
-  }
 
   const selectedEpisode = episodes.find(e => e.id === selectedEpisodeId);
   const selectedPatient = selectedEpisode
