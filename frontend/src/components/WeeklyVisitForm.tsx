@@ -87,12 +87,33 @@ const WeeklyVisitForm: React.FC<WeeklyVisitFormProps> = ({ episodeId, lastVisit,
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.photoUrl) return alert('La captura fotográfica es OBLIGATORIA para continuar.');
+    
+    // Para médicos no es obligatoria la foto
+    if (!isMedicoRole(role) && !formData.photoUrl) {
+      return alert('La captura fotográfica es OBLIGATORIA para continuar.');
+    }
     
     if (checkConsecutiveWorse()) {
       const confirm = window.confirm('ALERTA: Es la SEGUNDA evolución "Peor" consecutiva. El flujo se bloqueará para revisión del Médico Internista. ¿Desea confirmar el registro?');
       if (!confirm) return;
     }
+
+    // Si es médico, combinar datos específicos
+    const finalPlan = isMedicoRole(role) 
+      ? medicoData.treatmentPlan 
+      : formData.plan;
+    
+    const finalSize = isMedicoRole(role) 
+      ? medicoData.woundSize 
+      : formData.size;
+    
+    const finalAtb = isMedicoRole(role)
+      ? { inCourse: medicoData.atbIndication.indicated, scheme: medicoData.atbIndication.scheme, startDate: new Date().toISOString().split('T')[0] }
+      : formData.atb;
+    
+    const finalInfection = isMedicoRole(role)
+      ? { has: medicoData.infectionSigns.length > 0, severity: medicoData.infectionSeverity, signs: medicoData.infectionSigns }
+      : formData.infectionToday;
 
     const visit: Visit = {
       ...formData as Visit,
@@ -100,6 +121,18 @@ const WeeklyVisitForm: React.FC<WeeklyVisitFormProps> = ({ episodeId, lastVisit,
       episodeId,
       professionalId: 'user-1',
       professionalRole: role,
+      plan: finalPlan || '',
+      size: finalSize,
+      atb: finalAtb,
+      infectionToday: finalInfection,
+      medicoEvaluation: isMedicoRole(role) ? {
+        woundDescription: medicoData.woundDescription,
+        woundType: medicoData.woundType,
+        labResults: medicoData.labResults,
+        nextControl: medicoData.nextControl,
+        referToSurgery: medicoData.referToSurgery,
+        surgeryType: medicoData.surgeryType
+      } : undefined
     };
     onSubmit(visit);
   };
