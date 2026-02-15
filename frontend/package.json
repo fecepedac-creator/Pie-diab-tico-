@@ -1,0 +1,25 @@
+{
+  "name": "pie-diabetico-gestion-clinica",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build --emptyOutDir",
+    "start": "npx vite preview --host 0.0.0.0 --port ${PORT:-8080}",
+    "preview": "vite preview --host 0.0.0.0 --port ${PORT:-8080}"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.21.0",
+    "@vitejs/plugin-react": "5.0.0",
+    "html2canvas": "1.4.1",
+    "jspdf": "2.5.1",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "vite": "6.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.14.0",
+    "typescript": "5.8.2"
+  }
+}
