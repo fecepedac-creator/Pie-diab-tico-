@@ -64,13 +64,16 @@ const App: React.FC = () => {
   }, [authToken]);
 
   useEffect(() => {
-    localStorage.setItem('pd_patients', JSON.stringify(patients));
-    localStorage.setItem('pd_episodes', JSON.stringify(episodes));
-    localStorage.setItem('pd_visits', JSON.stringify(visits));
-    localStorage.setItem('pd_referrals', JSON.stringify(referrals));
+    // Solo guardar si hay datos (evitar sobreescribir con vacíos)
+    if (patients.length > 0 || episodes.length > 0 || visits.length > 0) {
+      localStorage.setItem('pd_patients', JSON.stringify(patients));
+      localStorage.setItem('pd_episodes', JSON.stringify(episodes));
+      localStorage.setItem('pd_visits', JSON.stringify(visits));
+      localStorage.setItem('pd_referrals', JSON.stringify(referrals));
 
-    if (authToken) {
-      api.saveState(authToken, { patients, episodes, visits, referrals }).catch(() => {});
+      if (authToken) {
+        api.saveState(authToken, { patients, episodes, visits, referrals }).catch(() => {});
+      }
     }
   }, [patients, episodes, visits, referrals, authToken]);
 
