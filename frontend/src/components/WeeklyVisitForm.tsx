@@ -1,16 +1,17 @@
 
 import React, { useState, useRef } from 'react';
-import { Visit, UserRole } from '../types';
+import { Visit, UserRole, Patient, LabResult } from '../types';
 import { formatDate, generateId } from '../utils';
 import { api } from '../services/api';
 
 interface WeeklyVisitFormProps {
   episodeId: string;
   lastVisit?: Visit;
-  onSubmit: (v: Visit) => void;
+  onSubmit: (v: Visit, updatedPatient?: Patient) => void;
   onCancel: () => void;
   role: UserRole;
   authToken?: string | null;
+  patient?: Patient;
 }
 
 // Determinar si es rol médico
@@ -18,7 +19,50 @@ const isMedicoRole = (role: UserRole) => {
   return role === UserRole.DOCTOR || role === UserRole.ADMIN;
 };
 
-const WeeklyVisitForm: React.FC<WeeklyVisitFormProps> = ({ episodeId, lastVisit, onSubmit, onCancel, role, authToken }) => {
+// Componente de Tooltip para historial de laboratorio
+const LabHistoryTooltip: React.FC<{
+  fieldName: string;
+  fieldKey: keyof LabResult;
+  labHistory: LabResult[];
+  children: React.ReactNode;
+}> = ({ fieldName, fieldKey, labHistory, children }) => {
+  const [showTooltip, setShowTooltip] = useState(false);
+  
+  const relevantHistory = labHistory
+    .filter(lab => lab[fieldKey] !== undefined && lab[fieldKey] !== null)
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, 5);
+
+  return (
+    <div className="relative">
+      <div
+        onMouseEnter={() => setShowTooltip(true)}
+        onMouseLeave={() => setShowTooltip(false)}
+      >
+        {children}
+      </div>
+      {showTooltip && relevantHistory.length > 0 && (
+        <div className="absolute z-50 bottom-full left-0 mb-2 w-64 bg-slate-800 text-white text-xs rounded-lg shadow-xl p-3" style={{animation: 'fadeIn 0.2s ease-out'}}>
+          <div className="font-bold text-amber-400 mb-2 flex items-center gap-2">
+            <i className="fa-solid fa-clock-rotate-left"></i>
+            Historial de {fieldName}
+          </div>
+          <div className="space-y-1.5 max-h-32 overflow-y-auto">
+            {relevantHistory.map((lab, idx) => (
+              <div key={lab.id || idx} className="flex justify-between items-center border-b border-slate-700 pb-1 last:border-0">
+                <span className="text-slate-400">{formatDate(lab.date)}</span>
+                <span className="font-bold text-emerald-400">{lab[fieldKey]}</span>
+              </div>
+            ))}
+          </div>
+          <div className="absolute -bottom-2 left-4 w-0 h-0 border-l-8 border-r-8 border-t-8 border-l-transparent border-r-transparent border-t-slate-800"></div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const WeeklyVisitForm: React.FC<WeeklyVisitFormProps> = ({ episodeId, lastVisit, onSubmit, onCancel, role, authToken, patient }) => {
   const [showOther, setShowOther] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isProcessingImage, setIsProcessingImage] = useState(false);
