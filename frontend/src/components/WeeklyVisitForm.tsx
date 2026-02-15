@@ -178,7 +178,33 @@ const WeeklyVisitForm: React.FC<WeeklyVisitFormProps> = ({ episodeId, lastVisit,
         surgeryType: medicoData.surgeryType
       } : undefined
     };
-    onSubmit(visit);
+
+    // Si es médico y hay datos de laboratorio, actualizar el historial del paciente
+    let updatedPatient: Patient | undefined;
+    if (isMedicoRole(role) && patient && medicoData.labResults.date) {
+      const hasLabData = medicoData.labResults.albumin || medicoData.labResults.pcr || 
+                         medicoData.labResults.vhs || medicoData.labResults.hba1c ||
+                         medicoData.labResults.creatinine || medicoData.labResults.leucocitos;
+      
+      if (hasLabData) {
+        const newLabResult: LabResult = {
+          id: generateId(),
+          date: medicoData.labResults.date,
+          albumin: medicoData.labResults.albumin ? parseFloat(medicoData.labResults.albumin) : undefined,
+          pcr: medicoData.labResults.pcr ? parseFloat(medicoData.labResults.pcr) : undefined,
+          vhs: medicoData.labResults.vhs ? parseFloat(medicoData.labResults.vhs) : undefined,
+          hba1c: medicoData.labResults.hba1c ? parseFloat(medicoData.labResults.hba1c) : undefined,
+          leucocitos: medicoData.labResults.leucocitos ? parseFloat(medicoData.labResults.leucocitos) : undefined,
+        };
+        
+        updatedPatient = {
+          ...patient,
+          labHistory: [...(patient.labHistory || []), newLabResult]
+        };
+      }
+    }
+
+    onSubmit(visit, updatedPatient);
   };
 
   const toggleArrayItem = (field: 'dressings' | 'advancedTherapies', value: string) => {
