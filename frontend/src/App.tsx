@@ -191,14 +191,21 @@ const App: React.FC = () => {
           />
         )}
 
-        {currentView === 'new-visit' && selectedEpisode && (
+        {currentView === 'new-visit' && selectedEpisode && selectedPatient && (
           <WeeklyVisitForm
             episodeId={selectedEpisode.id}
             lastVisit={visits.filter(v => v.episodeId === selectedEpisode.id).pop()}
-            onSubmit={(v) => { setVisits(prev => [...prev, v]); setCurrentView('episode'); }}
+            onSubmit={(v, updatedPatient) => { 
+              setVisits(prev => [...prev, v]); 
+              if (updatedPatient) {
+                setPatients(prev => prev.map(p => p.id === updatedPatient.id ? updatedPatient : p));
+              }
+              setCurrentView('episode'); 
+            }}
             onCancel={() => setCurrentView('episode')}
             role={currentUserRole}
             authToken={authToken}
+            patient={selectedPatient}
           />
         )}
 
