@@ -34,3 +34,22 @@ npm run dev
 ## Nota de persistencia
 El backend incluido persiste en `server/data.json` para funcionar sin dependencias externas.
 Está preparado para migrar a PostgreSQL/MongoDB reemplazando la capa de almacenamiento en `server/index.js`.
+
+## Multi-tenant (MT-1)
+
+### Modelo nuevo
+- `pd_centers/{centerId}`: `name`, `modules[]`, `enabledRoles[]`.
+- `pd_centers/{centerId}/users/{uid}`: `roles[]`, `isActive`.
+- `pd_centers/{centerId}/settings/clinical_config`.
+
+### Migración incremental
+1. Definir centro por defecto:
+   - `DEFAULT_CENTER_ID=talca` (o el ID que uses).
+2. Ejecutar script de migración:
+```bash
+npm run migrate:center-ids
+```
+3. (Opcional transición) para permitir escritura de documentos heredados sin `centerId`:
+   - `MT_MIGRATION_MODE=true` en backend.
+
+El script reporta conteos de migración para `patients`, `episodes`, `visits`, `referrals`.

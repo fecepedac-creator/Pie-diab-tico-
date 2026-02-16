@@ -8,9 +8,10 @@ interface PatientListProps {
   onSelectPatient: (id: string) => void;
   onAddPatient: (p: Patient) => void;
   role: UserRole;
+  activeCenterId: string;
 }
 
-const PatientList: React.FC<PatientListProps> = ({ patients, onSelectPatient, onAddPatient, role }) => {
+const PatientList: React.FC<PatientListProps> = ({ patients, onSelectPatient, onAddPatient, role, activeCenterId }) => {
   const [showAdd, setShowAdd] = useState(false);
   const [search, setSearch] = useState('');
   
@@ -40,7 +41,8 @@ const PatientList: React.FC<PatientListProps> = ({ patients, onSelectPatient, on
       createdAt: new Date().toISOString(),
       labHistory: [],
       imagingHistory: [],
-      socialDeterminants: { hasEffectiveSupport: false, livingConditions: '' }
+      socialDeterminants: { hasEffectiveSupport: false, livingConditions: '' },
+      centerId: activeCenterId
     };
     onAddPatient(patient);
     setShowAdd(false);

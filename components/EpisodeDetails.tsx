@@ -12,7 +12,7 @@ interface EpisodeDetailsProps {
    onNewVisit: () => void;
    onUpdateEpisode: (e: Episode) => void;
    role: UserRole;
-   onSendReferral: (epId: string, patId: string, report: string) => void;
+   onSendReferral: (report: string, epId: string, patId: string) => void;
    onOpenPresentation: () => void;
 }
 

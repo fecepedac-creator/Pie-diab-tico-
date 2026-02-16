@@ -9,9 +9,10 @@ interface Props {
     episodes: Episode[];
     onSaveVisit: (visit: Visit) => void;
     authToken: string | null;
+    activeCenterId: string;
 }
 
-const ParamedicView: React.FC<Props> = ({ patients, episodes, onSaveVisit, authToken }) => {
+const ParamedicView: React.FC<Props> = ({ patients, episodes, onSaveVisit, authToken, activeCenterId }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
     const [selectedEpisode, setSelectedEpisode] = useState<Episode | null>(null);
@@ -54,6 +55,7 @@ const ParamedicView: React.FC<Props> = ({ patients, episodes, onSaveVisit, authT
             date: new Date().toISOString(),
             professionalId: 'paramedic-1', // Should be current user ID
             professionalRole: UserRole.PARAMEDIC,
+            centerId: activeCenterId,
             photoUrl,
             evolution: 'Igual', // Default
             size: { length: 0, width: 0, depth: 0 },

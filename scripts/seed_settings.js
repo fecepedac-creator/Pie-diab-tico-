@@ -1,4 +1,3 @@
-
 import { initializeApp, cert } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import fs from 'fs';
@@ -7,6 +6,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SERVICE_ACCOUNT_PATH = path.resolve(__dirname, '../service-account.json');
+const defaultCenterId = process.env.DEFAULT_CENTER_ID || 'default-center';
 
 async function seedSettings() {
     console.log('Seeding clinical settings...');
@@ -34,8 +34,8 @@ async function seedSettings() {
     };
 
     try {
-        await db.collection('pd_settings').doc('clinical_config').set(config);
-        console.log('SUCCESS: Clinical configuration seeded.');
+        await db.collection('pd_centers').doc(defaultCenterId).collection('settings').doc('clinical_config').set(config, { merge: true });
+        console.log('SUCCESS: Clinical configuration seeded under center settings.');
     } catch (error) {
         console.error('Seed failed:', error);
     }

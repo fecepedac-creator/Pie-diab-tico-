@@ -1,15 +1,13 @@
 
 import React, { useState } from 'react';
 import { ClinicalConfig } from '../types.ts';
-import { api } from '../services/api.ts';
 
 interface Props {
     config: ClinicalConfig;
-    token: string;
     onUpdate: (newConfig: ClinicalConfig) => void;
 }
 
-const AdminSettings: React.FC<Props> = ({ config, token, onUpdate }) => {
+const AdminSettings: React.FC<Props> = ({ config, onUpdate }) => {
     const [saving, setSaving] = useState(false);
     const [localConfig, setLocalConfig] = useState(config);
 
@@ -26,7 +24,6 @@ const AdminSettings: React.FC<Props> = ({ config, token, onUpdate }) => {
     const handleSave = async () => {
         setSaving(true);
         try {
-            await api.saveClinicalConfig(token, localConfig);
             onUpdate(localConfig);
             alert('Configuración guardada correctamente');
         } catch (e) {

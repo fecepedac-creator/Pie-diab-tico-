@@ -15,9 +15,10 @@ interface WeeklyVisitFormProps {
   clinicalConfig: ClinicalConfig | null;
   patient: Patient;
   onUpdatePatient?: (p: Patient) => void;
+  activeCenterId: string;
 }
 
-const WeeklyVisitForm: React.FC<WeeklyVisitFormProps> = ({ episodeId, lastVisit, onSubmit, onCancel, role, authToken, clinicalConfig, patient, onUpdatePatient }) => {
+const WeeklyVisitForm: React.FC<WeeklyVisitFormProps> = ({ episodeId, lastVisit, onSubmit, onCancel, role, authToken, clinicalConfig, patient, onUpdatePatient, activeCenterId }) => {
   const [showOther, setShowOther] = useState(false);
   const [showWifiModal, setShowWifiModal] = useState(false);
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
@@ -89,6 +90,7 @@ const WeeklyVisitForm: React.FC<WeeklyVisitFormProps> = ({ episodeId, lastVisit,
       episodeId,
       professionalId: 'user-1',
       professionalRole: role,
+      centerId: activeCenterId,
     };
     onSubmit(visit);
   };
