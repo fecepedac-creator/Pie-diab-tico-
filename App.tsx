@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserRole, Patient, Episode, Visit, Alert, ReferralReport, User } from './types.ts';
+import { UserRole, Patient, Episode, Visit, Alert, ReferralReport, User, ClinicalConfig } from './types.ts';
 import { generateId } from './utils.ts';
 import { api } from './services/api.ts';
 import Sidebar from './components/Sidebar.tsx';
@@ -12,20 +12,25 @@ import AlertCenter from './components/AlertCenter.tsx';
 import SurgicalInbox from './components/SurgicalInbox.tsx';
 import PresentationView from './components/PresentationView.tsx';
 import LoginView from './components/LoginView.tsx';
+import AdminSettings from './components/AdminSettings.tsx';
+import ParamedicView from './components/ParamedicView.tsx';
 
 const App: React.FC = () => {
   const [authToken, setAuthToken] = useState<string | null>(() => localStorage.getItem('pd_auth_token'));
   const [currentUserRole, setCurrentUserRole] = useState<UserRole>(UserRole.ADMIN);
   const [currentUserEmail, setCurrentUserEmail] = useState<string>('');
-  const [currentView, setCurrentView] = useState<'dashboard' | 'patients' | 'alerts' | 'profile' | 'episode' | 'new-visit' | 'inbox' | 'presentation'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'patients' | 'alerts' | 'profile' | 'episode' | 'new-visit' | 'inbox' | 'presentation' | 'settings' | 'camera'>('dashboard');
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
   const [selectedEpisodeId, setSelectedEpisodeId] = useState<string | null>(null);
+
+  const user = authToken ? { role: currentUserRole, email: currentUserEmail } : null;
 
   const [patients, setPatients] = useState<Patient[]>([]);
   const [episodes, setEpisodes] = useState<Episode[]>([]);
   const [visits, setVisits] = useState<Visit[]>([]);
   const [referrals, setReferrals] = useState<ReferralReport[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [clinicalConfig, setClinicalConfig] = useState<ClinicalConfig | null>(null);
 
   const loadFromLocal = () => {
     try {
@@ -53,6 +58,10 @@ const App: React.FC = () => {
           setReferrals(state.referrals as ReferralReport[]);
         })
         .catch(() => loadFromLocal());
+
+      api.getClinicalConfig(authToken)
+        .then(setClinicalConfig)
+        .catch(() => { });
     } else {
       loadFromLocal();
     }
@@ -65,7 +74,7 @@ const App: React.FC = () => {
     localStorage.setItem('pd_referrals', JSON.stringify(referrals));
 
     if (authToken) {
-      api.saveState(authToken, { patients, episodes, visits, referrals }).catch(() => {});
+      api.saveState(authToken, { patients, episodes, visits, referrals }).catch(() => { });
     }
   }, [patients, episodes, visits, referrals, authToken]);
 
@@ -75,7 +84,7 @@ const App: React.FC = () => {
 
     episodes.filter(e => e.isActive).forEach(ep => {
       const patient = patients.find(p => p.id === ep.patientId);
-      const epVisits = visits.filter(v => v.episodeId === ep.id).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      const epVisits = visits.filter(v => v.episodeId === ep.id).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
       if (ep.vascularStatus?.abi !== undefined && ep.vascularStatus.abi < 0.5) {
         newAlerts.push({ id: `isch-${ep.id}`, type: 'Surgical', severity: 'High', message: `VASCULAR: Isquemia Crítica (ABI ${ep.vascularStatus.abi}) en ${patient?.name || 'paciente'}.`, episodeId: ep.id, patientId: patient?.id, createdAt: now.toISOString(), isResolved: false });
@@ -123,9 +132,7 @@ const App: React.FC = () => {
     alert('Solicitud enviada a Cirugía.');
   };
 
-  if (!user) {
-    return <Login onLogin={handleLogin} />;
-  }
+
 
   const selectedEpisode = episodes.find(e => e.id === selectedEpisodeId);
   const selectedPatient = selectedEpisode
@@ -138,7 +145,7 @@ const App: React.FC = () => {
 
   return (
     <div className="flex min-h-screen bg-slate-50">
-      <Sidebar currentView={currentView} setView={setCurrentView} role={user.role} onLogout={handleLogout} />
+      <Sidebar currentView={currentView} setView={setCurrentView} role={user.role} onLogout={logout} />
       <main className="flex-1 overflow-auto p-4 md:p-8">
         <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
           <div>
@@ -161,7 +168,7 @@ const App: React.FC = () => {
 
         {currentView === 'dashboard' && <Dashboard patients={patients} episodes={episodes} visits={visits} alerts={alerts} onNavigateEpisode={(id) => { setSelectedEpisodeId(id); setCurrentView('episode'); }} />}
         {currentView === 'patients' && <PatientList patients={patients} onSelectPatient={(id) => { setSelectedPatientId(id); setCurrentView('profile'); }} onAddPatient={(p) => setPatients(prev => [...prev, p])} role={user.role} />}
-        {currentView === 'inbox' && <SurgicalInbox referrals={referrals} onMarkAsRead={(id) => setReferrals(prev => prev.map(r => r.id === id ? {...r, status: 'Revisado'} : r))} onNavigateEpisode={(id) => { setSelectedEpisodeId(id); setCurrentView('episode'); }} />}
+        {currentView === 'inbox' && <SurgicalInbox referrals={referrals} onMarkAsRead={(id) => setReferrals(prev => prev.map(r => r.id === id ? { ...r, status: 'Revisado' } : r))} onNavigateEpisode={(id) => { setSelectedEpisodeId(id); setCurrentView('episode'); }} />}
 
         {currentView === 'profile' && selectedPatient && (
           <PatientProfile
@@ -195,6 +202,9 @@ const App: React.FC = () => {
             onCancel={() => setCurrentView('episode')}
             role={currentUserRole}
             authToken={authToken}
+            clinicalConfig={clinicalConfig}
+            patient={selectedPatient!}
+            onUpdatePatient={(updated) => setPatients(prev => prev.map(p => p.id === updated.id ? updated : p))}
           />
         )}
 
@@ -206,6 +216,23 @@ const App: React.FC = () => {
             episode={selectedEpisode}
             visits={visits.filter(v => v.episodeId === selectedEpisode.id)}
             onClose={() => setCurrentView('episode')}
+          />
+        )}
+
+        {currentView === 'settings' && clinicalConfig && authToken && (
+          <AdminSettings
+            config={clinicalConfig}
+            token={authToken}
+            onUpdate={setClinicalConfig}
+          />
+        )}
+
+        {(currentView === 'camera' || (currentView === 'dashboard' && currentUserRole === UserRole.PARAMEDIC)) && (
+          <ParamedicView
+            patients={patients}
+            episodes={episodes}
+            onSaveVisit={(v) => { setVisits(prev => [...prev, v]); setCurrentView('dashboard'); }}
+            authToken={authToken}
           />
         )}
       </main>

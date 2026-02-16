@@ -36,7 +36,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin, onRegister }) => {
     <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
       <form onSubmit={submit} className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200 p-6 space-y-4">
         <h1 className="text-2xl font-bold text-slate-800">Pie Diabético · Acceso Seguro</h1>
-        <p className="text-sm text-slate-500">Autenticación con roles para entorno multiusuario.</p>
+        <p className="text-sm text-slate-500">Autenticación con roles para entorno multiusuario. (v3.1 Cloud Patch)</p>
         <div>
           <label className="block text-xs font-bold text-slate-500 mb-1">Email</label>
           <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" required className="w-full border rounded-lg p-2" />

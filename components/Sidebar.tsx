@@ -14,6 +14,8 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, role, onLogout 
     { id: 'dashboard', label: 'Dashboard', icon: 'fa-chart-line' },
     { id: 'patients', label: 'Pacientes', icon: 'fa-user-injured' },
     { id: 'alerts', label: 'Alertas', icon: 'fa-bell', badge: true },
+    ...(role === UserRole.ADMIN ? [{ id: 'settings', label: 'Ajustes', icon: 'fa-gear' }] : []),
+    ...(role === UserRole.PARAMEDIC ? [{ id: 'camera', label: 'Cámara Rápida', icon: 'fa-camera' }] : [])
   ];
 
   return (
@@ -30,9 +32,8 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, role, onLogout 
           <button
             key={item.id}
             onClick={() => setView(item.id)}
-            className={`w-full flex items-center gap-4 px-6 py-4 transition-colors ${
-              currentView === item.id ? 'bg-slate-800 text-white border-r-4 border-blue-500' : 'hover:bg-slate-800 hover:text-slate-200'
-            }`}
+            className={`w-full flex items-center gap-4 px-6 py-4 transition-colors ${currentView === item.id ? 'bg-slate-800 text-white border-r-4 border-blue-500' : 'hover:bg-slate-800 hover:text-slate-200'
+              }`}
           >
             <i className={`fa-solid ${item.icon} w-5 text-lg`}></i>
             <span className="hidden md:block font-medium">{item.label}</span>
@@ -45,7 +46,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, role, onLogout 
           <p className="text-xs uppercase tracking-wider font-bold mb-1">Sesión Activa</p>
           <p className="text-sm text-blue-400 font-medium truncate">{role}</p>
         </div>
-        <button 
+        <button
           onClick={onLogout}
           className="flex items-center gap-4 w-full hover:text-rose-400 transition-colors"
         >

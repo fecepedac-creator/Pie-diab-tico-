@@ -6,6 +6,8 @@ export enum UserRole {
   SURGERY = 'Cirugía General',
   VASCULAR = 'Cirugía Vascular',
   PHYSIATRY = 'Fisiatría',
+  SOCIAL_WORKER = 'Asistente Social',
+  PARAMEDIC = 'TENS / Paramédico',
   AUDITOR = 'Auditor'
 }
 
@@ -14,6 +16,16 @@ export interface User {
   name: string;
   role: UserRole;
   email: string;
+}
+
+export interface ClinicalConfig {
+  activeScales: {
+    wifi: boolean;
+    wagner: boolean;
+    texas: boolean;
+  };
+  updatedAt: string;
+  updatedBy: string;
 }
 
 export interface LabResult {
@@ -40,7 +52,7 @@ export interface MedicalDocument {
   date: string;
   type: 'Epicrisis' | 'Protocolo Operatorio' | 'Informe de Alta' | 'Interconsulta' | 'Otros';
   title: string;
-  content: string; 
+  content: string;
   authorRole: UserRole;
 }
 
@@ -48,7 +60,7 @@ export interface SurgicalProcedure {
   id: string;
   date: string;
   type: 'Vascular' | 'General';
-  description: string; 
+  description: string;
   specialistId: string;
   specialistRole: UserRole;
   notes?: string;
@@ -64,6 +76,15 @@ export interface ReferralReport {
   senderRole: UserRole;
 }
 
+export interface MedicalData {
+  lastHba1c?: { value: number; date: string };
+  bloodPressure?: { systolic: number; diastolic: number; date: string };
+  ldl?: { value: number; date: string };
+  vfg?: { value: number; date: string };
+  albuminuria?: { value: number; date: string };
+  pharmacotherapy?: string[];
+}
+
 export interface Patient {
   id: string;
   rut: string;
@@ -72,6 +93,7 @@ export interface Patient {
   comuna: string;
   contact?: string;
   comorbidities: string[];
+  medicalData?: MedicalData;
   complications: {
     retinopathy: boolean;
     nephropathy: boolean;
@@ -108,6 +130,17 @@ export interface WifiScore {
   revascularizationBenefit: 'Mínimo' | 'Bajo' | 'Moderado' | 'Alto';
 }
 
+export interface WagnerScore {
+  grade: 0 | 1 | 2 | 3 | 4 | 5;
+  description: string;
+}
+
+export interface TexasScore {
+  grade: 0 | 1 | 2 | 3;
+  stage: 'A' | 'B' | 'C' | 'D';
+  description: string;
+}
+
 export interface Episode {
   id: string;
   patientId: string;
@@ -137,6 +170,7 @@ export interface Episode {
   procedures: SurgicalProcedure[];
   documents: MedicalDocument[];
   isActive: boolean;
+  offloading?: string; // Discharge method (e.g., 'Zapato Quirúrgico', 'Yeso', 'Silla de Ruedas')
 }
 
 export interface Visit {
@@ -180,8 +214,18 @@ export interface Visit {
     advancedTherapies: string[];
     otherTechnique?: string;
   };
+  wifiScore?: WifiScore;
+  wagnerScore?: WagnerScore;
+  texasScore?: TexasScore;
   plan: string;
   responsiblePlan: UserRole;
+  offloading?: {
+    required: boolean;
+    type?: string;
+    ambulation?: string;
+    assistiveDevices?: string[];
+  };
+  aiSummary?: string;
   isClinicalAlert?: boolean;
 }
 

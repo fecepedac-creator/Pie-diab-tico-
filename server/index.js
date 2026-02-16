@@ -3,26 +3,40 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import admin from 'firebase-admin';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT = path.resolve(__dirname, '..');
-const DATA_PATH = path.join(__dirname, 'data.json');
 const UPLOADS = path.join(ROOT, 'uploads');
+const SERVICE_ACCOUNT_PATH = path.join(ROOT, 'service-account.json');
 
 if (!fs.existsSync(UPLOADS)) fs.mkdirSync(UPLOADS, { recursive: true });
-if (!fs.existsSync(DATA_PATH)) {
-  fs.writeFileSync(DATA_PATH, JSON.stringify({
-    users: [],
-    appState: { patients: [], episodes: [], visits: [], referrals: [] }
-  }, null, 2));
+
+// Initialize Firebase Admin
+if (fs.existsSync(SERVICE_ACCOUNT_PATH)) {
+  const serviceAccount = JSON.parse(fs.readFileSync(SERVICE_ACCOUNT_PATH, 'utf-8'));
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+    storageBucket: `${serviceAccount.project_id}.firebasestorage.app`
+  });
+  console.log('Firebase Admin initialized with project:', serviceAccount.project_id);
+} else {
+  console.error('CRITICAL: service-account.json NOT FOUND. Server may fail.');
 }
+
+const firestore = admin.firestore();
+const COLLECTIONS = {
+  USERS: 'pd_users',
+  PATIENTS: 'pd_patients',
+  EPISODES: 'pd_episodes',
+  VISITS: 'pd_visits',
+  REFERRALS: 'pd_referrals',
+  SETTINGS: 'pd_settings'
+};
 
 const JWT_SECRET = process.env.JWT_SECRET || 'change_me_dev_secret';
 const PORT = Number(process.env.API_PORT || 4000);
-
-const readData = () => JSON.parse(fs.readFileSync(DATA_PATH, 'utf-8'));
-const writeData = (data) => fs.writeFileSync(DATA_PATH, JSON.stringify(data, null, 2));
 
 const hashPassword = (password, salt = crypto.randomBytes(16).toString('hex')) => {
   const hash = crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
@@ -41,15 +55,19 @@ const signToken = (payload) => {
   const sig = crypto.createHmac('sha256', JWT_SECRET).update(`${header}.${body}`).digest('base64url');
   return `${header}.${body}.${sig}`;
 };
-const verifyToken = (token) => {
+const verifyToken = async (token) => {
   if (!token) return null;
-  const [h, b, s] = token.split('.');
-  if (!h || !b || !s) return null;
-  const sig = crypto.createHmac('sha256', JWT_SECRET).update(`${h}.${b}`).digest('base64url');
-  if (sig !== s) return null;
-  const payload = JSON.parse(Buffer.from(b, 'base64url').toString('utf-8'));
-  if (Date.now() > payload.exp) return null;
-  return payload;
+  try {
+    const decodedToken = await admin.auth().verifyIdToken(token);
+    return {
+      sub: decodedToken.uid,
+      email: decodedToken.email,
+      role: decodedToken.role || 'Médico Diabetología'
+    };
+  } catch (error) {
+    console.error('Token verification failed:', error.message);
+    return null;
+  }
 };
 
 const readBody = (req) => new Promise((resolve, reject) => {
@@ -84,57 +102,92 @@ const server = http.createServer(async (req, res) => {
     return fs.createReadStream(file).pipe(res);
   }
 
-  if (url.pathname === '/api/auth/register' && req.method === 'POST') {
-    const { email, password, role = 'Médico Diabetología' } = await readBody(req);
-    if (!email || !password) return json(res, 400, { error: 'email y password son requeridos' });
-    const db = readData();
-    if (db.users.some(u => u.email === email)) return json(res, 409, { error: 'Usuario ya existe' });
-    const user = { id: crypto.randomUUID(), email, passwordHash: hashPassword(password), role };
-    db.users.push(user);
-    writeData(db);
-    return json(res, 201, { ok: true });
-  }
-
-  if (url.pathname === '/api/auth/login' && req.method === 'POST') {
-    const { email, password } = await readBody(req);
-    const db = readData();
-    const user = db.users.find(u => u.email === email);
-    if (!user || !verifyPassword(password, user.passwordHash)) return json(res, 401, { error: 'Credenciales inválidas' });
-    const token = signToken({ sub: user.id, email: user.email, role: user.role });
-    return json(res, 200, { token, user: { id: user.id, email: user.email, role: user.role } });
-  }
+  // Authentication endpoints removed - now handled by Firebase Auth on client
 
   if (url.pathname.startsWith('/api/')) {
-    const auth = req.headers.authorization?.replace('Bearer ', '');
-    const user = verifyToken(auth);
+    const authHeader = req.headers.authorization?.replace('Bearer ', '');
+    const user = await verifyToken(authHeader);
     if (!user) return json(res, 401, { error: 'No autorizado' });
 
     if (url.pathname === '/api/state' && req.method === 'GET') {
-      const db = readData();
-      return json(res, 200, db.appState);
+      const results = {};
+      const keys = ['patients', 'episodes', 'visits', 'referrals'];
+
+      for (const key of keys) {
+        const snapshot = await firestore.collection(`pd_${key}`).get();
+        results[key] = snapshot.docs.map(doc => doc.data());
+      }
+
+      return json(res, 200, results);
     }
 
     if (url.pathname === '/api/state' && req.method === 'PUT') {
       const nextState = await readBody(req);
-      const db = readData();
-      db.appState = {
-        patients: Array.isArray(nextState.patients) ? nextState.patients : [],
-        episodes: Array.isArray(nextState.episodes) ? nextState.episodes : [],
-        visits: Array.isArray(nextState.visits) ? nextState.visits : [],
-        referrals: Array.isArray(nextState.referrals) ? nextState.referrals : []
+      const batch = firestore.batch();
+
+      const updateCollection = async (key, items) => {
+        if (!Array.isArray(items)) return;
+        // This is a naive sync but maintains the current API contract
+        // Delete all current (or better, just upsert)
+        // For simplicity in Phase 1, we just upsert everything provided
+        items.forEach(item => {
+          if (!item.id) return;
+          const ref = firestore.collection(`pd_${key}`).doc(item.id);
+          batch.set(ref, item, { merge: true });
+        });
       };
-      writeData(db);
+
+      await updateCollection('patients', nextState.patients);
+      await updateCollection('episodes', nextState.episodes);
+      await updateCollection('visits', nextState.visits);
+      await updateCollection('referrals', nextState.referrals);
+
+      await batch.commit();
+      return json(res, 200, { ok: true });
+    }
+
+    if (url.pathname === '/api/settings/clinical' && req.method === 'GET') {
+      const doc = await firestore.collection(COLLECTIONS.SETTINGS).doc('clinical_config').get();
+      if (!doc.exists) return json(res, 404, { error: 'Settings not found' });
+      return json(res, 200, doc.data());
+    }
+
+    if (url.pathname === '/api/settings/clinical' && req.method === 'PUT') {
+      if (user.role !== 'Admin') return json(res, 403, { error: 'Forbidden' });
+      const nextConfig = await readBody(req);
+      await firestore.collection(COLLECTIONS.SETTINGS).doc('clinical_config').set({
+        ...nextConfig,
+        updatedAt: new Date().toISOString(),
+        updatedBy: user.email
+      }, { merge: true });
       return json(res, 200, { ok: true });
     }
 
     if (url.pathname === '/api/uploads/photo' && req.method === 'POST') {
       const { dataUrl, filename = 'photo.jpg' } = await readBody(req);
       if (!dataUrl || !dataUrl.includes('base64,')) return json(res, 400, { error: 'Imagen inválida' });
+
       const base64 = dataUrl.split('base64,')[1];
+      const buffer = Buffer.from(base64, 'base64');
       const ext = path.extname(filename) || '.jpg';
-      const fileName = `${Date.now()}-${crypto.randomUUID()}${ext}`;
-      fs.writeFileSync(path.join(UPLOADS, fileName), Buffer.from(base64, 'base64'));
-      return json(res, 201, { url: `${process.env.PUBLIC_API_URL || `http://localhost:${PORT}`}/uploads/${fileName}` });
+      const fileName = `uploads/${Date.now()}-${crypto.randomUUID()}${ext}`;
+
+      const bucket = admin.storage().bucket();
+      const file = bucket.file(fileName);
+
+      await file.save(buffer, {
+        metadata: { contentType: `image/${ext.replace('.', '') || 'jpeg'}` }
+      });
+
+      // Make the file publicly accessible or get a signed URL
+      // For simplicity in Phase 1, we make it public (not ideal for HIPAA but better than local)
+      // Actually, let's use a long-lived signed URL for now to keep it "working" as before
+      const [signedUrl] = await file.getSignedUrl({
+        action: 'read',
+        expires: '03-01-2500' // Far future
+      });
+
+      return json(res, 201, { url: signedUrl });
     }
   }
 
@@ -143,5 +196,5 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, () => {
   console.log(`API running on http://localhost:${PORT}`);
-  console.log('PostgreSQL-ready note: this lightweight backend stores JSON file by default.');
+  console.log('Firebase Cloud Mode: active');
 });
