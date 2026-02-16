@@ -8,7 +8,8 @@
     "dev": "vite",
     "build": "vite build --emptyOutDir",
     "start": "npx vite preview --host 0.0.0.0 --port ${PORT:-8080}",
-    "preview": "vite preview --host 0.0.0.0 --port ${PORT:-8080}"
+    "preview": "vite preview --host 0.0.0.0 --port ${PORT:-8080}",
+    "migrate:center-ids": "node scripts/migrate_center_ids.js"
   },
   "dependencies": {
     "@google/genai": "^0.2.0",

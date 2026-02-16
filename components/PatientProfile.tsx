@@ -10,9 +10,10 @@ interface PatientProfileProps {
   onAddEpisode: (e: Episode) => void;
   role: UserRole;
   onUpdatePatient: (p: Patient) => void;
+  activeCenterId: string;
 }
 
-const PatientProfile: React.FC<PatientProfileProps> = ({ patient, episodes, onSelectEpisode, onAddEpisode, role, onUpdatePatient }) => {
+const PatientProfile: React.FC<PatientProfileProps> = ({ patient, episodes, onSelectEpisode, onAddEpisode, role, onUpdatePatient, activeCenterId }) => {
   const [showAddEpisode, setShowAddEpisode] = useState(false);
   const [showAddLab, setShowAddLab] = useState(false);
   const [newLab, setNewLab] = useState<Partial<LabResult>>({
@@ -288,6 +289,7 @@ const PatientProfile: React.FC<PatientProfileProps> = ({ patient, episodes, onSe
               const newEpisode: Episode = {
                 id: generateId(),
                 patientId: patient.id,
+                centerId: activeCenterId,
                 startDate: new Date().toISOString(),
                 side: formData.get('side') as 'D' | 'I',
                 location: formData.get('location') as string,

@@ -6,16 +6,19 @@ interface SidebarProps {
   currentView: string;
   setView: (view: any) => void;
   role: UserRole;
+  modules?: string[];
   onLogout: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, role, onLogout }) => {
+const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, role, modules = [], onLogout }) => {
+  const hasModule = (moduleName: string) => modules.length === 0 || modules.includes(moduleName);
+
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: 'fa-chart-line' },
-    { id: 'patients', label: 'Pacientes', icon: 'fa-user-injured' },
-    { id: 'alerts', label: 'Alertas', icon: 'fa-bell', badge: true },
-    ...(role === UserRole.ADMIN ? [{ id: 'settings', label: 'Ajustes', icon: 'fa-gear' }] : []),
-    ...(role === UserRole.PARAMEDIC ? [{ id: 'camera', label: 'Cámara Rápida', icon: 'fa-camera' }] : [])
+    ...(hasModule('dashboard') ? [{ id: 'dashboard', label: 'Dashboard', icon: 'fa-chart-line' }] : []),
+    ...(hasModule('patients') ? [{ id: 'patients', label: 'Pacientes', icon: 'fa-user-injured' }] : []),
+    ...(hasModule('alerts') ? [{ id: 'alerts', label: 'Alertas', icon: 'fa-bell', badge: true }] : []),
+    ...((role === UserRole.ADMIN && hasModule('settings')) ? [{ id: 'settings', label: 'Ajustes', icon: 'fa-gear' }] : []),
+    ...((role === UserRole.PARAMEDIC && hasModule('camera')) ? [{ id: 'camera', label: 'Cámara Rápida', icon: 'fa-camera' }] : [])
   ];
 
   return (

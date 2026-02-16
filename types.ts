@@ -28,6 +28,20 @@ export interface ClinicalConfig {
   updatedBy: string;
 }
 
+export interface Center {
+  id: string;
+  name: string;
+  modules: string[];
+  enabledRoles: UserRole[];
+  defaultRole?: UserRole;
+}
+
+export interface CenterMembership {
+  uid: string;
+  roles: UserRole[];
+  isActive: boolean;
+}
+
 export interface LabResult {
   id: string;
   date: string;
@@ -70,6 +84,7 @@ export interface ReferralReport {
   id: string;
   episodeId: string;
   patientId: string;
+  centerId: string;
   date: string;
   content: string;
   status: 'Pendiente' | 'Revisado';
@@ -87,6 +102,7 @@ export interface MedicalData {
 
 export interface Patient {
   id: string;
+  centerId: string;
   rut: string;
   name: string;
   birthDate: string;
@@ -144,6 +160,7 @@ export interface TexasScore {
 export interface Episode {
   id: string;
   patientId: string;
+  centerId: string;
   startDate: string;
   side: 'D' | 'I';
   location: string;
@@ -176,6 +193,7 @@ export interface Episode {
 export interface Visit {
   id: string;
   episodeId: string;
+  centerId: string;
   date: string;
   professionalId: string;
   professionalRole: UserRole;
