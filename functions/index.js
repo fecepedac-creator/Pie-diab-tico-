@@ -143,14 +143,7 @@ function parseLogoDataUrl(value) {
 }
 
 async function withCenterLogoUrls(centers) {
-  const bucket = getStorage().bucket();
-  return Promise.all(centers.map(async (center) => {
-    if (!center.logoStoragePath) return center;
-    try {
-      const [logoUrl] = await bucket.file(center.logoStoragePath).getSignedUrl({ action: 'read', expires: Date.now() + 15 * 60 * 1000 });
-      return { ...center, logoUrl };
-    } catch { return center; }
-  }));
+  return centers.map((center) => center.logoStoragePath ? { ...center, logoUrl: `/api/public/centers/${encodeURIComponent(center.id)}/logo?v=${encodeURIComponent(center.updatedAt || '')}` } : center);
 }
 
 async function withPatientPhotoUrls(patients) {
@@ -178,6 +171,13 @@ async function route(req, res, actor) {
   const path = req.path.replace(/^\/api/, '') || '/';
   const method = req.method;
   if (path === '/health' && method === 'GET') return send(res, 200, { status: 'ok', service: 'pie-diabetico-api', version: '4.0.0' });
+  const publicLogoMatch = path.match(/^\/public\/centers\/([^/]+)\/logo$/);
+  if (publicLogoMatch && method === 'GET') {
+    const snap = await db.doc(`centers/${publicLogoMatch[1]}`).get(); const center = snap.data();
+    if (!snap.exists || !center?.logoStoragePath || center.status === 'archived') return send(res, 404, { error: 'Logo no disponible.' });
+    const file = getStorage().bucket().file(center.logoStoragePath); const [metadata] = await file.getMetadata(); const [buffer] = await file.download();
+    return res.status(200).set('Content-Type', metadata.contentType || 'image/png').set('Cache-Control', 'public, max-age=3600').set('X-Content-Type-Options', 'nosniff').send(buffer);
+  }
   if (!actor) throw Object.assign(new Error('Debes iniciar sesión.'), { status: 401 });
 
   if (path === '/session' && method === 'GET') {
@@ -445,8 +445,9 @@ exports.api = onRequest({ region: 'southamerica-west1', memory: '512MiB', timeou
   setCors(req, res);
   if (req.method === 'OPTIONS') return res.status(204).send('');
   try {
-    const publicHealth = (req.path.replace(/^\/api/, '') || '/') === '/health';
-    const actor = publicHealth ? null : await actorFromRequest(req);
+    const requestPath = req.path.replace(/^\/api/, '') || '/';
+    const publicRequest = requestPath === '/health' || /^\/public\/centers\/[^/]+\/logo$/.test(requestPath);
+    const actor = publicRequest ? null : await actorFromRequest(req);
     return await route(req, res, actor);
   } catch (error) {
     console.error('api_error', { message: error.message, path: req.path, status: error.status || 500 });

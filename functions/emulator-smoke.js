@@ -27,6 +27,7 @@ async function call(path, idToken, method = 'GET', body) {
   const health = await call('/health', idToken); assert.equal(health.response.status, 200);
   const session = await call('/session', idToken); assert.equal(session.response.status, 200); assert.equal(session.payload.platformAdmin, true); assert.equal(session.payload.memberships[0].centerId, centerId);
   const brandedCenter = await call('/platform/centers', idToken, 'POST', { name: 'Centro con Identidad', code: 'LOGO-01', adminEmail: 'admin.logo@hospital.cl', logoDataUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=' }); assert.equal(brandedCenter.response.status, 201, JSON.stringify(brandedCenter.payload)); assert.match(brandedCenter.payload.center.logoStoragePath, /\/branding\/logo\.png$/);
+  const publicLogo = await fetch(`http://127.0.0.1:5002${brandedCenter.payload.center.logoUrl}`); assert.equal(publicLogo.status, 200); assert.equal(publicLogo.headers.get('content-type'), 'image/png');
   const centerList = await call('/platform/centers', idToken); assert.equal(centerList.response.status, 200); assert(centerList.payload.centers.some((item) => item.id === brandedCenter.payload.center.id && item.logoStoragePath));
   const editedCenter = await call(`/platform/centers/${brandedCenter.payload.center.id}`, idToken, 'PUT', { name: 'Centro Editado', code: 'EDIT-01', region: 'Maule', removeLogo: true }); assert.equal(editedCenter.response.status, 200, JSON.stringify(editedCenter.payload)); assert.equal(editedCenter.payload.center.name, 'Centro Editado'); assert.equal(editedCenter.payload.center.logoStoragePath, undefined);
   const archivedCenter = await call(`/platform/centers/${brandedCenter.payload.center.id}`, idToken, 'DELETE'); assert.equal(archivedCenter.response.status, 200); assert.equal(archivedCenter.payload.center.status, 'archived');
@@ -47,5 +48,5 @@ async function call(path, idToken, method = 'GET', body) {
   const archivedClinicalCenter = await call(`/platform/centers/${centerId}`, idToken, 'DELETE'); assert.equal(archivedClinicalCenter.response.status, 200); assert.equal(archivedClinicalCenter.payload.center.status, 'archived');
   const blockedState = await call(`/centers/${centerId}/state`, idToken); assert.equal(blockedState.response.status, 403);
   const restoredClinicalCenter = await call(`/platform/centers/${centerId}`, idToken, 'PUT', { status: 'active' }); assert.equal(restoredClinicalCenter.response.status, 200);
-  console.log(JSON.stringify({ ok: true, checks: 29, auditEvents: logs.payload.events.length }));
+  console.log(JSON.stringify({ ok: true, checks: 31, auditEvents: logs.payload.events.length }));
 })().finally(() => deleteApp(app)).catch((error) => { console.error(error); process.exitCode = 1; });
