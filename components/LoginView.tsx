@@ -1,32 +1,67 @@
+import { useState } from 'react';
 import { signInWithPopup, signInWithRedirect } from 'firebase/auth';
 import { auth, googleProvider } from '../firebase';
 
 export default function LoginView({ error }: { error?: string }) {
+  const [busy, setBusy] = useState(false);
+  const reportError = (code = '') => {
+    const message = code === 'auth/unauthorized-domain'
+      ? 'Este sitio todavía no está autorizado para iniciar sesión. Contacta al administrador de la plataforma.'
+      : 'No pudimos completar el acceso con Google. Inténtalo nuevamente.';
+    window.dispatchEvent(new CustomEvent('auth-error', { detail: message }));
+  };
+
   const login = async () => {
-    try { await signInWithPopup(auth, googleProvider); }
-    catch (cause) {
-      if (cause && typeof cause === 'object' && 'code' in cause && ['auth/popup-blocked', 'auth/cancelled-popup-request'].includes(String(cause.code))) {
-        await signInWithRedirect(auth, googleProvider); return;
+    setBusy(true);
+    try {
+      const prefersRedirect = window.matchMedia('(pointer: coarse)').matches || window.innerWidth < 760;
+      if (prefersRedirect) {
+        await signInWithRedirect(auth, googleProvider);
+        return;
       }
-      const message = cause instanceof Error ? cause.message : 'No fue posible iniciar sesión.';
-      window.dispatchEvent(new CustomEvent('auth-error', { detail: message }));
+      await signInWithPopup(auth, googleProvider);
+    }
+    catch (cause) {
+      const code = cause && typeof cause === 'object' && 'code' in cause ? String(cause.code) : '';
+      if (['auth/popup-blocked', 'auth/cancelled-popup-request', 'auth/internal-error'].includes(code)) {
+        try { await signInWithRedirect(auth, googleProvider); }
+        catch (redirectCause) {
+          reportError(redirectCause && typeof redirectCause === 'object' && 'code' in redirectCause ? String(redirectCause.code) : '');
+          setBusy(false);
+        }
+        return;
+      }
+      reportError(code);
+      setBusy(false);
     }
   };
 
   return <main className="login-shell">
     <section className="login-card">
-      <div className="brand-mark" aria-hidden="true">PD</div>
-      <p className="eyebrow">Atención coordinada · Pie diabético</p>
-      <h1>Una ficha de trabajo compartida para todo el equipo</h1>
-      <p className="lead">Registra, coordina y copia una evolución clara a la ficha clínica institucional. Los datos se mantienen separados por centro.</p>
-      {error && <div className="notice danger" role="alert">{error}</div>}
-      <button className="google-button" onClick={login}>
-        <span className="google-g">G</span> Continuar con Google institucional
-      </button>
-      <div className="trust-grid">
-        <span>✓ Acceso por invitación</span><span>✓ Permisos por perfil</span><span>✓ Registro de cambios</span>
+      <div className="login-content">
+        <div className="login-brand-row">
+          <div className="brand-mark" aria-hidden="true">PD</div>
+          <span>Policlínico de Pie Diabético</span>
+        </div>
+        <p className="eyebrow">Cuidado coordinado · Seguimiento continuo</p>
+        <h1>Cuidamos cada paso, juntos</h1>
+        <p className="lead">Una ficha de trabajo compartida para que cada profesional vea la misma historia, coordine a tiempo y acompañe mejor a cada paciente.</p>
+        {error && <div className="notice danger login-error" role="alert">{error}</div>}
+        <button className="google-button" onClick={login} disabled={busy}>
+          <span className="google-g" aria-hidden="true">G</span> {busy ? 'Abriendo acceso seguro…' : 'Ingresar con Google institucional'}
+        </button>
+        <div className="trust-grid" aria-label="Características de seguridad">
+          <span>Acceso por invitación</span><span>Permisos por perfil</span><span>Registro de cambios</span>
+        </div>
+        <p className="fine-print">Esta plataforma apoya el flujo asistencial y no reemplaza la ficha clínica electrónica ni el juicio profesional.</p>
       </div>
-      <p className="fine-print">Esta plataforma apoya el flujo asistencial y no reemplaza la ficha clínica electrónica ni el juicio profesional.</p>
+      <div className="login-visual" aria-label="Equipo clínico acompañando a un paciente durante su atención">
+        <img src="/clinical-care-hero.webp" alt="Enfermera y médico acompañan a un paciente durante el cuidado de su pie" />
+        <div className="image-message">
+          <span aria-hidden="true">♥</span>
+          <p><strong>Un solo equipo.</strong><br />Una atención más humana.</p>
+        </div>
+      </div>
     </section>
   </main>;
 }

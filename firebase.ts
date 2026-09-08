@@ -8,7 +8,9 @@ import {
 
 const firebaseConfig = {
   apiKey: import.meta.env.DEV && import.meta.env.VITE_FIREBASE_API_KEY ? import.meta.env.VITE_FIREBASE_API_KEY : 'AIzaSyBItYxeFIbQBM6d5cEgsZYQFn20l7k0-84',
-  authDomain: import.meta.env.DEV && import.meta.env.VITE_FIREBASE_AUTH_DOMAIN ? import.meta.env.VITE_FIREBASE_AUTH_DOMAIN : 'policlinico-de-pie-diabetico.firebaseapp.com',
+  // Keep the OAuth helper on the same Firebase Hosting origin. This avoids
+  // third-party storage restrictions on current mobile and desktop browsers.
+  authDomain: import.meta.env.DEV && import.meta.env.VITE_FIREBASE_AUTH_DOMAIN ? import.meta.env.VITE_FIREBASE_AUTH_DOMAIN : 'policlinico-de-pie-diabetico.web.app',
   projectId: import.meta.env.DEV && import.meta.env.VITE_FIREBASE_PROJECT_ID ? import.meta.env.VITE_FIREBASE_PROJECT_ID : 'policlinico-de-pie-diabetico',
   storageBucket: import.meta.env.DEV && import.meta.env.VITE_FIREBASE_STORAGE_BUCKET ? import.meta.env.VITE_FIREBASE_STORAGE_BUCKET : 'policlinico-de-pie-diabetico.firebasestorage.app',
   messagingSenderId: import.meta.env.DEV && import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID ? import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID : '953735305510',
