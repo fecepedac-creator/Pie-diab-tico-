@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { getRedirectResult, onAuthStateChanged, signOut, type Unsubscribe } from 'firebase/auth';
+import { onAuthStateChanged, signOut, type Unsubscribe } from 'firebase/auth';
 import { auth, authPersistenceReady } from './firebase';
 import { api, ApiError } from './services/api';
 import type { Center, ClinicalState, Encounter, Membership, SessionInfo } from './types';
@@ -24,7 +24,7 @@ export default function App() {
     const valid = value.centers.some((center) => center.id === centerId);
     const next = valid ? centerId : value.centers[0]?.id || '';
     setCenterId(next); localStorage.setItem('pd_center', next);
-    if (!value.memberships.length && value.platformAdmin) setView('platform');
+    if (value.platformAdmin) setView('platform');
   };
 
   useEffect(() => {
@@ -33,10 +33,7 @@ export default function App() {
 
     const initializeAuthentication = async () => {
       try {
-        // A full-page Google sign-in only becomes a Firebase session after its
-        // redirect result is consumed on the returning page.
         await authPersistenceReady;
-        await getRedirectResult(auth);
       } catch (cause) {
         if (!disposed) {
           const code = cause && typeof cause === 'object' && 'code' in cause ? String(cause.code) : '';
