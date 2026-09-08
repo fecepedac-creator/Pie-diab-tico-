@@ -1,24 +1,23 @@
-
-import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
+import { initializeApp } from 'firebase/app';
+import {
+  browserLocalPersistence,
+  getAuth,
+  GoogleAuthProvider,
+  setPersistence,
+} from 'firebase/auth';
 
 const firebaseConfig = {
-    apiKey: "AIzaSyBItYxeFIbQBM6d5cEgsZYQFn20l7k0-84",
-    authDomain: "policlinico-de-pie-diabetico.firebaseapp.com",
-    projectId: "policlinico-de-pie-diabetico",
-    storageBucket: "policlinico-de-pie-diabetico.firebasestorage.app",
-    messagingSenderId: "953735305510",
-    appId: "1:953735305510:web:38664e3d6938618a6909e7",
-    measurementId: "G-XZBCB7N6B1"
+  apiKey: import.meta.env.DEV && import.meta.env.VITE_FIREBASE_API_KEY ? import.meta.env.VITE_FIREBASE_API_KEY : 'AIzaSyBItYxeFIbQBM6d5cEgsZYQFn20l7k0-84',
+  authDomain: import.meta.env.DEV && import.meta.env.VITE_FIREBASE_AUTH_DOMAIN ? import.meta.env.VITE_FIREBASE_AUTH_DOMAIN : 'policlinico-de-pie-diabetico.firebaseapp.com',
+  projectId: import.meta.env.DEV && import.meta.env.VITE_FIREBASE_PROJECT_ID ? import.meta.env.VITE_FIREBASE_PROJECT_ID : 'policlinico-de-pie-diabetico',
+  storageBucket: import.meta.env.DEV && import.meta.env.VITE_FIREBASE_STORAGE_BUCKET ? import.meta.env.VITE_FIREBASE_STORAGE_BUCKET : 'policlinico-de-pie-diabetico.firebasestorage.app',
+  messagingSenderId: import.meta.env.DEV && import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID ? import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID : '953735305510',
+  appId: import.meta.env.DEV && import.meta.env.VITE_FIREBASE_APP_ID ? import.meta.env.VITE_FIREBASE_APP_ID : '1:953735305510:web:38664e3d6938618a6909e7',
 };
 
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
-const auth = getAuth(app);
-const db = getFirestore(app);
-const storage = getStorage(app);
+export const firebaseApp = initializeApp(firebaseConfig);
+export const auth = getAuth(firebaseApp);
+export const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({ prompt: 'select_account' });
 
-export { app, analytics, auth, db, storage };
+void setPersistence(auth, browserLocalPersistence);

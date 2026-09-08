@@ -1,36 +1,47 @@
-# Pie Diabético - Gestión Clínica Multidisciplinaria
+# Plataforma de gestión del equipo de Pie Diabético
 
-Aplicación clínica con:
-- **Backend persistente multiusuario** (API + almacenamiento de estado en servidor, lista para migración a PostgreSQL/MongoDB).
-- **Autenticación real** (registro/login con roles y token).
-- **Funciones IA con Gemini** vía `VITE_GEMINI_API_KEY`.
-- **Subida de fotos reales** de heridas.
-- **Exportación de comité a PDF** con `jsPDF`.
+Aplicación móvil y multicentro para coordinar el trabajo previo y posterior a la ficha clínica electrónica institucional. No reemplaza la ficha clínica ni toma decisiones clínicas automáticas.
 
-## 1) Configuración de entorno
-Crea `.env.local` para frontend y `.env` para backend (puedes usar `.env.example`):
+## Flujo implementado
+
+- Inicio de sesión con Google y acceso únicamente por invitación.
+- Superadministrador de plataforma para crear centros; no recibe acceso clínico implícito.
+- Administrador de centro para invitar personas y combinar perfiles.
+- Perfiles de coordinación, TENS, enfermería, medicina, cirugía general, cirugía vascular, enfermería vascular, traumatología, fisiatría, trabajo social y auditoría.
+- Ingreso mínimo desde móvil, preingreso clínico/social, episodio de herida y consentimiento fotográfico.
+- Atención compartida: caracterización única de la herida visible para medicina y enfermería, curación avanzada, WIfI sin clasificación automática y plan médico.
+- Fotografías privadas pre y post curación, exámenes PDF/imagen, tareas internas con prioridad/plazo y aviso de WhatsApp sin datos personales.
+- Evoluciones determinísticas listas para revisar y copiar a la ficha institucional.
+- Vista imprimible para reunión multidisciplinaria.
+- Control de concurrencia, permisos en servidor y bitácora de acciones.
+
+## Arquitectura y seguridad
+
+React/Vite sirve la interfaz. Una Cloud Function verifica el token Firebase, el correo confirmado, la membresía del centro y el perfil para cada operación. Firestore y Storage deniegan todo acceso directo desde el navegador. Las fotos y documentos se entregan mediante enlaces privados de corta duración.
+
+No se envían datos clínicos a servicios de IA. WhatsApp sólo prepara un aviso genérico para abrir la plataforma y requiere configurar el número institucional del centro.
+
+## Desarrollo y validación
 
 ```bash
-cp .env.example .env.local
-cp .env.example .env
+npm ci
+npm ci --prefix functions
+npm run validate
+firebase emulators:exec --project demo-pie-diabetico --only "auth,firestore,functions,hosting" "node functions/emulator-smoke.js"
 ```
 
-Variables relevantes:
-- `VITE_API_URL=http://localhost:4000`
-- `VITE_GEMINI_API_KEY=...`
-- `API_PORT=4000`
-- `JWT_SECRET=...`
+El test de emuladores usa exclusivamente identidades y pacientes sintéticos.
 
-## 2) Ejecutar backend
+## Despliegue
+
 ```bash
-npm run server
+firebase deploy --only functions:api,firestore:rules,firestore:indexes,storage,hosting
 ```
 
-## 3) Ejecutar frontend
+El alta inicial se ejecuta localmente con credenciales administrativas ignoradas por Git:
+
 ```bash
-npm run dev
+node scripts/bootstrap_platform_admin.cjs --email persona@institucion.cl --center "Equipo de Pie Diabético"
 ```
 
-## Nota de persistencia
-El backend incluido persiste en `server/data.json` para funcionar sin dependencias externas.
-Está preparado para migrar a PostgreSQL/MongoDB reemplazando la capa de almacenamiento en `server/index.js`.
+Nunca confirmar en Git archivos `service-account.json`, `.env` ni datos exportados.

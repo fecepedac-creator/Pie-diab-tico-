@@ -4,25 +4,26 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "server": "node server/index.js",
     "dev": "vite",
     "build": "vite build --emptyOutDir",
+    "typecheck": "tsc --noEmit",
+    "test": "npm --prefix functions test",
+    "validate": "npm run typecheck && npm test && npm run build && npm --prefix functions run lint",
     "start": "npx vite preview --host 0.0.0.0 --port ${PORT:-8080}",
     "preview": "vite preview --host 0.0.0.0 --port ${PORT:-8080}"
   },
   "dependencies": {
-    "@google/genai": "^0.2.0",
     "@vitejs/plugin-react": "5.0.0",
     "firebase": "^12.9.0",
-    "firebase-admin": "^13.6.1",
-    "html2canvas": "1.4.1",
-    "jspdf": "2.5.1",
     "react": "19.2.0",
     "react-dom": "19.2.0",
-    "vite": "6.0.0"
+    "vite": "6.4.3"
   },
   "devDependencies": {
     "@types/node": "22.14.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "firebase-admin": "14.3.0",
     "typescript": "5.8.2"
   }
 }

@@ -1,243 +1,83 @@
-import React, { useState, useEffect } from 'react';
-import { UserRole, Patient, Episode, Visit, Alert, ReferralReport, User, ClinicalConfig } from './types.ts';
-import { generateId } from './utils.ts';
-import { api } from './services/api.ts';
-import Sidebar from './components/Sidebar.tsx';
-import Dashboard from './components/Dashboard.tsx';
-import PatientList from './components/PatientList.tsx';
-import PatientProfile from './components/PatientProfile.tsx';
-import EpisodeDetails from './components/EpisodeDetails.tsx';
-import WeeklyVisitForm from './components/WeeklyVisitForm.tsx';
-import AlertCenter from './components/AlertCenter.tsx';
-import SurgicalInbox from './components/SurgicalInbox.tsx';
-import PresentationView from './components/PresentationView.tsx';
-import LoginView from './components/LoginView.tsx';
-import AdminSettings from './components/AdminSettings.tsx';
-import ParamedicView from './components/ParamedicView.tsx';
+import { useEffect, useMemo, useState } from 'react';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { auth } from './firebase';
+import { api, ApiError } from './services/api';
+import type { Center, ClinicalState, Encounter, Membership, SessionInfo } from './types';
+import LoginView from './components/LoginView';
+import PlatformAdminDashboard from './components/PlatformAdminDashboard';
+import CenterAdminDashboard from './components/CenterAdminDashboard';
+import ClinicalDashboard from './components/ClinicalDashboard';
 
-const App: React.FC = () => {
-  const [authToken, setAuthToken] = useState<string | null>(() => localStorage.getItem('pd_auth_token'));
-  const [currentUserRole, setCurrentUserRole] = useState<UserRole>(UserRole.ADMIN);
-  const [currentUserEmail, setCurrentUserEmail] = useState<string>('');
-  const [currentView, setCurrentView] = useState<'dashboard' | 'patients' | 'alerts' | 'profile' | 'episode' | 'new-visit' | 'inbox' | 'presentation' | 'settings' | 'camera'>('dashboard');
-  const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
-  const [selectedEpisodeId, setSelectedEpisodeId] = useState<string | null>(null);
+type View = 'clinical' | 'center' | 'platform';
 
-  const user = authToken ? { role: currentUserRole, email: currentUserEmail } : null;
+export default function App() {
+  const [session, setSession] = useState<SessionInfo | null>(null);
+  const [centerId, setCenterId] = useState(() => localStorage.getItem('pd_center') || '');
+  const [state, setState] = useState<ClinicalState | null>(null);
+  const [view, setView] = useState<View>('clinical');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [episodes, setEpisodes] = useState<Episode[]>([]);
-  const [visits, setVisits] = useState<Visit[]>([]);
-  const [referrals, setReferrals] = useState<ReferralReport[]>([]);
-  const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [clinicalConfig, setClinicalConfig] = useState<ClinicalConfig | null>(null);
-
-  const loadFromLocal = () => {
-    try {
-      setPatients(JSON.parse(localStorage.getItem('pd_patients') || '[]'));
-      setEpisodes(JSON.parse(localStorage.getItem('pd_episodes') || '[]'));
-      setVisits(JSON.parse(localStorage.getItem('pd_visits') || '[]'));
-      setReferrals(JSON.parse(localStorage.getItem('pd_referrals') || '[]'));
-    } catch {
-      setPatients([]); setEpisodes([]); setVisits([]); setReferrals([]);
-    }
+  const refreshSession = async () => {
+    const value = await api.session();
+    setSession(value);
+    const valid = value.centers.some((center) => center.id === centerId);
+    const next = valid ? centerId : value.centers[0]?.id || '';
+    setCenterId(next); localStorage.setItem('pd_center', next);
+    if (!value.memberships.length && value.platformAdmin) setView('platform');
   };
+
+  useEffect(() => onAuthStateChanged(auth, async (user) => {
+    setLoading(true); setError('');
+    if (!user) { setSession(null); setState(null); setLoading(false); return; }
+    try { await refreshSession(); }
+    catch (cause) {
+      setError(cause instanceof ApiError && cause.status === 403 ? 'Tu cuenta Google aún no tiene una invitación activa. Solicita acceso al administrador del centro.' : cause instanceof Error ? cause.message : 'No fue posible cargar tu sesión.');
+    } finally { setLoading(false); }
+  }), []);
 
   useEffect(() => {
-    const role = localStorage.getItem('pd_auth_role');
-    const email = localStorage.getItem('pd_auth_email');
-    if (role) setCurrentUserRole(role as UserRole);
-    if (email) setCurrentUserEmail(email);
+    const handler = (event: Event) => setError((event as CustomEvent<string>).detail);
+    window.addEventListener('auth-error', handler); return () => window.removeEventListener('auth-error', handler);
+  }, []);
 
-    if (authToken) {
-      api.getState(authToken)
-        .then(state => {
-          setPatients(state.patients as Patient[]);
-          setEpisodes(state.episodes as Episode[]);
-          setVisits(state.visits as Visit[]);
-          setReferrals(state.referrals as ReferralReport[]);
-        })
-        .catch(() => loadFromLocal());
+  const membership = useMemo<Membership | undefined>(() => session?.memberships.find((item) => item.centerId === centerId), [session, centerId]);
+  const center = session?.centers.find((item) => item.id === centerId);
+  const canUseClinical = Boolean(membership?.roles.some((role) => !['center_admin', 'auditor'].includes(role)));
+  const canAdminCenter = membership?.roles.includes('center_admin') ?? false;
 
-      api.getClinicalConfig(authToken)
-        .then(setClinicalConfig)
-        .catch(() => { });
-    } else {
-      loadFromLocal();
-    }
-  }, [authToken]);
-
-  useEffect(() => {
-    localStorage.setItem('pd_patients', JSON.stringify(patients));
-    localStorage.setItem('pd_episodes', JSON.stringify(episodes));
-    localStorage.setItem('pd_visits', JSON.stringify(visits));
-    localStorage.setItem('pd_referrals', JSON.stringify(referrals));
-
-    if (authToken) {
-      api.saveState(authToken, { patients, episodes, visits, referrals }).catch(() => { });
-    }
-  }, [patients, episodes, visits, referrals, authToken]);
-
-  useEffect(() => {
-    const newAlerts: Alert[] = [];
-    const now = new Date();
-
-    episodes.filter(e => e.isActive).forEach(ep => {
-      const patient = patients.find(p => p.id === ep.patientId);
-      const epVisits = visits.filter(v => v.episodeId === ep.id).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-      if (ep.vascularStatus?.abi !== undefined && ep.vascularStatus.abi < 0.5) {
-        newAlerts.push({ id: `isch-${ep.id}`, type: 'Surgical', severity: 'High', message: `VASCULAR: Isquemia Crítica (ABI ${ep.vascularStatus.abi}) en ${patient?.name || 'paciente'}.`, episodeId: ep.id, patientId: patient?.id, createdAt: now.toISOString(), isResolved: false });
-      }
-      if (epVisits.length >= 2 && epVisits[0].evolution === 'Peor' && epVisits[1].evolution === 'Peor') {
-        newAlerts.push({ id: `peor-${ep.id}`, type: 'Clinical', severity: 'High', message: `CRÍTICO: 2 evoluciones "Peor" consecutivas en ${patient?.name || 'paciente'}.`, episodeId: ep.id, patientId: patient?.id, createdAt: now.toISOString(), isResolved: false });
-      }
-    });
-
-    setAlerts(newAlerts);
-  }, [episodes, visits, patients]);
-
-  const handleLogin = async (email: string, password: string) => {
-    const { token, user } = await api.login(email, password);
-    setAuthToken(token);
-    setCurrentUserRole(user.role as UserRole);
-    setCurrentUserEmail(user.email);
-    localStorage.setItem('pd_auth_token', token);
-    localStorage.setItem('pd_auth_role', user.role);
-    localStorage.setItem('pd_auth_email', user.email);
+  const refreshState = async () => {
+    if (!centerId || !membership || !membership.roles.some((role) => role !== 'center_admin')) { setState(null); return; }
+    setState(await api.getState(centerId));
   };
 
-  const handleRegister = async (email: string, password: string, role: UserRole) => {
-    await api.register(email, password, role);
-  };
+  useEffect(() => { if (centerId && session) void refreshState().catch((cause) => setError(cause instanceof Error ? cause.message : 'No fue posible cargar el centro.')); }, [centerId, session]);
 
-  const logout = () => {
-    setAuthToken(null);
-    localStorage.removeItem('pd_auth_token');
-    localStorage.removeItem('pd_auth_role');
-    localStorage.removeItem('pd_auth_email');
-  };
+  const chooseCenter = (id: string) => { setCenterId(id); localStorage.setItem('pd_center', id); setView('clinical'); };
+  const replaceEncounter = (encounter: Encounter) => setState((current) => current ? ({ ...current, encounters: current.encounters.map((item) => item.id === encounter.id ? encounter : item) }) : current);
 
-  const addReferral = (report: string, epId: string, patId: string) => {
-    const newRef: ReferralReport = {
-      id: generateId(),
-      episodeId: epId,
-      patientId: patId,
-      date: new Date().toISOString(),
-      content: report,
-      status: 'Pendiente',
-      senderRole: user?.role || UserRole.DOCTOR
-    };
-    setReferrals(prev => [...prev, newRef]);
-    alert('Solicitud enviada a Cirugía.');
-  };
+  if (loading) return <main className="centered"><div className="spinner" /><p>Cargando acceso seguro…</p></main>;
+  if (!auth.currentUser || !session) return <LoginView error={error} />;
 
-
-
-  const selectedEpisode = episodes.find(e => e.id === selectedEpisodeId);
-  const selectedPatient = selectedEpisode
-    ? patients.find(p => p.id === selectedEpisode.patientId)
-    : patients.find(p => p.id === selectedPatientId);
-
-  if (!authToken) {
-    return <LoginView onLogin={handleLogin} onRegister={handleRegister} />;
-  }
-
-  return (
-    <div className="flex min-h-screen bg-slate-50">
-      <Sidebar currentView={currentView} setView={setCurrentView} role={user.role} onLogout={logout} />
-      <main className="flex-1 overflow-auto p-4 md:p-8">
-        <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-800">Policlínico Pie Diabético</h1>
-            <p className="text-slate-500">Unidad de Heridas Complejas - Ecosistema Quirúrgico</p>
-          </div>
-          <div className="flex items-center gap-4">
-            <span className="text-xs bg-slate-100 text-slate-700 px-3 py-1 rounded-full font-bold">{currentUserEmail} · {currentUserRole}</span>
-            {(currentUserRole === UserRole.VASCULAR || currentUserRole === UserRole.SURGERY) && (
-              <button onClick={() => setCurrentView('inbox')} className="relative bg-white p-2 rounded-lg border border-slate-200 shadow-sm text-slate-600 hover:text-blue-600 transition-colors">
-                <i className="fa-solid fa-inbox text-xl"></i>
-                {referrals.filter(r => r.status === 'Pendiente').length > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold">{referrals.filter(r => r.status === 'Pendiente').length}</span>
-                )}
-              </button>
-            )}
-            <button onClick={logout} className="bg-white border border-slate-200 px-3 py-2 rounded-lg text-sm font-bold text-slate-600">Salir</button>
-          </div>
-        </header>
-
-        {currentView === 'dashboard' && <Dashboard patients={patients} episodes={episodes} visits={visits} alerts={alerts} onNavigateEpisode={(id) => { setSelectedEpisodeId(id); setCurrentView('episode'); }} />}
-        {currentView === 'patients' && <PatientList patients={patients} onSelectPatient={(id) => { setSelectedPatientId(id); setCurrentView('profile'); }} onAddPatient={(p) => setPatients(prev => [...prev, p])} role={user.role} />}
-        {currentView === 'inbox' && <SurgicalInbox referrals={referrals} onMarkAsRead={(id) => setReferrals(prev => prev.map(r => r.id === id ? { ...r, status: 'Revisado' } : r))} onNavigateEpisode={(id) => { setSelectedEpisodeId(id); setCurrentView('episode'); }} />}
-
-        {currentView === 'profile' && selectedPatient && (
-          <PatientProfile
-            patient={selectedPatient}
-            episodes={episodes.filter(e => e.patientId === selectedPatient.id)}
-            onSelectEpisode={(id) => { setSelectedEpisodeId(id); setCurrentView('episode'); }}
-            onAddEpisode={(e) => setEpisodes(prev => [...prev, e])}
-            role={currentUserRole}
-            onUpdatePatient={(updated) => setPatients(prev => prev.map(p => p.id === updated.id ? updated : p))}
-          />
-        )}
-
-        {currentView === 'episode' && selectedEpisode && selectedPatient && (
-          <EpisodeDetails
-            episode={selectedEpisode}
-            patient={selectedPatient}
-            visits={visits.filter(v => v.episodeId === selectedEpisode.id)}
-            onNewVisit={() => setCurrentView('new-visit')}
-            onUpdateEpisode={(updated) => setEpisodes(prev => prev.map(e => e.id === updated.id ? updated : e))}
-            role={currentUserRole}
-            onSendReferral={addReferral}
-            onOpenPresentation={() => setCurrentView('presentation')}
-          />
-        )}
-
-        {currentView === 'new-visit' && selectedEpisode && (
-          <WeeklyVisitForm
-            episodeId={selectedEpisode.id}
-            lastVisit={visits.filter(v => v.episodeId === selectedEpisode.id).pop()}
-            onSubmit={(v) => { setVisits(prev => [...prev, v]); setCurrentView('episode'); }}
-            onCancel={() => setCurrentView('episode')}
-            role={currentUserRole}
-            authToken={authToken}
-            clinicalConfig={clinicalConfig}
-            patient={selectedPatient!}
-            onUpdatePatient={(updated) => setPatients(prev => prev.map(p => p.id === updated.id ? updated : p))}
-          />
-        )}
-
-        {currentView === 'alerts' && <AlertCenter alerts={alerts} onNavigateEpisode={(id) => { setSelectedEpisodeId(id); setCurrentView('episode'); }} />}
-
-        {currentView === 'presentation' && selectedEpisode && selectedPatient && (
-          <PresentationView
-            patient={selectedPatient}
-            episode={selectedEpisode}
-            visits={visits.filter(v => v.episodeId === selectedEpisode.id)}
-            onClose={() => setCurrentView('episode')}
-          />
-        )}
-
-        {currentView === 'settings' && clinicalConfig && authToken && (
-          <AdminSettings
-            config={clinicalConfig}
-            token={authToken}
-            onUpdate={setClinicalConfig}
-          />
-        )}
-
-        {(currentView === 'camera' || (currentView === 'dashboard' && currentUserRole === UserRole.PARAMEDIC)) && (
-          <ParamedicView
-            patients={patients}
-            episodes={episodes}
-            onSaveVisit={(v) => { setVisits(prev => [...prev, v]); setCurrentView('dashboard'); }}
-            authToken={authToken}
-          />
-        )}
-      </main>
-    </div>
-  );
-};
-
-export default App;
+  return <div className="app-shell">
+    <header className="topbar">
+      <div className="brand"><span className="brand-mark small">PD</span><div><strong>Pie Diabético</strong><small>Gestión clínica coordinada</small></div></div>
+      <div className="top-actions">
+        {session.centers.length > 0 && <select aria-label="Centro activo" value={centerId} onChange={(event) => chooseCenter(event.target.value)}>{session.centers.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>}
+        <button className="ghost" onClick={() => signOut(auth)}>Salir</button>
+      </div>
+    </header>
+    <nav className="tabs" aria-label="Secciones principales">
+      {canUseClinical && <button className={view === 'clinical' ? 'active' : ''} onClick={() => setView('clinical')}>Atención clínica</button>}
+      {canAdminCenter && <button className={view === 'center' ? 'active' : ''} onClick={() => setView('center')}>Administrar centro</button>}
+      {session.platformAdmin && <button className={view === 'platform' ? 'active' : ''} onClick={() => setView('platform')}>Plataforma</button>}
+    </nav>
+    {error && <div className="notice danger page-notice">{error}<button onClick={() => setError('')}>×</button></div>}
+    <main className="page">
+      {view === 'platform' && session.platformAdmin && <PlatformAdminDashboard onChanged={refreshSession} />}
+      {view === 'center' && center && canAdminCenter && <CenterAdminDashboard center={center} />}
+      {view === 'clinical' && center && membership && canUseClinical && <ClinicalDashboard center={center} membership={membership} state={state} onRefresh={refreshState} onEncounterChanged={replaceEncounter} />}
+      {view === 'clinical' && !canUseClinical && <section className="empty-state"><h2>Perfil administrativo activo</h2><p>Este perfil no permite abrir información clínica. Puedes administrar el centro o la plataforma desde las pestañas superiores.</p></section>}
+    </main>
+  </div>;
+}

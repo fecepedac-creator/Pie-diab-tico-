@@ -1,30 +1,30 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "experimentalDecorators": true,
-    "useDefineForClassFields": false,
     "module": "ESNext",
-    "lib": [
-      "ES2022",
-      "DOM",
-      "DOM.Iterable"
-    ],
-    "skipLibCheck": true,
-    "types": [
-      "node",
-      "vite/client"
-    ],
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "moduleResolution": "bundler",
-    "isolatedModules": true,
-    "moduleDetection": "force",
-    "allowJs": true,
-    "jsx": "react-jsx",
-    "paths": {
-      "@/*": [
-        "./*"
-      ]
-    },
     "allowImportingTsExtensions": true,
-    "noEmit": true
-  }
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "types": ["vite/client", "node"]
+  },
+  "include": [
+    "App.tsx",
+    "index.tsx",
+    "firebase.ts",
+    "types.ts",
+    "utils.ts",
+    "services/api.ts",
+    "components/LoginView.tsx",
+    "components/PlatformAdminDashboard.tsx",
+    "components/CenterAdminDashboard.tsx",
+    "components/ClinicalDashboard.tsx",
+    "components/EncounterWorkspace.tsx"
+    ,"components/PreAdmissionCard.tsx"
+    ,"components/CommitteeView.tsx"
+  ]
 }
