@@ -133,6 +133,17 @@ async function withPhotoUrls(encounters) {
   })));
 }
 
+async function withPatientPhotoUrls(patients) {
+  const bucket = getStorage().bucket();
+  return Promise.all(patients.map(async (patient) => {
+    if (!patient.photoStoragePath) return patient;
+    try {
+      const [photoUrl] = await bucket.file(patient.photoStoragePath).getSignedUrl({ action: 'read', expires: Date.now() + 15 * 60 * 1000 });
+      return { ...patient, photoUrl };
+    } catch { return patient; }
+  }));
+}
+
 async function withAttachmentUrls(attachments) {
   const bucket = getStorage().bucket();
   return Promise.all(attachments.map(async (attachment) => {
@@ -228,7 +239,7 @@ async function route(req, res, actor) {
   if (subpath === '/state' && method === 'GET') {
     requireRole(member, [...CLINICAL_ROLES, 'auditor']);
     const [patients, episodes, encounterDocs, tasks, attachmentDocs] = await Promise.all([docs(db.collection(`centers/${centerId}/patients`)), docs(db.collection(`centers/${centerId}/episodes`)), docs(db.collection(`centers/${centerId}/encounters`)), docs(db.collection(`centers/${centerId}/tasks`)), docs(db.collection(`centers/${centerId}/attachments`))]);
-    return send(res, 200, { patients, episodes, encounters: await withPhotoUrls(encounterDocs), tasks, attachments: await withAttachmentUrls(attachmentDocs) });
+    return send(res, 200, { patients: await withPatientPhotoUrls(patients), episodes, encounters: await withPhotoUrls(encounterDocs), tasks, attachments: await withAttachmentUrls(attachmentDocs) });
   }
 
   if (subpath === '/patients' && method === 'POST') {
@@ -238,9 +249,26 @@ async function route(req, res, actor) {
     const duplicate = await db.collection(`centers/${centerId}/patients`).where('rut', '==', rut).limit(1).get();
     if (!duplicate.empty) throw Object.assign(new Error('El paciente ya existe en este centro.'), { status: 409 });
     const ref = db.collection(`centers/${centerId}/patients`).doc(); const now = new Date().toISOString();
-    const patient = { id: ref.id, centerId, rut, name, birthDate: cleanText(req.body?.birthDate, 10), contact: cleanText(req.body?.contact, 40), comuna: cleanText(req.body?.comuna, 80), preAdmissionStatus: 'minimal', anamnesis: { medicalHistory: [], surgicalHistory: [], allergies: [], medications: [] }, social: {}, verification: stamp(actor), createdAt: now, updatedAt: now };
+    const patient = { id: ref.id, centerId, rut, name, birthDate: cleanText(req.body?.birthDate, 10), contact: cleanText(req.body?.contact, 40), comuna: cleanText(req.body?.comuna, 80), preAdmissionStatus: 'minimal', anamnesis: { medicalHistory: [], surgicalHistory: [], allergyStatus: 'unknown', allergies: [], medications: [] }, social: {}, verification: stamp(actor), createdAt: now, updatedAt: now };
     await ref.set(compact(patient)); await audit(centerId, actor, 'patient.created', 'patient', ref.id);
     return send(res, 201, { patient: compact(patient) });
+  }
+
+  const patientPhotoMatch = subpath.match(/^\/patients\/([^/]+)\/photo$/);
+  if (patientPhotoMatch && method === 'POST') {
+    requireRole(member, ['coordinator', 'nurse', 'doctor']);
+    const id = patientPhotoMatch[1]; const ref = db.doc(`centers/${centerId}/patients/${id}`); const snap = await ref.get();
+    if (!snap.exists) throw Object.assign(new Error('Paciente no encontrado.'), { status: 404 });
+    const match = String(req.body?.dataUrl || '').match(/^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/);
+    if (!match) throw Object.assign(new Error('Formato de imagen no permitido.'), { status: 400 });
+    const buffer = Buffer.from(match[2], 'base64');
+    if (buffer.length > 5 * 1024 * 1024) throw Object.assign(new Error('La imagen supera el máximo de 5 MB.'), { status: 413 });
+    const photoId = crypto.randomUUID(); const ext = match[1].split('/')[1]; const photoStoragePath = `centers/${centerId}/patients/${id}/profile/${photoId}.${ext}`;
+    await getStorage().bucket().file(photoStoragePath).save(buffer, { resumable: false, contentType: match[1], metadata: { cacheControl: 'private, max-age=0, no-store' } });
+    const updatedAt = new Date().toISOString(); await ref.update({ photoStoragePath, updatedAt });
+    await audit(centerId, actor, 'patient.photo.updated', 'patient', id);
+    const patient = { id, ...snap.data(), photoStoragePath, updatedAt };
+    return send(res, 201, { patient: (await withPatientPhotoUrls([patient]))[0] });
   }
 
   const patientMatch = subpath.match(/^\/patients\/([^/]+)$/);
@@ -249,7 +277,8 @@ async function route(req, res, actor) {
     const id = patientMatch[1]; const ref = db.doc(`centers/${centerId}/patients/${id}`); const snap = await ref.get();
     if (!snap.exists) throw Object.assign(new Error('Paciente no encontrado.'), { status: 404 });
     const previous = snap.data(); const a = req.body?.anamnesis || {}; const s = req.body?.social || {};
-    const update = compact({ name: cleanText(req.body?.name, 150) || previous.name, birthDate: cleanText(req.body?.birthDate, 10), contact: cleanText(req.body?.contact, 40), comuna: cleanText(req.body?.comuna, 80), preAdmissionStatus: ['minimal', 'in_progress', 'validated'].includes(req.body?.preAdmissionStatus) ? req.body.preAdmissionStatus : previous.preAdmissionStatus, anamnesis: { diabetesTreatment: cleanText(a.diabetesTreatment, 500), medicalHistory: cleanStringArray(a.medicalHistory), surgicalHistory: cleanStringArray(a.surgicalHistory), allergies: cleanStringArray(a.allergies), medications: cleanStringArray(a.medications), smoking: cleanText(a.smoking, 200), renalDisease: cleanText(a.renalDisease, 300), vascularHistory: cleanText(a.vascularHistory, 500), neuropathy: cleanText(a.neuropathy, 300), previousAmputations: cleanText(a.previousAmputations, 300) }, social: { supportNetwork: cleanText(s.supportNetwork, 500), mobility: cleanText(s.mobility, 300), transportBarriers: cleanText(s.transportBarriers, 500), housingBarriers: cleanText(s.housingBarriers, 500), notes: cleanText(s.notes, 1000) }, verification: stamp(actor, req.body?.verification?.status === 'confirmed' ? 'confirmed' : 'draft', previous.verification), updatedAt: new Date().toISOString() });
+    const allergyStatus = ['unknown', 'none', 'present'].includes(a.allergyStatus) ? a.allergyStatus : (previous.anamnesis?.allergyStatus || 'unknown');
+    const update = compact({ name: cleanText(req.body?.name, 150) || previous.name, birthDate: cleanText(req.body?.birthDate, 10), contact: cleanText(req.body?.contact, 40), comuna: cleanText(req.body?.comuna, 80), preAdmissionStatus: ['minimal', 'in_progress', 'validated'].includes(req.body?.preAdmissionStatus) ? req.body.preAdmissionStatus : previous.preAdmissionStatus, anamnesis: { diabetesTreatment: cleanText(a.diabetesTreatment, 500), medicalHistory: cleanStringArray(a.medicalHistory), surgicalHistory: cleanStringArray(a.surgicalHistory), allergyStatus, allergies: allergyStatus === 'none' ? [] : cleanStringArray(a.allergies), medications: cleanStringArray(a.medications), smoking: cleanText(a.smoking, 200), renalDisease: cleanText(a.renalDisease, 300), vascularHistory: cleanText(a.vascularHistory, 500), neuropathy: cleanText(a.neuropathy, 300), previousAmputations: cleanText(a.previousAmputations, 300) }, social: { supportNetwork: cleanText(s.supportNetwork, 500), mobility: cleanText(s.mobility, 300), transportBarriers: cleanText(s.transportBarriers, 500), housingBarriers: cleanText(s.housingBarriers, 500), notes: cleanText(s.notes, 1000) }, verification: stamp(actor, req.body?.verification?.status === 'confirmed' ? 'confirmed' : 'draft', previous.verification), updatedAt: new Date().toISOString() });
     await ref.update(update); await audit(centerId, actor, 'patient.updated', 'patient', id);
     return send(res, 200, { patient: { id, ...previous, ...update } });
   }

@@ -1,0 +1,112 @@
+.pre-admission-card {
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid #dce6e4;
+  border-radius: 24px;
+  background: #fff;
+  box-shadow: 0 12px 36px #17333412;
+}
+
+.patient-identity {
+  position: relative;
+  padding: 1.5rem;
+  background: linear-gradient(165deg, #075b5e 0, #0b7777 300px, #e1f2ed 301px, #f7fbfa 430px);
+  color: #fff;
+}
+
+.patient-photo {
+  width: 148px;
+  height: 148px;
+  margin: 0 auto 1rem;
+  overflow: hidden;
+  border: 5px solid #ffffffd9;
+  border-radius: 38px;
+  background: linear-gradient(145deg, #d4eee8, #aad8ce);
+  box-shadow: 0 14px 32px #003b3d42;
+}
+
+.patient-photo img { width: 100%; height: 100%; object-fit: cover; }
+.patient-photo span { display: grid; place-items: center; width: 100%; height: 100%; color: #075b5e; font-size: 2.4rem; font-weight: 900; }
+.photo-upload { display: block; width: max-content; margin: 0 auto .45rem; padding: .55rem .8rem; border: 1px solid #ffffffa8; border-radius: 999px; background: #ffffff1f; color: #fff; font-size: .72rem; font-weight: 800; cursor: pointer; }
+.patient-identity > small { min-height: 4.5rem; color: #e3f4f0; text-align: center; }
+.patient-name { margin-top: 1.5rem; color: #173334; }
+.patient-name p { margin-bottom: .25rem; color: #69817f; font-size: .68rem; font-weight: 900; letter-spacing: .13em; text-transform: uppercase; }
+.patient-name h2 { margin-bottom: .25rem; font-size: 1.35rem; }
+.patient-name strong { color: #52706d; font-size: .83rem; }
+.patient-identity dl { margin: 1.2rem 0; color: #173334; }
+.patient-identity dl div { padding: .7rem 0; border-bottom: 1px solid #dbe7e4; }
+.patient-identity dt { color: #718684; font-size: .68rem; font-weight: 800; text-transform: uppercase; }
+.patient-identity dd { margin: .2rem 0 0; overflow-wrap: anywhere; font-size: .83rem; font-weight: 750; }
+.pre-status { display: block; padding: .7rem; border-radius: 12px; background: #fff3dc; color: #8a5705; font-size: .75rem; font-weight: 850; text-align: center; }
+.pre-status.validated { background: #dff3e7; color: #226540; }
+
+.pre-admission-form { min-width: 0; padding: 1.5rem; background: #f6f9f8; }
+.pre-title { margin-bottom: 1rem; }
+.pre-title .eyebrow { margin-top: 0; }
+.pre-title h2 { margin-bottom: .35rem; font-size: 1.45rem; }
+.pre-title p:last-child { margin-bottom: 0; color: #637777; line-height: 1.5; }
+.pre-admission-form fieldset { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.pre-section { --section-color: #0b7777; min-width: 0; padding: 1rem; border: 1px solid #e0e8e6; border-top: 4px solid var(--section-color); border-radius: 16px; background: #fff; box-shadow: 0 4px 16px #17333408; }
+.pre-section[data-tone="red"] { --section-color: #dd4b5a; }
+.pre-section[data-tone="indigo"] { --section-color: #655cc9; }
+.pre-section[data-tone="blue"] { --section-color: #3277cf; }
+.pre-section[data-tone="purple"] { --section-color: #8a55b5; }
+.pre-section[data-tone="amber"] { --section-color: #d18a18; }
+.pre-section[data-tone="green"] { --section-color: #269a65; }
+.pre-section[data-tone="orange"] { --section-color: #c66b3d; }
+.pre-section > header { display: flex; align-items: flex-start; gap: .7rem; margin-bottom: .9rem; }
+.pre-section > header h3 { margin: .1rem 0 .2rem; color: #213b3b; font-size: .86rem; letter-spacing: .035em; text-transform: uppercase; }
+.pre-section > header p { margin: 0; color: #738684; font-size: .72rem; line-height: 1.4; }
+.section-icon { display: grid; flex: 0 0 30px; place-items: center; width: 30px; height: 30px; border-radius: 10px; background: color-mix(in srgb, var(--section-color) 12%, white); color: var(--section-color); font-weight: 900; }
+.choice-label { display: block; margin: .9rem 0 .45rem; color: #607876; font-size: .7rem; font-weight: 850; }
+.choice-grid { display: flex; flex-wrap: wrap; gap: .45rem; }
+.clinical-chip { min-height: 36px; padding: .5rem .7rem; border: 1px solid #d7e2df; border-radius: 11px; background: #f8faf9; color: #526967; font-size: .72rem; font-weight: 800; transition: transform .15s ease, background .15s ease, color .15s ease; }
+.clinical-chip:hover { transform: translateY(-1px); border-color: var(--section-color); }
+.clinical-chip.selected { border-color: var(--section-color); background: var(--section-color); color: #fff; box-shadow: 0 5px 12px color-mix(in srgb, var(--section-color) 25%, transparent); }
+.clinical-chip.selected.safe { border-color: #287d52; background: #287d52; }
+.clinical-chip.selected.pending { border-color: #687b79; background: #687b79; }
+.custom-chips { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .7rem; padding-top: .7rem; border-top: 1px solid #edf1f0; }
+.custom-chips button { display: inline-flex; gap: .45rem; align-items: center; min-height: 31px; padding: .38rem .55rem; border: 1px solid #dce5e3; border-radius: 9px; background: #eef3f2; color: #526967; font-size: .7rem; font-weight: 750; }
+.custom-chips span { color: #b34c58; font-size: 1rem; line-height: .7; }
+.exception-entry { display: grid; grid-template-columns: 1fr auto; gap: .45rem; margin-top: .75rem; }
+.exception-entry input { min-width: 0; min-height: 38px; margin: 0; padding: .55rem .65rem; font-size: .72rem; }
+.exception-entry button { border: 0; border-radius: 10px; background: var(--section-color); color: #fff; padding: .55rem .7rem; font-size: .7rem; font-weight: 800; }
+.identity-fields, .social-section { grid-column: 1 / -1; }
+.compact-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .7rem; }
+.compact-fields input { min-height: 40px; padding: .55rem .65rem; font-size: .76rem; }
+.allergy-status { margin-bottom: .4rem; }
+.pre-section .pre-section { margin-top: .8rem; padding: .8rem; border-width: 1px; background: #fffcf5; box-shadow: none; }
+.social-section { display: grid; grid-template-columns: 1fr 1fr; column-gap: 1.2rem; }
+.social-section > header, .social-section .notes-field { grid-column: 1 / -1; }
+.notes-field { margin-top: 1rem; }
+.notes-field textarea { min-height: 76px; font-size: .76rem; }
+.pre-actions { position: sticky; bottom: .6rem; z-index: 3; display: flex; justify-content: flex-end; gap: .7rem; margin-top: 1rem; padding: .7rem; border: 1px solid #dde7e4; border-radius: 14px; background: #ffffffed; box-shadow: 0 8px 24px #17333417; backdrop-filter: blur(8px); }
+.validation-toggle { border: 1px solid #d4e0dd; border-radius: 11px; background: #f5f8f7; color: #667b79; padding: .7rem .85rem; font-size: .75rem; font-weight: 800; }
+.validation-toggle.selected { border-color: #58a77a; background: #e1f4e8; color: #226540; }
+.pre-message, .readonly-note { margin: .75rem 0 0; padding: .7rem .8rem; border-radius: 10px; background: #e6f3f1; color: #245b59; font-size: .76rem; }
+
+@media (max-width: 1150px) {
+  .pre-admission-card { grid-template-columns: 210px minmax(0, 1fr); }
+  .pre-admission-form fieldset { grid-template-columns: 1fr; }
+  .identity-fields, .social-section { grid-column: auto; }
+}
+
+@media (max-width: 780px) {
+  .pre-admission-card { grid-template-columns: 1fr; }
+  .patient-identity { display: grid; grid-template-columns: 100px 1fr; column-gap: 1rem; background: linear-gradient(135deg, #075b5e, #0b7777); }
+  .patient-photo { grid-row: 1 / span 3; width: 100px; height: 100px; margin: 0; border-radius: 28px; }
+  .photo-upload { grid-column: 2; margin: 0 0 .35rem; }
+  .patient-identity > small { grid-column: 2; min-height: 0; text-align: left; }
+  .patient-name { grid-column: 1 / -1; margin-top: 1rem; color: #fff; }
+  .patient-name p, .patient-name strong { color: #d8efeb; }
+  .patient-identity dl { grid-column: 1 / -1; color: #fff; }
+  .patient-identity dl div { border-color: #ffffff26; }
+  .patient-identity dt { color: #c5e4df; }
+  .pre-status { grid-column: 1 / -1; }
+  .pre-admission-form { padding: 1rem; }
+  .compact-fields, .social-section { grid-template-columns: 1fr; }
+  .social-section > header, .social-section .notes-field { grid-column: auto; }
+  .pre-actions { flex-direction: column; }
+  .pre-actions button { width: 100%; }
+}

@@ -68,6 +68,8 @@ export const api = {
     request<{ patient: Patient }>(`/centers/${centerId}/patients`, json('POST', input)),
   updatePatient: (centerId: string, patientId: string, input: Partial<Patient>) =>
     request<{ patient: Patient }>(`/centers/${centerId}/patients/${patientId}`, json('PUT', input)),
+  uploadPatientPhoto: (centerId: string, patientId: string, input: { dataUrl: string }) =>
+    request<{ patient: Patient }>(`/centers/${centerId}/patients/${patientId}/photo`, json('POST', input)),
   createEpisode: (centerId: string, input: Partial<WoundEpisode>) =>
     request<{ episode: WoundEpisode }>(`/centers/${centerId}/episodes`, json('POST', input)),
   updateEpisode: (centerId: string, episodeId: string, input: Partial<WoundEpisode>) =>

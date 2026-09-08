@@ -27,7 +27,7 @@ No se envían datos clínicos a servicios de IA. WhatsApp sólo prepara un aviso
 npm ci
 npm ci --prefix functions
 npm run validate
-firebase emulators:exec --project demo-pie-diabetico --only "auth,firestore,functions,hosting" "node functions/emulator-smoke.js"
+firebase emulators:exec --project demo-pie-diabetico --only "auth,firestore,storage,functions,hosting" "node functions/emulator-smoke.js"
 ```
 
 El test de emuladores usa exclusivamente identidades y pacientes sintéticos.

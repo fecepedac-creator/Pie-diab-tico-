@@ -95,11 +95,14 @@ export interface Patient {
   birthDate?: string;
   contact?: string;
   comuna?: string;
+  photoStoragePath?: string;
+  photoUrl?: string;
   preAdmissionStatus: 'minimal' | 'in_progress' | 'validated';
   anamnesis: {
     diabetesTreatment?: string;
     medicalHistory: string[];
     surgicalHistory: string[];
+    allergyStatus?: 'unknown' | 'none' | 'present';
     allergies: string[];
     medications: string[];
     smoking?: string;
