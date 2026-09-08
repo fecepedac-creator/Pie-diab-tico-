@@ -28,8 +28,19 @@ export default function App() {
   };
 
   useEffect(() => onAuthStateChanged(auth, async (user) => {
-    setLoading(true); setError('');
+    setLoading(true);
     if (!user) { setSession(null); setState(null); setLoading(false); return; }
+
+    const enteredWithGoogle = user.providerData.some((provider) => provider.providerId === 'google.com');
+    if (!enteredWithGoogle || !user.emailVerified) {
+      setSession(null); setState(null);
+      await signOut(auth);
+      setError('Se cerró una sesión antigua de prueba. Ingresa nuevamente con Google y elige tu cuenta institucional.');
+      setLoading(false);
+      return;
+    }
+
+    setError('');
     try {
       // Refresh the token once when the session starts so recently verified
       // Google accounts do not keep using stale authorization claims.
