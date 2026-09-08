@@ -50,6 +50,7 @@ export default function LoginView({ error }: { error?: string }) {
         <button className="google-button" onClick={login} disabled={busy}>
           <span className="google-g" aria-hidden="true">G</span> {busy ? 'Abriendo acceso seguro…' : 'Ingresar con Google institucional'}
         </button>
+        <p className="access-note"><strong>Un solo acceso para todo el equipo.</strong> Al ingresar, verás automáticamente los paneles habilitados para tus perfiles.</p>
         <div className="trust-grid" aria-label="Características de seguridad">
           <span>Acceso por invitación</span><span>Permisos por perfil</span><span>Registro de cambios</span>
         </div>

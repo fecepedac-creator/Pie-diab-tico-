@@ -30,9 +30,19 @@ export default function App() {
   useEffect(() => onAuthStateChanged(auth, async (user) => {
     setLoading(true); setError('');
     if (!user) { setSession(null); setState(null); setLoading(false); return; }
-    try { await refreshSession(); }
+    try {
+      // Refresh the token once when the session starts so recently verified
+      // Google accounts do not keep using stale authorization claims.
+      await user.getIdToken(true);
+      await refreshSession();
+    }
     catch (cause) {
-      setError(cause instanceof ApiError && cause.status === 403 ? 'Tu cuenta Google aún no tiene una invitación activa. Solicita acceso al administrador del centro.' : cause instanceof Error ? cause.message : 'No fue posible cargar tu sesión.');
+      const message = cause instanceof ApiError && cause.status === 403 && cause.message.includes('correo verificado')
+        ? 'La cuenta Google activa aún no confirma su correo. Vuelve a ingresar con tu cuenta institucional.'
+        : cause instanceof ApiError && cause.status === 403 && cause.message.includes('acceso activo')
+          ? 'Tu cuenta Google aún no tiene una invitación activa. Solicita acceso al administrador del centro.'
+          : cause instanceof Error ? cause.message : 'No fue posible cargar tu sesión.';
+      setError(message);
     } finally { setLoading(false); }
   }), []);
 
