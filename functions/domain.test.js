@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { isValidRut, sanitizeRoles, nursingNarrative, medicalNarrative } = require('./domain');
+const { isValidRut, sanitizeRoles, cleanDetailMap, nursingNarrative, medicalNarrative } = require('./domain');
 
 test('valida RUT chileno sin depender del formato', () => {
   assert.equal(isValidRut('12.345.678-5'), true);
@@ -9,6 +9,10 @@ test('valida RUT chileno sin depender del formato', () => {
 
 test('descarta roles desconocidos y duplicados', () => {
   assert.deepEqual(sanitizeRoles(['doctor', 'root', 'doctor', 'tens']), ['doctor', 'tens']);
+});
+
+test('conserva detalles clínicos sólo para antecedentes seleccionados', () => {
+  assert.deepEqual(cleanDetailMap({ 'DM-2': ['Hace 10 años', ''], HTA: ['2015'], extra: ['no guardar'] }, ['DM-2', 'HTA']), { 'DM-2': ['Hace 10 años'], HTA: ['2015'] });
 });
 
 test('las narrativas incorporan una única medición compartida', () => {

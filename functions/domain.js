@@ -48,6 +48,14 @@ function cleanStringArray(value, maxItems = 30, maxLength = 120) {
   return [...new Set(value.map((item) => cleanText(item, maxLength)).filter(Boolean))].slice(0, maxItems);
 }
 
+function cleanDetailMap(value, allowedKeys = [], maxEntries = 12, maxLength = 300) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return Object.fromEntries(allowedKeys.map((key) => {
+    const entries = cleanStringArray(value[key], maxEntries, maxLength);
+    return entries.length ? [key, entries] : null;
+  }).filter(Boolean));
+}
+
 function stamp(actor, status = 'draft', previous = {}) {
   const now = new Date().toISOString();
   return {
@@ -107,6 +115,6 @@ function sanitizeRoles(value) {
 
 module.exports = {
   CENTER_ROLES, CLINICAL_ROLES, DOCTOR_ROLES, cleanText, cleanEmail, hashEmail,
-  normalizeRut, isValidRut, cleanStringArray, sanitizeRoles, stamp, emptyWound,
+  normalizeRut, isValidRut, cleanStringArray, cleanDetailMap, sanitizeRoles, stamp, emptyWound,
   emptyWifi, emptyNursing, emptyMedical, nursingNarrative, medicalNarrative,
 };

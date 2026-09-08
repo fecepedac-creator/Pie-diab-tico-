@@ -103,11 +103,17 @@ export interface Patient {
   anamnesis: {
     diabetesTreatment?: string;
     medicalHistory: string[];
+    medicalHistoryDetails?: Record<string, string[]>;
     surgicalHistory: string[];
+    surgicalHistoryDetails?: Record<string, string[]>;
     allergyStatus?: 'unknown' | 'none' | 'present';
     allergies: string[];
     medications: string[];
     smoking?: string;
+    alcoholUse?: string;
+    alcoholDetails?: string;
+    substanceUse?: string;
+    substanceDetails?: string;
     renalDisease?: string;
     vascularHistory?: string;
     neuropathy?: string;
