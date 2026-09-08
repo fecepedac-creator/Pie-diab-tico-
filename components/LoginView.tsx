@@ -14,7 +14,10 @@ export default function LoginView({ error }: { error?: string }) {
   const login = async () => {
     setBusy(true);
     try {
-      const prefersRedirect = window.matchMedia('(pointer: coarse)').matches || window.innerWidth < 760;
+      // Touch-enabled laptops report a coarse pointer even with a full desktop
+      // browser. Keep redirect for genuinely small screens and use the more
+      // reliable popup flow for tablets and computers.
+      const prefersRedirect = window.innerWidth < 760;
       if (prefersRedirect) {
         await signInWithRedirect(auth, googleProvider);
         return;
