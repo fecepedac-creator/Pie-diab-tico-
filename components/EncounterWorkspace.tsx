@@ -45,17 +45,19 @@ const WIFI_HELP: Record<WifiSection, { label: string; scores: { score: 0 | 1 | 2
 };
 
 export default function EncounterWorkspace({ center, membership, patient, episode, encounter, tasks, onBack, onChanged, onRefresh, demoMode = false }: Props) {
-  const [tab, setTab] = useState<Tab>('wound');
+  const isNurse = membership.roles.includes('nurse'); const isDoctor = membership.roles.includes('doctor'); const isTensOnly = membership.roles.includes('tens') && !isNurse && !isDoctor;
+  const [tab, setTab] = useState<Tab>(isTensOnly ? 'photos' : 'wound');
   const [draft, setDraft] = useState(encounter);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
   useEffect(() => setDraft(encounter), [encounter]);
 
-  const canWound = membership.roles.some((role) => ['nurse', 'doctor', 'general_surgeon', 'vascular_surgeon', 'traumatologist', 'physiatrist'].includes(role));
-  const canNursing = membership.roles.includes('nurse');
-  const canMedical = membership.roles.some((role) => ['doctor', 'general_surgeon', 'vascular_surgeon', 'traumatologist', 'physiatrist'].includes(role));
-  const canPhoto = membership.roles.some((role) => ['tens', 'nurse', 'doctor', 'general_surgeon', 'vascular_surgeon', 'traumatologist', 'physiatrist'].includes(role));
-  const canManageTasks = membership.roles.some((role) => ['coordinator', 'nurse', 'doctor', 'general_surgeon', 'vascular_surgeon', 'vascular_nurse', 'traumatologist', 'physiatrist', 'social_worker'].includes(role));
+  const canWound = isNurse || isDoctor;
+  const canNursing = isNurse;
+  const canMedical = isDoctor;
+  const canPhoto = isTensOnly || isNurse || isDoctor;
+  const canManageTasks = isNurse || isDoctor;
+  const availableTabs = useMemo<[Tab, string][]>(() => isTensOnly ? [['photos', 'Fotos']] : ([['wound', 'Herida'], ...(isNurse || isDoctor ? [['nursing', 'Curación'] as [Tab, string], ['medical', 'Médico / WIfI'] as [Tab, string]] : []), ['photos', 'Fotos'], ['tasks', 'Gestiones'], ['text', 'Texto para ficha']]), [isDoctor, isNurse, isTensOnly]);
 
   const save = async (section: 'wound' | 'nursing' | 'medical' | 'wifi', confirmed = false) => {
     if (demoMode) return;
@@ -106,8 +108,8 @@ export default function EncounterWorkspace({ center, membership, patient, episod
 
   return <section className="encounter-workspace">
     <button className="back" onClick={onBack}>← Volver al episodio</button>
-    <div className="encounter-header"><div><p className="eyebrow">Atención compartida · {formatDateTime(draft.encounterDate)}</p><h1>{patient.name}</h1><p>{episode.location}, pie {episode.side === 'right' ? 'derecho' : 'izquierdo'} · edición v{draft.version}</p></div><div className="status-actions"><select disabled={locked} value={draft.status} onChange={(event) => void updateStatus(event.target.value as Encounter['status'])}><option value="in_progress">En curso</option><option value="ready_for_review">Lista para revisar</option><option value="completed">Completada</option><option value="cancelled">Cancelada</option></select></div></div>
-    <nav className="subtabs">{([['wound', 'Herida'], ['nursing', 'Curación'], ['medical', 'Médico / WIfI'], ['photos', 'Fotos'], ['tasks', 'Gestiones'], ['text', 'Texto para ficha']] as [Tab, string][]).map(([id, label]) => <button className={tab === id ? 'active' : ''} key={id} onClick={() => setTab(id)}>{label}</button>)}</nav>
+    <div className="encounter-header"><div><p className="eyebrow">{isTensOnly ? 'Registro fotográfico' : 'Atención compartida'} · {formatDateTime(draft.encounterDate)}</p><h1>{patient.name}</h1><p>{episode.location}, pie {episode.side === 'right' ? 'derecho' : 'izquierdo'} · edición v{draft.version}</p></div>{(isNurse || isDoctor) && <div className="status-actions"><select disabled={locked} value={draft.status} onChange={(event) => void updateStatus(event.target.value as Encounter['status'])}><option value="in_progress">En curso</option><option value="ready_for_review">Lista para revisar</option><option value="completed">Completada</option><option value="cancelled">Cancelada</option></select></div>}</div>
+    <nav className="subtabs">{availableTabs.map(([id, label]) => <button className={tab === id ? 'active' : ''} key={id} onClick={() => setTab(id)}>{label}</button>)}</nav>
     {message && <div className="notice">{message}<button onClick={() => setMessage('')}>×</button></div>}
 
     {tab === 'wound' && <WoundPanel draft={draft} setDraft={setDraft} canEdit={canWound} locked={locked} save={save} />}

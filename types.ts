@@ -99,7 +99,7 @@ export interface Patient {
   comuna?: string;
   photoStoragePath?: string;
   photoUrl?: string;
-  preAdmissionStatus: 'minimal' | 'in_progress' | 'validated';
+  preAdmissionStatus: 'minimal' | 'in_progress' | 'pending_validation' | 'validated';
   anamnesis: {
     diabetesTreatment?: string;
     medicalHistory: string[];
@@ -126,6 +126,7 @@ export interface Patient {
     housingBarriers?: string;
     notes?: string;
   };
+  socialVerification?: VerificationStamp;
   verification: VerificationStamp;
   createdAt: string;
   updatedAt: string;

@@ -195,3 +195,44 @@
   .committee-page { min-height: 96vh; border: 0; border-radius: 0; box-shadow: none; page-break-after: always; }
   .committee-decision-box { min-height: 220px; }
 }
+
+.role-patient-view { display: grid; gap: 1rem; }
+.role-patient-view > fieldset { display: grid; gap: .7rem; padding: 0; border: 0; }
+.role-patient-view > fieldset > label { margin-top: .3rem; color: #4f6865; font-size: .72rem; font-weight: 850; }
+.role-patient-view textarea { min-height: 88px; }
+.coordination-view { grid-template-columns: minmax(180px, .7fr) minmax(0, 1.3fr); align-items: center; }
+.coordination-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .65rem; }
+.coordination-facts > * { padding: .8rem; border-radius: 12px; background: #f0f6f4; }
+.coordination-facts label { display: grid; gap: .3rem; color: #58716e; font-size: .68rem; font-weight: 800; }
+.coordination-facts input { min-width: 0; background: #fff; }
+.coordination-facts small, .coordination-facts strong { display: block; }
+.coordination-facts small { color: #70827f; font-size: .65rem; }.coordination-facts strong { margin-top: .25rem; font-size: .76rem; }
+.coordination-view > .helper { grid-column: 1 / -1; }
+
+.specialist-hero { position: relative; padding: 1.3rem; border-radius: 20px; background: linear-gradient(135deg, #eef8f5, #fff); box-shadow: inset 0 0 0 1px #d5e5e1; }
+.specialist-hero h2 { margin: .3rem 0; font-size: 1.7rem; }.specialist-hero p:last-child { margin: 0; color: #58716e; }
+.referral-reason { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.1rem 1.2rem; border-left: 5px solid #d58d22; border-radius: 14px; background: #fff8e8; }
+.referral-reason span { color: #9a651a; font-size: .68rem; font-weight: 900; text-transform: uppercase; }.referral-reason h3 { margin: .25rem 0; }.referral-reason p { margin: .35rem 0; line-height: 1.5; }.referral-reason small { color: #77684e; }
+.specialist-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .7rem; }
+.specialist-kpis > div { padding: .9rem; border: 1px solid #d9e6e3; border-radius: 14px; background: #fff; }.specialist-kpis > div.alert { border-color: #efc3a1; background: #fff5ec; }.specialist-kpis span, .specialist-kpis strong { display: block; }.specialist-kpis span { color: #6c817e; font-size: .65rem; }.specialist-kpis strong { margin-top: .3rem; font-size: .95rem; }
+.specialist-summary-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }.specialist-summary-grid h3 { margin-top: 0; }.specialist-summary-grid p { color: #496360; font-size: .75rem; line-height: 1.45; }
+.specialist-documents { display: grid; gap: .45rem; }.specialist-documents a, .specialist-document { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: .5rem; padding: .6rem; border-radius: 10px; background: #eef6f4; color: #1f5652; text-decoration: none; }.specialist-document { cursor: default; }.specialist-documents span, .specialist-documents small { font-size: .64rem; }.specialist-documents strong { overflow: hidden; font-size: .72rem; text-overflow: ellipsis; white-space: nowrap; }
+.specialist-timeline { display: grid; gap: .6rem; }.specialist-timeline > div { display: grid; grid-template-columns: 100px 150px 170px minmax(0, 1fr); align-items: start; gap: .7rem; padding: .75rem; border-left: 3px solid #5aa399; border-radius: 0 11px 11px 0; background: #f5f9f8; }.specialist-timeline time, .specialist-timeline span { font-size: .7rem; font-weight: 800; }.specialist-timeline p { margin: 0; color: #566e6b; font-size: .7rem; line-height: 1.4; }
+.dated-photo-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; }.dated-photo-grid figure { overflow: hidden; margin: 0; border: 1px solid #d8e4e1; border-radius: 13px; background: #f6f9f8; }.dated-photo-grid img, .dated-photo-grid .photo-placeholder { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; }.dated-photo-grid figcaption { display: grid; gap: .15rem; padding: .65rem; }.dated-photo-grid figcaption strong { font-size: .72rem; }.dated-photo-grid figcaption span, .dated-photo-grid figcaption small { color: #6d817e; font-size: .64rem; }
+.specialist-response fieldset { display: grid; gap: .7rem; padding: 0; border: 0; }.specialist-response textarea { min-height: 130px; }
+
+@media (max-width: 820px) {
+  .coordination-view, .specialist-summary-grid { grid-template-columns: 1fr; }
+  .coordination-facts { grid-template-columns: 1fr; }
+  .specialist-kpis { grid-template-columns: 1fr 1fr; }
+  .specialist-timeline > div { grid-template-columns: 1fr 1fr; }
+  .specialist-timeline p { grid-column: 1 / -1; }
+  .dated-photo-grid { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 520px) {
+  .referral-reason { align-items: stretch; flex-direction: column; }
+  .specialist-kpis, .dated-photo-grid { grid-template-columns: 1fr; }
+  .specialist-timeline > div { grid-template-columns: 1fr; }
+  .specialist-timeline p { grid-column: auto; }
+}

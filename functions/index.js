@@ -5,7 +5,7 @@ const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { getStorage } = require('firebase-admin/storage');
 const crypto = require('node:crypto');
 const {
-  CLINICAL_ROLES, DOCTOR_ROLES, cleanText, cleanEmail, hashEmail, normalizeRut,
+  CLINICAL_ROLES, cleanText, cleanEmail, hashEmail, normalizeRut,
   isValidRut, cleanStringArray, cleanDetailMap, sanitizeRoles, stamp, emptyWound, emptyWifi,
   emptyNursing, emptyMedical, nursingNarrative, medicalNarrative,
 } = require('./domain');
@@ -132,6 +132,20 @@ async function withPhotoUrls(encounters) {
       } catch { return photo; }
     })),
   })));
+}
+
+const PRIMARY_CLINICAL_ROLES = ['nurse', 'doctor'];
+const REFERRAL_ROLES = ['general_surgeon', 'vascular_surgeon', 'vascular_nurse', 'traumatologist', 'physiatrist'];
+function hasAnyRole(member, roles) { return member.roles.some((role) => roles.includes(role)); }
+function minimalPatient(patient, keepSocial = false) {
+  return { ...patient, photoStoragePath: undefined, anamnesis: { medicalHistory: [], surgicalHistory: [], allergyStatus: 'unknown', allergies: [], medications: [] }, social: keepSocial ? patient.social : {} };
+}
+function photoOnlyEncounter(encounter) {
+  return { ...encounter, wound: emptyWound(), wifi: emptyWifi(), nursing: emptyNursing(), medical: emptyMedical(), nursingNarrative: undefined, medicalNarrative: undefined };
+}
+async function hasAssignedEpisode(member, centerId, episodeId) {
+  const snapshot = await db.collection(`centers/${centerId}/tasks`).where('episodeId', '==', episodeId).get();
+  return snapshot.docs.some((doc) => member.roles.includes(doc.data().recipientRole));
 }
 
 function parseLogoDataUrl(value) {
@@ -281,9 +295,17 @@ async function route(req, res, actor) {
   }
 
   if (subpath === '/state' && method === 'GET') {
-    requireRole(member, [...CLINICAL_ROLES, 'auditor']);
+    requireRole(member, CLINICAL_ROLES);
     const [patients, episodes, encounterDocs, tasks, attachmentDocs] = await Promise.all([docs(db.collection(`centers/${centerId}/patients`)), docs(db.collection(`centers/${centerId}/episodes`)), docs(db.collection(`centers/${centerId}/encounters`)), docs(db.collection(`centers/${centerId}/tasks`)), docs(db.collection(`centers/${centerId}/attachments`))]);
-    return send(res, 200, { patients: await withPatientPhotoUrls(patients), episodes, encounters: await withPhotoUrls(encounterDocs), tasks, attachments: await withAttachmentUrls(attachmentDocs) });
+    if (hasAnyRole(member, PRIMARY_CLINICAL_ROLES)) return send(res, 200, { patients: await withPatientPhotoUrls(patients), episodes, encounters: await withPhotoUrls(encounterDocs), tasks, attachments: await withAttachmentUrls(attachmentDocs) });
+    if (member.roles.includes('tens')) return send(res, 200, { patients: await withPatientPhotoUrls(patients), episodes, encounters: await withPhotoUrls(encounterDocs.map(photoOnlyEncounter)), tasks: [], attachments: [] });
+    if (member.roles.includes('coordinator')) return send(res, 200, { patients: patients.map((patient) => minimalPatient(patient)), episodes, encounters: [], tasks, attachments: [] });
+    const referralTasks = tasks.filter((task) => member.roles.includes(task.recipientRole));
+    const allowedPatientIds = new Set(referralTasks.map((task) => task.patientId)); const allowedEpisodeIds = new Set(referralTasks.map((task) => task.episodeId));
+    const scopedPatients = patients.filter((patient) => allowedPatientIds.has(patient.id)); const scopedEpisodes = episodes.filter((episode) => allowedEpisodeIds.has(episode.id));
+    if (member.roles.includes('social_worker') && !hasAnyRole(member, REFERRAL_ROLES)) return send(res, 200, { patients: scopedPatients.map((patient) => minimalPatient(patient, true)), episodes: scopedEpisodes, encounters: [], tasks: referralTasks, attachments: [] });
+    if (hasAnyRole(member, REFERRAL_ROLES)) return send(res, 200, { patients: await withPatientPhotoUrls(scopedPatients), episodes: scopedEpisodes, encounters: await withPhotoUrls(encounterDocs.filter((encounter) => allowedEpisodeIds.has(encounter.episodeId))), tasks: referralTasks, attachments: await withAttachmentUrls(attachmentDocs.filter((attachment) => allowedEpisodeIds.has(attachment.episodeId))) });
+    return send(res, 200, { patients: [], episodes: [], encounters: [], tasks: [], attachments: [] });
   }
 
   if (subpath === '/patients' && method === 'POST') {
@@ -300,7 +322,7 @@ async function route(req, res, actor) {
 
   const patientPhotoMatch = subpath.match(/^\/patients\/([^/]+)\/photo$/);
   if (patientPhotoMatch && method === 'POST') {
-    requireRole(member, ['coordinator', 'nurse', 'doctor']);
+    requireRole(member, ['tens', 'nurse', 'doctor']);
     const id = patientPhotoMatch[1]; const ref = db.doc(`centers/${centerId}/patients/${id}`); const snap = await ref.get();
     if (!snap.exists) throw Object.assign(new Error('Paciente no encontrado.'), { status: 404 });
     const match = String(req.body?.dataUrl || '').match(/^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/);
@@ -317,13 +339,20 @@ async function route(req, res, actor) {
 
   const patientMatch = subpath.match(/^\/patients\/([^/]+)$/);
   if (patientMatch && method === 'PUT') {
-    requireRole(member, ['coordinator', 'nurse', 'doctor', 'social_worker', 'physiatrist']);
+    requireRole(member, ['coordinator', 'tens', 'nurse', 'doctor', 'social_worker']);
     const id = patientMatch[1]; const ref = db.doc(`centers/${centerId}/patients/${id}`); const snap = await ref.get();
     if (!snap.exists) throw Object.assign(new Error('Paciente no encontrado.'), { status: 404 });
     const previous = snap.data(); const a = req.body?.anamnesis || {}; const s = req.body?.social || {};
-    const medicalHistory = cleanStringArray(a.medicalHistory); const surgicalHistory = cleanStringArray(a.surgicalHistory);
-    const allergyStatus = ['unknown', 'none', 'present'].includes(a.allergyStatus) ? a.allergyStatus : (previous.anamnesis?.allergyStatus || 'unknown');
-    const update = compact({ name: cleanText(req.body?.name, 150) || previous.name, birthDate: cleanText(req.body?.birthDate, 10), contact: cleanText(req.body?.contact, 40), comuna: cleanText(req.body?.comuna, 80), preAdmissionStatus: ['minimal', 'in_progress', 'validated'].includes(req.body?.preAdmissionStatus) ? req.body.preAdmissionStatus : previous.preAdmissionStatus, anamnesis: { diabetesTreatment: cleanText(a.diabetesTreatment, 500), medicalHistory, medicalHistoryDetails: cleanDetailMap(a.medicalHistoryDetails, medicalHistory), surgicalHistory, surgicalHistoryDetails: cleanDetailMap(a.surgicalHistoryDetails, surgicalHistory), allergyStatus, allergies: allergyStatus === 'none' ? [] : cleanStringArray(a.allergies), medications: cleanStringArray(a.medications), smoking: cleanText(a.smoking, 200), alcoholUse: cleanText(a.alcoholUse, 120), alcoholDetails: cleanText(a.alcoholDetails, 500), substanceUse: cleanText(a.substanceUse, 120), substanceDetails: cleanText(a.substanceDetails, 500), renalDisease: cleanText(a.renalDisease, 300), vascularHistory: cleanText(a.vascularHistory, 500), neuropathy: cleanText(a.neuropathy, 300), previousAmputations: cleanText(a.previousAmputations, 300) }, social: { supportNetwork: cleanText(s.supportNetwork, 500), mobility: cleanText(s.mobility, 300), transportBarriers: cleanText(s.transportBarriers, 500), housingBarriers: cleanText(s.housingBarriers, 500), notes: cleanText(s.notes, 1000) }, verification: stamp(actor, req.body?.verification?.status === 'confirmed' ? 'confirmed' : 'draft', previous.verification), updatedAt: new Date().toISOString() });
+    const canEditClinical = hasAnyRole(member, ['tens', 'nurse', 'doctor']); const canEditIdentity = hasAnyRole(member, ['coordinator', 'tens', 'nurse', 'doctor']); const canEditSocial = hasAnyRole(member, ['tens', 'nurse', 'doctor', 'social_worker']); const canValidate = hasAnyRole(member, ['nurse', 'doctor']);
+    const medicalHistory = canEditClinical ? cleanStringArray(a.medicalHistory) : previous.anamnesis.medicalHistory; const surgicalHistory = canEditClinical ? cleanStringArray(a.surgicalHistory) : previous.anamnesis.surgicalHistory;
+    const allergyStatus = canEditClinical && ['unknown', 'none', 'present'].includes(a.allergyStatus) ? a.allergyStatus : (previous.anamnesis?.allergyStatus || 'unknown');
+    const requestedStatus = req.body?.preAdmissionStatus; const preAdmissionStatus = canValidate && requestedStatus === 'validated' ? 'validated' : canEditClinical && ['in_progress', 'pending_validation'].includes(requestedStatus) ? requestedStatus : canEditClinical && requestedStatus === 'validated' ? 'pending_validation' : previous.preAdmissionStatus;
+    const anamnesis = canEditClinical ? { diabetesTreatment: cleanText(a.diabetesTreatment, 500), medicalHistory, medicalHistoryDetails: cleanDetailMap(a.medicalHistoryDetails, medicalHistory), surgicalHistory, surgicalHistoryDetails: cleanDetailMap(a.surgicalHistoryDetails, surgicalHistory), allergyStatus, allergies: allergyStatus === 'none' ? [] : cleanStringArray(a.allergies), medications: cleanStringArray(a.medications), smoking: cleanText(a.smoking, 200), alcoholUse: cleanText(a.alcoholUse, 120), alcoholDetails: cleanText(a.alcoholDetails, 500), substanceUse: cleanText(a.substanceUse, 120), substanceDetails: cleanText(a.substanceDetails, 500), renalDisease: cleanText(a.renalDisease, 300), vascularHistory: cleanText(a.vascularHistory, 500), neuropathy: cleanText(a.neuropathy, 300), previousAmputations: cleanText(a.previousAmputations, 300) } : previous.anamnesis;
+    const social = canEditSocial ? { supportNetwork: cleanText(s.supportNetwork, 500), mobility: cleanText(s.mobility, 300), transportBarriers: cleanText(s.transportBarriers, 500), housingBarriers: cleanText(s.housingBarriers, 500), notes: cleanText(s.notes, 1000) } : previous.social;
+    const verificationStatus = canValidate && requestedStatus === 'validated' && req.body?.verification?.status === 'confirmed' ? 'confirmed' : 'draft';
+    const requestedSocialVerification = req.body?.socialVerification?.status; const mayValidateSocial = hasAnyRole(member, ['nurse', 'doctor', 'social_worker']);
+    const socialVerification = requestedSocialVerification ? stamp(actor, mayValidateSocial && requestedSocialVerification === 'confirmed' ? 'confirmed' : 'draft', previous.socialVerification) : previous.socialVerification;
+    const update = compact({ name: canEditIdentity ? (cleanText(req.body?.name, 150) || previous.name) : previous.name, birthDate: canEditIdentity ? cleanText(req.body?.birthDate, 10) : previous.birthDate, contact: canEditIdentity ? cleanText(req.body?.contact, 40) : previous.contact, comuna: canEditIdentity ? cleanText(req.body?.comuna, 80) : previous.comuna, preAdmissionStatus, anamnesis, social, socialVerification, verification: canEditClinical ? stamp(actor, verificationStatus, previous.verification) : previous.verification, updatedAt: new Date().toISOString() });
     await ref.update(update); await audit(centerId, actor, 'patient.updated', 'patient', id);
     return send(res, 200, { patient: { id, ...previous, ...update } });
   }
@@ -347,7 +376,7 @@ async function route(req, res, actor) {
   }
 
   if (subpath === '/encounters' && method === 'POST') {
-    requireRole(member, ['coordinator', 'tens', 'nurse', 'doctor']); const patientId = cleanText(req.body?.patientId, 60); const episodeId = cleanText(req.body?.episodeId, 60);
+    requireRole(member, ['tens', 'nurse', 'doctor']); const patientId = cleanText(req.body?.patientId, 60); const episodeId = cleanText(req.body?.episodeId, 60);
     const [patient, episode] = await Promise.all([db.doc(`centers/${centerId}/patients/${patientId}`).get(), db.doc(`centers/${centerId}/episodes/${episodeId}`).get()]);
     if (!patient.exists || !episode.exists || episode.data().patientId !== patientId) throw Object.assign(new Error('Paciente o episodio no válido.'), { status: 400 });
     const ref = db.collection(`centers/${centerId}/encounters`).doc(); const now = new Date().toISOString();
@@ -363,11 +392,11 @@ async function route(req, res, actor) {
       const snap = await transaction.get(ref); if (!snap.exists) throw Object.assign(new Error('Atención no encontrada.'), { status: 404 }); const previous = snap.data();
       if (Number(req.body?.version) !== previous.version) throw Object.assign(new Error('Otro profesional actualizó esta atención. Recarga antes de guardar.'), { status: 409 });
       const update = { updatedAt: new Date().toISOString(), version: previous.version + 1 };
-      if (req.body?.wound) { requireRole(member, [...DOCTOR_ROLES, 'nurse']); update.wound = sanitizeWound(req.body.wound, actor, previous.wound); }
-      if (req.body?.wifi) { requireRole(member, DOCTOR_ROLES); update.wifi = sanitizeWifi(req.body.wifi, actor, previous.wifi); }
+      if (req.body?.wound) { requireRole(member, ['doctor', 'nurse']); update.wound = sanitizeWound(req.body.wound, actor, previous.wound); }
+      if (req.body?.wifi) { requireRole(member, ['doctor']); update.wifi = sanitizeWifi(req.body.wifi, actor, previous.wifi); }
       if (req.body?.nursing) { requireRole(member, ['nurse']); update.nursing = sanitizeNursing(req.body.nursing, actor, previous.nursing); }
-      if (req.body?.medical) { requireRole(member, DOCTOR_ROLES); update.medical = sanitizeMedical(req.body.medical, actor, previous.medical); }
-      if (req.body?.status && ['draft', 'in_progress', 'ready_for_review', 'completed', 'cancelled'].includes(req.body.status)) { requireRole(member, [...DOCTOR_ROLES, 'nurse']); update.status = req.body.status; }
+      if (req.body?.medical) { requireRole(member, ['doctor']); update.medical = sanitizeMedical(req.body.medical, actor, previous.medical); }
+      if (req.body?.status && ['draft', 'in_progress', 'ready_for_review', 'completed', 'cancelled'].includes(req.body.status)) { requireRole(member, ['doctor', 'nurse']); update.status = req.body.status; }
       saved = { id, ...previous, ...update }; saved.nursingNarrative = nursingNarrative(saved); saved.medicalNarrative = medicalNarrative(saved);
       transaction.update(ref, compact({ ...update, nursingNarrative: saved.nursingNarrative, medicalNarrative: saved.medicalNarrative }));
     });
@@ -376,7 +405,7 @@ async function route(req, res, actor) {
 
   const photoMatch = subpath.match(/^\/encounters\/([^/]+)\/photos$/);
   if (photoMatch && method === 'POST') {
-    requireRole(member, ['tens', 'nurse', ...DOCTOR_ROLES]); const id = photoMatch[1]; const ref = db.doc(`centers/${centerId}/encounters/${id}`); const snap = await ref.get();
+    requireRole(member, ['tens', 'nurse', 'doctor']); const id = photoMatch[1]; const ref = db.doc(`centers/${centerId}/encounters/${id}`); const snap = await ref.get();
     if (!snap.exists) throw Object.assign(new Error('Atención no encontrada.'), { status: 404 });
     const episode = await db.doc(`centers/${centerId}/episodes/${snap.data().episodeId}`).get();
     if (!episode.exists || episode.data().consentForPhotography !== true) throw Object.assign(new Error('Debes registrar consentimiento para fotografías antes de capturar.'), { status: 400 });
@@ -395,6 +424,7 @@ async function route(req, res, actor) {
     requireRole(member, ['nurse', 'doctor', 'general_surgeon', 'vascular_surgeon', 'vascular_nurse', 'traumatologist']);
     const episodeId = attachmentMatch[1]; const episode = await db.doc(`centers/${centerId}/episodes/${episodeId}`).get();
     if (!episode.exists) throw Object.assign(new Error('Episodio no encontrado.'), { status: 404 });
+    if (!hasAnyRole(member, ['nurse', 'doctor']) && !(await hasAssignedEpisode(member, centerId, episodeId))) throw Object.assign(new Error('Sólo puedes cargar documentos en casos asignados a tu perfil.'), { status: 403 });
     const data = String(req.body?.dataUrl || '');
     const match = data.match(/^data:(application\/pdf|image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/);
     if (!match) throw Object.assign(new Error('Sólo se permiten PDF, JPEG, PNG o WebP.'), { status: 400 });
@@ -409,7 +439,7 @@ async function route(req, res, actor) {
   }
 
   if (subpath === '/tasks' && method === 'POST') {
-    requireRole(member, ['coordinator', 'nurse', ...DOCTOR_ROLES, 'vascular_nurse', 'social_worker']);
+    requireRole(member, ['coordinator', 'nurse', 'doctor']);
     const recipientRole = sanitizeRoles([req.body?.recipientRole])[0]; const patientId = cleanText(req.body?.patientId, 60); const episodeId = cleanText(req.body?.episodeId, 60);
     if (!recipientRole || !patientId || !episodeId || !cleanText(req.body?.reason, 1000)) throw Object.assign(new Error('Destinatario, paciente, episodio y motivo son obligatorios.'), { status: 400 });
     const ref = db.collection(`centers/${centerId}/tasks`).doc(); const now = new Date().toISOString();
@@ -420,7 +450,7 @@ async function route(req, res, actor) {
   const taskMatch = subpath.match(/^\/tasks\/([^/]+)$/);
   if (taskMatch && method === 'PUT') {
     const id = taskMatch[1]; const ref = db.doc(`centers/${centerId}/tasks/${id}`); const snap = await ref.get(); if (!snap.exists) throw Object.assign(new Error('Tarea no encontrada.'), { status: 404 }); const task = snap.data();
-    if (!(member.roles.includes(task.recipientRole) || member.roles.includes('coordinator') || member.roles.includes('center_admin') || task.createdByUid === actor.uid)) throw Object.assign(new Error('No puedes actualizar esta tarea.'), { status: 403 });
+    if (!(member.roles.includes(task.recipientRole) || member.roles.includes('coordinator') || task.createdByUid === actor.uid)) throw Object.assign(new Error('No puedes actualizar esta tarea.'), { status: 403 });
     const status = ['created', 'notified', 'accepted', 'in_progress', 'resolved', 'rejected'].includes(req.body?.status) ? req.body.status : undefined;
     const update = compact({ status, result: cleanText(req.body?.result, 1500), assignedToUid: cleanText(req.body?.assignedToUid, 128), ...(status === 'accepted' ? { acceptedByUid: actor.uid } : {}), ...(status === 'resolved' ? { resolvedByUid: actor.uid } : {}), updatedAt: new Date().toISOString() });
     await ref.update(update); await audit(centerId, actor, 'task.updated', 'task', id, { status }); return send(res, 200, { task: { id, ...task, ...update } });
@@ -428,7 +458,7 @@ async function route(req, res, actor) {
 
   const whatsappMatch = subpath.match(/^\/tasks\/([^/]+)\/whatsapp$/);
   if (whatsappMatch && method === 'POST') {
-    requireRole(member, ['coordinator', 'nurse', ...DOCTOR_ROLES, 'vascular_nurse']); const center = await db.doc(`centers/${centerId}`).get(); const phone = String(center.data()?.whatsappNumber || '').replace(/\D/g, '');
+    requireRole(member, ['coordinator', 'nurse', 'doctor']); const center = await db.doc(`centers/${centerId}`).get(); const phone = String(center.data()?.whatsappNumber || '').replace(/\D/g, '');
     if (!phone) throw Object.assign(new Error('El centro no tiene un número de WhatsApp configurado.'), { status: 400 });
     const task = await db.doc(`centers/${centerId}/tasks/${whatsappMatch[1]}`).get(); if (!task.exists) throw Object.assign(new Error('Tarea no encontrada.'), { status: 404 });
     const message = `Equipo de Pie Diabético: existe una nueva gestión ${task.data().priority} en la plataforma. Ingrese con su cuenta institucional para revisar los antecedentes. No se incluyen datos clínicos por este canal.`;

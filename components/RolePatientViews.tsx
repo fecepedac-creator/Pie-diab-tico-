@@ -1,0 +1,28 @@
+import { FormEvent, useState } from 'react';
+import { api } from '../services/api';
+import type { Patient } from '../types';
+import { formatRut, toggleValue } from '../utils';
+
+const SUPPORT = ['Vive solo/a', 'Pareja', 'Hijos/as', 'Otros familiares', 'Cuidador/a', 'Red limitada'];
+const MOBILITY = ['Independiente', 'Bastón', 'Andador', 'Silla de ruedas', 'Dependiente'];
+const TRANSPORT = ['Sin barreras', 'Distancia', 'Costo', 'Traslado sanitario', 'Dependencia de tercero'];
+const HOUSING = ['Sin barreras', 'Escaleras', 'Baño no adaptado', 'Hacinamiento', 'Riesgo sanitario'];
+const split = (value?: string) => String(value || '').split(',').map((item) => item.trim()).filter(Boolean);
+
+function Choices({ options, values, onChange, single = false }: { options: string[]; values: string[]; onChange: (values: string[]) => void; single?: boolean }) {
+  return <div className="choice-grid">{options.map((option) => <button type="button" className={`clinical-chip ${values.includes(option) ? 'selected' : ''}`} aria-pressed={values.includes(option)} key={option} onClick={() => onChange(single ? (values.includes(option) ? [] : [option]) : toggleValue(values, option))}>{option}</button>)}</div>;
+}
+
+export function SocialPatientView({ centerId, patient, onSaved, demoMode = false }: { centerId: string; patient: Patient; onSaved: () => Promise<void>; demoMode?: boolean }) {
+  const [support, setSupport] = useState(split(patient.social.supportNetwork)); const [mobility, setMobility] = useState(split(patient.social.mobility));
+  const [transport, setTransport] = useState(split(patient.social.transportBarriers)); const [housing, setHousing] = useState(split(patient.social.housingBarriers)); const [notes, setNotes] = useState(patient.social.notes || ''); const [message, setMessage] = useState('');
+  const save = async (event: FormEvent) => { event.preventDefault(); if (demoMode) return; try { await api.updatePatient(centerId, patient.id, { social: { supportNetwork: support.join(', '), mobility: mobility[0] || '', transportBarriers: transport.join(', '), housingBarriers: housing.join(', '), notes }, socialVerification: { status: 'confirmed' } }); await onSaved(); setMessage('Evaluación social guardada y validada.'); } catch (cause) { setMessage(cause instanceof Error ? cause.message : 'No fue posible guardar.'); } };
+  return <form className="panel role-patient-view" onSubmit={save}><div className="card-heading"><div><p className="eyebrow">Módulo de trabajo social</p><h2>Situación social y funcional</h2><p>Esta sección no permite modificar antecedentes clínicos.</p></div><span className={`pill ${patient.socialVerification?.status || 'draft'}`}>{patient.socialVerification?.status === 'confirmed' ? 'Validada' : 'Borrador'}</span></div><fieldset disabled={demoMode}><label>Red de apoyo</label><Choices options={SUPPORT} values={support} onChange={setSupport} /><label>Movilidad</label><Choices options={MOBILITY} values={mobility} onChange={setMobility} single /><label>Barreras de transporte</label><Choices options={TRANSPORT} values={transport} onChange={setTransport} /><label>Barreras de vivienda</label><Choices options={HOUSING} values={housing} onChange={setHousing} /><label>Observación social<textarea value={notes} onChange={(event) => setNotes(event.target.value)} /></label><button className="primary">Guardar y validar sección social</button></fieldset>{message && <p className="pre-message" role="status">{message}</p>}</form>;
+}
+
+export function CoordinationPatientView({ centerId, patient, onSaved, demoMode = false }: { centerId: string; patient: Patient; onSaved: () => Promise<void>; demoMode?: boolean }) {
+  const status = patient.preAdmissionStatus === 'validated' ? 'Validado' : patient.preAdmissionStatus === 'pending_validation' ? 'Pendiente de validación' : patient.preAdmissionStatus === 'in_progress' ? 'En preparación' : 'Ingreso mínimo';
+  const [name, setName] = useState(patient.name); const [birthDate, setBirthDate] = useState(patient.birthDate || ''); const [contact, setContact] = useState(patient.contact || ''); const [comuna, setComuna] = useState(patient.comuna || ''); const [message, setMessage] = useState('');
+  const save = async (event: FormEvent) => { event.preventDefault(); if (demoMode) return; try { await api.updatePatient(centerId, patient.id, { name, birthDate, contact, comuna }); await onSaved(); setMessage('Datos administrativos actualizados.'); } catch (cause) { setMessage(cause instanceof Error ? cause.message : 'No fue posible guardar.'); } };
+  return <form className="panel role-patient-view coordination-view" onSubmit={save}><div><p className="eyebrow">Vista de coordinación</p><h2>{patient.name}</h2><strong>{formatRut(patient.rut)}</strong></div><div className="coordination-facts"><span><small>Preingreso</small><strong>{status}</strong></span><label>Nombre<input value={name} onChange={(event) => setName(event.target.value)} required /></label><label>Fecha de nacimiento<input type="date" value={birthDate} onChange={(event) => setBirthDate(event.target.value)} /></label><label>Contacto<input value={contact} onChange={(event) => setContact(event.target.value)} /></label><label>Comuna<input value={comuna} onChange={(event) => setComuna(event.target.value)} /></label></div><p className="helper">Coordinación administra identidad, contacto, episodios y gestiones, sin acceder a la anamnesis ni a las fotografías clínicas.</p><button className="primary" disabled={demoMode}>Guardar datos administrativos</button>{message && <p className="pre-message" role="status">{message}</p>}</form>;
+}

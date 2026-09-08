@@ -90,7 +90,7 @@ export default function App() {
   const canAdminCenter = membership?.roles.includes('center_admin') ?? false;
 
   const refreshState = async () => {
-    if (!centerId || !membership || !membership.roles.some((role) => role !== 'center_admin')) { setState(null); return; }
+    if (!centerId || !membership || !membership.roles.some((role) => !['center_admin', 'auditor'].includes(role))) { setState(null); return; }
     setState(await api.getState(centerId));
   };
 

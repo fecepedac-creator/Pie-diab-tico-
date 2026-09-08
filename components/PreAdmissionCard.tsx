@@ -92,8 +92,9 @@ function SelectionDetails({ selected, details, onChange, kind }: { selected: str
 }
 
 export default function PreAdmissionCard({ centerId, membership, patient, onSaved, demoMode = false }: { centerId: string; membership: Membership; patient: Patient; onSaved: () => Promise<void>; demoMode?: boolean }) {
-  const canEdit = membership.roles.some((role) => ['nurse', 'doctor', 'social_worker', 'physiatrist', 'coordinator'].includes(role));
-  const canUploadPhoto = membership.roles.some((role) => ['nurse', 'doctor', 'coordinator'].includes(role));
+  const canEdit = membership.roles.some((role) => ['tens', 'nurse', 'doctor'].includes(role));
+  const canValidate = membership.roles.some((role) => ['nurse', 'doctor'].includes(role));
+  const canUploadPhoto = membership.roles.some((role) => ['tens', 'nurse', 'doctor'].includes(role));
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
   const [birthDate, setBirthDate] = useState(patient.birthDate || '');
@@ -126,9 +127,11 @@ export default function PreAdmissionCard({ centerId, membership, patient, onSave
   const save = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault(); if (demoMode) return; setSaving(true); setMessage('');
     try {
+      const intent = ((event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null)?.value;
+      const nextStatus = canValidate && confirmed ? 'validated' : intent === 'review' ? 'pending_validation' : 'in_progress';
       await api.updatePatient(centerId, patient.id, {
         birthDate, contact, comuna,
-        preAdmissionStatus: confirmed ? 'validated' : 'in_progress',
+        preAdmissionStatus: nextStatus,
         anamnesis: {
           diabetesTreatment, medicalHistory, medicalHistoryDetails, surgicalHistory, surgicalHistoryDetails, allergyStatus,
           allergies: allergyStatus === 'none' ? [] : allergies,
@@ -139,9 +142,10 @@ export default function PreAdmissionCard({ centerId, membership, patient, onSave
           supportNetwork: supportNetwork.join(', '), mobility,
           transportBarriers: transportBarriers.join(', '), housingBarriers: housingBarriers.join(', '), notes: socialNotes,
         },
-        verification: { status: confirmed ? 'confirmed' : 'draft' },
+        socialVerification: { status: canValidate && confirmed ? 'confirmed' : 'draft' },
+        verification: { status: canValidate && confirmed ? 'confirmed' : 'draft' },
       });
-      await onSaved(); setMessage(confirmed ? 'Preingreso validado y compartido con el equipo.' : 'Borrador de preingreso guardado.');
+      await onSaved(); setMessage(nextStatus === 'validated' ? 'Preingreso validado y compartido con el equipo.' : nextStatus === 'pending_validation' ? 'Preingreso enviado a la bandeja de validación profesional.' : 'Borrador de preingreso guardado.');
     } catch (cause) { setMessage(cause instanceof Error ? cause.message : 'No fue posible guardar.'); }
     finally { setSaving(false); }
   };
@@ -170,7 +174,7 @@ export default function PreAdmissionCard({ centerId, membership, patient, onSave
         <div><dt>Contacto</dt><dd>{contact || 'Pendiente'}</dd></div>
         <div><dt>Comuna</dt><dd>{comuna || 'Pendiente'}</dd></div>
       </dl>
-      <span className={`pre-status ${confirmed ? 'validated' : ''}`}>{confirmed ? '✓ Preingreso validado' : '○ Preingreso en preparación'}</span>
+      <span className={`pre-status ${patient.preAdmissionStatus === 'validated' ? 'validated' : ''}`}>{patient.preAdmissionStatus === 'validated' ? '✓ Preingreso validado' : patient.preAdmissionStatus === 'pending_validation' ? '◷ Pendiente de validación profesional' : '○ Preingreso en preparación'}</span>
     </aside>
 
     <form className="pre-admission-form" onSubmit={save}>
@@ -195,7 +199,7 @@ export default function PreAdmissionCard({ centerId, membership, patient, onSave
         <section className="pre-section social-section" data-tone="orange"><header><span className="section-icon" aria-hidden="true">⌂</span><div><h3>Situación social y funcional</h3><p>Información relevante para adherencia, traslado y descarga.</p></div></header><label className="choice-label">Red de apoyo</label><MultiChoice options={SUPPORT_OPTIONS} values={supportNetwork} onChange={setSupportNetwork} /><label className="choice-label">Movilidad</label><SingleChoice options={MOBILITY_OPTIONS} value={mobility} onChange={setMobility} /><label className="choice-label">Barreras de transporte</label><MultiChoice options={TRANSPORT_OPTIONS} values={transportBarriers} onChange={setTransportBarriers} exclusiveOption="Sin barreras" /><label className="choice-label">Barreras de vivienda</label><MultiChoice options={HOUSING_OPTIONS} values={housingBarriers} onChange={setHousingBarriers} exclusiveOption="Sin barreras" /><label className="notes-field">Observación social excepcional<textarea value={socialNotes} onChange={(event) => setSocialNotes(event.target.value)} placeholder="Escribe sólo aquello que no quede representado en las opciones anteriores." /></label></section>
       </fieldset>
 
-      {canEdit ? <footer className="pre-actions"><button type="button" disabled={demoMode} className={`validation-toggle ${confirmed ? 'selected' : ''}`} aria-pressed={confirmed} onClick={() => setConfirmed(!confirmed)}>{confirmed ? '✓ Antecedentes revisados' : 'Marcar como revisado'}</button><button className="primary" disabled={saving || demoMode}>{saving ? 'Guardando…' : confirmed ? 'Guardar y validar' : 'Guardar borrador'}</button></footer> : <p className="readonly-note">Vista de lectura para tu perfil.</p>}
+      {canEdit ? <footer className="pre-actions">{canValidate ? <><button type="button" disabled={demoMode} className={`validation-toggle ${confirmed ? 'selected' : ''}`} aria-pressed={confirmed} onClick={() => setConfirmed(!confirmed)}>{confirmed ? '✓ Antecedentes revisados' : 'Marcar como revisado'}</button><button className="primary" value="validate" disabled={saving || demoMode}>{saving ? 'Guardando…' : confirmed ? 'Guardar y validar' : 'Guardar borrador'}</button></> : <><button className="ghost" value="draft" disabled={saving || demoMode}>{saving ? 'Guardando…' : 'Guardar borrador'}</button><button className="primary" value="review" disabled={saving || demoMode}>Enviar para validación</button></>}</footer> : <p className="readonly-note">Vista de lectura para tu perfil.</p>}
       {message && <p className="pre-message" role="status">{message}</p>}
     </form>
   </article>;
