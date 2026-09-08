@@ -41,6 +41,7 @@ export interface Center {
   code: string;
   region?: string;
   address?: string;
+  logoStoragePath?: string;
   logoUrl?: string;
   whatsappNumber?: string;
   allowedDomains: string[];

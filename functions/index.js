@@ -133,6 +133,17 @@ async function withPhotoUrls(encounters) {
   })));
 }
 
+async function withCenterLogoUrls(centers) {
+  const bucket = getStorage().bucket();
+  return Promise.all(centers.map(async (center) => {
+    if (!center.logoStoragePath) return center;
+    try {
+      const [logoUrl] = await bucket.file(center.logoStoragePath).getSignedUrl({ action: 'read', expires: Date.now() + 15 * 60 * 1000 });
+      return { ...center, logoUrl };
+    } catch { return center; }
+  }));
+}
+
 async function withPatientPhotoUrls(patients) {
   const bucket = getStorage().bucket();
   return Promise.all(patients.map(async (patient) => {
@@ -170,24 +181,34 @@ async function route(req, res, actor) {
       const snap = await db.doc(`centers/${member.centerId}`).get();
       if (snap.exists && snap.data().status === 'active') centers.push({ id: snap.id, ...snap.data() });
     }
-    return send(res, 200, { user: actor, platformAdmin, memberships: active, centers });
+    return send(res, 200, { user: actor, platformAdmin, memberships: active, centers: await withCenterLogoUrls(centers) });
   }
 
   if (path === '/platform/centers') {
     if (!(await isPlatformAdmin(actor))) throw Object.assign(new Error('Acceso exclusivo de administración de plataforma.'), { status: 403 });
-    if (method === 'GET') return send(res, 200, { centers: await docs(db.collection('centers')) });
+    if (method === 'GET') return send(res, 200, { centers: await withCenterLogoUrls(await docs(db.collection('centers'))) });
     if (method === 'POST') {
       const name = cleanText(req.body?.name, 120);
       const adminEmail = cleanEmail(req.body?.adminEmail);
       if (!name) throw Object.assign(new Error('El nombre del centro es obligatorio.'), { status: 400 });
       const ref = db.collection('centers').doc();
       const now = new Date().toISOString();
-      const center = { id: ref.id, name, code: cleanText(req.body?.code, 30).toUpperCase() || ref.id.slice(0, 8).toUpperCase(), region: cleanText(req.body?.region, 80), address: cleanText(req.body?.address, 200), whatsappNumber: cleanText(req.body?.whatsappNumber, 30), allowedDomains: cleanStringArray(req.body?.allowedDomains, 20, 100), status: 'active', createdAt: now, updatedAt: now };
+      let logoFile; let logoStoragePath;
+      if (req.body?.logoDataUrl) {
+        const match = String(req.body.logoDataUrl).match(/^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/);
+        if (!match) throw Object.assign(new Error('El logo debe ser una imagen PNG, JPG o WebP.'), { status: 400 });
+        const buffer = Buffer.from(match[2], 'base64');
+        if (buffer.length > 2 * 1024 * 1024) throw Object.assign(new Error('El logo supera el máximo de 2 MB.'), { status: 413 });
+        const ext = match[1].split('/')[1]; logoStoragePath = `centers/${ref.id}/branding/logo.${ext}`; logoFile = getStorage().bucket().file(logoStoragePath);
+        await logoFile.save(buffer, { resumable: false, contentType: match[1], metadata: { cacheControl: 'private, max-age=0, no-store' } });
+      }
+      const center = compact({ id: ref.id, name, code: cleanText(req.body?.code, 30).toUpperCase() || ref.id.slice(0, 8).toUpperCase(), region: cleanText(req.body?.region, 80), address: cleanText(req.body?.address, 200), logoStoragePath, whatsappNumber: cleanText(req.body?.whatsappNumber, 30), allowedDomains: cleanStringArray(req.body?.allowedDomains, 20, 100), status: 'active', createdAt: now, updatedAt: now });
       const memberId = `${ref.id}_${hashEmail(adminEmail)}`;
       const member = { id: memberId, centerId: ref.id, email: adminEmail, emailLower: adminEmail, displayName: cleanText(req.body?.adminName || adminEmail, 120), roles: ['center_admin'], status: 'invited', createdAt: now, updatedAt: now };
-      const batch = db.batch(); batch.set(ref, center); batch.set(db.doc(`memberships/${memberId}`), member); await batch.commit();
+      const batch = db.batch(); batch.set(ref, center); batch.set(db.doc(`memberships/${memberId}`), member);
+      try { await batch.commit(); } catch (error) { if (logoFile) await logoFile.delete({ ignoreNotFound: true }).catch(() => undefined); throw error; }
       await audit(ref.id, actor, 'center.created', 'center', ref.id, { adminEmail });
-      return send(res, 201, { center });
+      return send(res, 201, { center: (await withCenterLogoUrls([center]))[0] });
     }
   }
 

@@ -50,7 +50,7 @@ export const api = {
   session: () => request<SessionInfo>('/session'),
 
   listCenters: () => request<{ centers: Center[] }>('/platform/centers'),
-  createCenter: (input: Partial<Center> & { name: string; adminEmail: string; adminName?: string }) =>
+  createCenter: (input: Partial<Center> & { name: string; adminEmail: string; adminName?: string; logoDataUrl?: string }) =>
     request<{ center: Center }>('/platform/centers', json('POST', input)),
   updateCenter: (centerId: string, input: Partial<Center>) =>
     request<{ center: Center }>(`/platform/centers/${centerId}`, json('PUT', input)),

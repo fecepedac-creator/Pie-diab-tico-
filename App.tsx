@@ -106,6 +106,7 @@ export default function App() {
     <header className="topbar">
       <div className="brand"><span className="brand-mark small">PD</span><div><strong>Pie Diabético</strong><small>Gestión clínica coordinada</small></div></div>
       <div className="top-actions">
+        {center?.logoUrl && <img className="active-center-logo" src={center.logoUrl} alt={`Logo de ${center.name}`} />}
         {session.centers.length > 0 && <select aria-label="Centro activo" value={centerId} onChange={(event) => chooseCenter(event.target.value)}>{session.centers.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>}
         <button className="ghost" onClick={() => signOut(auth)}>Salir</button>
       </div>
