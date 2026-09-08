@@ -1,0 +1,27 @@
+.google-signin-area {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-height: 52px;
+  margin: 1.2rem 0 .75rem;
+}
+
+.google-signin-host {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  min-height: 44px;
+}
+
+.google-signin-area > span {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid #c8d9d5;
+  border-radius: 10px;
+  background: #fff;
+  color: #547070;
+  font-size: .82rem;
+}

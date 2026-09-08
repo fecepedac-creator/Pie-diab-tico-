@@ -1,9 +1,35 @@
-import { useState } from 'react';
-import { signInWithPopup, signInWithRedirect } from 'firebase/auth';
-import { auth, googleProvider } from '../firebase';
+import { useEffect, useRef, useState } from 'react';
+import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
+import { auth, authPersistenceReady } from '../firebase';
+import './login-google.css';
+
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID
+  || '953735305510-q625m0nrcom4hpeni4b9r92i4pnohvof.apps.googleusercontent.com';
+
+type GoogleCredentialResponse = { credential?: string };
+
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (configuration: {
+            client_id: string;
+            callback: (response: GoogleCredentialResponse) => void;
+            auto_select?: boolean;
+          }) => void;
+          renderButton: (parent: HTMLElement, options: Record<string, string | number>) => void;
+        };
+      };
+    };
+  }
+}
 
 export default function LoginView({ error }: { error?: string }) {
+  const buttonHost = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState(false);
+  const [ready, setReady] = useState(false);
+
   const reportError = (code = '') => {
     const message = code === 'auth/unauthorized-domain'
       ? 'Este sitio todavía no está autorizado para iniciar sesión. Contacta al administrador de la plataforma.'
@@ -11,33 +37,60 @@ export default function LoginView({ error }: { error?: string }) {
     window.dispatchEvent(new CustomEvent('auth-error', { detail: message }));
   };
 
-  const login = async () => {
-    setBusy(true);
-    try {
-      // Touch-enabled laptops report a coarse pointer even with a full desktop
-      // browser. Keep redirect for genuinely small screens and use the more
-      // reliable popup flow for tablets and computers.
-      const prefersRedirect = window.innerWidth < 760;
-      if (prefersRedirect) {
-        await signInWithRedirect(auth, googleProvider);
-        return;
+  useEffect(() => {
+    let disposed = false;
+
+    const initializeGoogleButton = () => {
+      const host = buttonHost.current;
+      if (disposed || !host || !window.google) return;
+
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        auto_select: false,
+        callback: (response) => {
+          if (!response.credential) { reportError(); return; }
+          setBusy(true);
+          void authPersistenceReady
+            .then(() => signInWithCredential(auth, GoogleAuthProvider.credential(response.credential)))
+            .catch((cause) => {
+              const code = cause && typeof cause === 'object' && 'code' in cause ? String(cause.code) : '';
+              reportError(code);
+            })
+            .finally(() => setBusy(false));
+        },
+      });
+
+      host.replaceChildren();
+      window.google.accounts.id.renderButton(host, {
+        type: 'standard',
+        theme: 'outline',
+        size: 'large',
+        text: 'signin_with',
+        shape: 'rectangular',
+        logo_alignment: 'left',
+        locale: 'es',
+        width: Math.min(400, host.clientWidth || 400),
+      });
+      setReady(true);
+    };
+
+    if (window.google) {
+      initializeGoogleButton();
+    } else {
+      const existing = document.querySelector<HTMLScriptElement>('script[data-google-identity]');
+      const script = existing || document.createElement('script');
+      if (!existing) {
+        script.src = 'https://accounts.google.com/gsi/client';
+        script.async = true;
+        script.dataset.googleIdentity = 'true';
+        document.head.appendChild(script);
       }
-      await signInWithPopup(auth, googleProvider);
+      script.addEventListener('load', initializeGoogleButton, { once: true });
+      script.addEventListener('error', () => reportError(), { once: true });
     }
-    catch (cause) {
-      const code = cause && typeof cause === 'object' && 'code' in cause ? String(cause.code) : '';
-      if (['auth/popup-blocked', 'auth/cancelled-popup-request', 'auth/internal-error'].includes(code)) {
-        try { await signInWithRedirect(auth, googleProvider); }
-        catch (redirectCause) {
-          reportError(redirectCause && typeof redirectCause === 'object' && 'code' in redirectCause ? String(redirectCause.code) : '');
-          setBusy(false);
-        }
-        return;
-      }
-      reportError(code);
-      setBusy(false);
-    }
-  };
+
+    return () => { disposed = true; };
+  }, []);
 
   return <main className="login-shell">
     <section className="login-card">
@@ -50,9 +103,10 @@ export default function LoginView({ error }: { error?: string }) {
         <h1>Cuidamos cada paso, juntos</h1>
         <p className="lead">Una ficha de trabajo compartida para que cada profesional vea la misma historia, coordine a tiempo y acompañe mejor a cada paciente.</p>
         {error && <div className="notice danger login-error" role="alert">{error}</div>}
-        <button className="google-button" onClick={login} disabled={busy}>
-          <span className="google-g" aria-hidden="true">G</span> {busy ? 'Abriendo acceso seguro…' : 'Ingresar con Google institucional'}
-        </button>
+        <div className="google-signin-area" aria-busy={!ready || busy}>
+          <div ref={buttonHost} className="google-signin-host" />
+          {(!ready || busy) && <span>{busy ? 'Validando acceso seguro…' : 'Preparando acceso con Google…'}</span>}
+        </div>
         <p className="access-note"><strong>Un solo acceso para todo el equipo.</strong> Al ingresar, verás automáticamente los paneles habilitados para tus perfiles.</p>
         <div className="trust-grid" aria-label="Características de seguridad">
           <span>Acceso por invitación</span><span>Permisos por perfil</span><span>Registro de cambios</span>
