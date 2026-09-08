@@ -32,7 +32,7 @@ function setCors(req, res) {
     res.set('Vary', 'Origin');
   }
   res.set('Access-Control-Allow-Headers', 'Authorization, Content-Type');
-  res.set('Access-Control-Allow-Methods', 'GET, POST, PUT, OPTIONS');
+  res.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
 }
 
 async function actorFromRequest(req) {
@@ -52,9 +52,10 @@ async function isPlatformAdmin(actor) {
 
 async function membershipFor(centerId, actor) {
   const id = `${centerId}_${hashEmail(actor.email)}`;
-  const ref = db.doc(`memberships/${id}`);
+  const ref = db.doc(`memberships/${id}`); const centerRef = db.doc(`centers/${centerId}`);
   return db.runTransaction(async (transaction) => {
-    const snap = await transaction.get(ref);
+    const centerSnap = await transaction.get(centerRef); const snap = await transaction.get(ref);
+    if (!centerSnap.exists || centerSnap.data().status !== 'active') throw Object.assign(new Error('Este centro no se encuentra activo.'), { status: 403 });
     if (!snap.exists || snap.data().status === 'disabled') throw Object.assign(new Error('No tienes acceso activo a este centro.'), { status: 403 });
     if (snap.data().uid && snap.data().uid !== actor.uid) throw Object.assign(new Error('La invitación está vinculada a otra cuenta.'), { status: 403 });
     const now = new Date().toISOString(); const update = { uid: actor.uid, status: 'active', lastAccessAt: now, updatedAt: now };
@@ -133,6 +134,14 @@ async function withPhotoUrls(encounters) {
   })));
 }
 
+function parseLogoDataUrl(value) {
+  const match = String(value || '').match(/^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/);
+  if (!match) throw Object.assign(new Error('El logo debe ser una imagen PNG, JPG o WebP.'), { status: 400 });
+  const buffer = Buffer.from(match[2], 'base64');
+  if (buffer.length > 2 * 1024 * 1024) throw Object.assign(new Error('El logo supera el máximo de 2 MB.'), { status: 413 });
+  return { buffer, contentType: match[1], ext: match[1].split('/')[1] };
+}
+
 async function withCenterLogoUrls(centers) {
   const bucket = getStorage().bucket();
   return Promise.all(centers.map(async (center) => {
@@ -174,12 +183,10 @@ async function route(req, res, actor) {
   if (path === '/session' && method === 'GET') {
     const platformAdmin = await isPlatformAdmin(actor);
     const memberships = await docs(db.collection('memberships').where('emailLower', '==', actor.email));
-    const active = [];
-    for (const member of memberships.filter((item) => item.status !== 'disabled')) active.push(await membershipFor(member.centerId, actor));
-    const centers = [];
-    for (const member of active) {
+    const active = []; const centers = [];
+    for (const member of memberships.filter((item) => item.status !== 'disabled')) {
       const snap = await db.doc(`centers/${member.centerId}`).get();
-      if (snap.exists && snap.data().status === 'active') centers.push({ id: snap.id, ...snap.data() });
+      if (snap.exists && snap.data().status === 'active') { active.push(await membershipFor(member.centerId, actor)); centers.push({ id: snap.id, ...snap.data() }); }
     }
     return send(res, 200, { user: actor, platformAdmin, memberships: active, centers: await withCenterLogoUrls(centers) });
   }
@@ -195,12 +202,8 @@ async function route(req, res, actor) {
       const now = new Date().toISOString();
       let logoFile; let logoStoragePath;
       if (req.body?.logoDataUrl) {
-        const match = String(req.body.logoDataUrl).match(/^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/);
-        if (!match) throw Object.assign(new Error('El logo debe ser una imagen PNG, JPG o WebP.'), { status: 400 });
-        const buffer = Buffer.from(match[2], 'base64');
-        if (buffer.length > 2 * 1024 * 1024) throw Object.assign(new Error('El logo supera el máximo de 2 MB.'), { status: 413 });
-        const ext = match[1].split('/')[1]; logoStoragePath = `centers/${ref.id}/branding/logo.${ext}`; logoFile = getStorage().bucket().file(logoStoragePath);
-        await logoFile.save(buffer, { resumable: false, contentType: match[1], metadata: { cacheControl: 'private, max-age=0, no-store' } });
+        const logo = parseLogoDataUrl(req.body.logoDataUrl); logoStoragePath = `centers/${ref.id}/branding/logo.${logo.ext}`; logoFile = getStorage().bucket().file(logoStoragePath);
+        await logoFile.save(logo.buffer, { resumable: false, contentType: logo.contentType, metadata: { cacheControl: 'private, max-age=0, no-store' } });
       }
       const center = compact({ id: ref.id, name, code: cleanText(req.body?.code, 30).toUpperCase() || ref.id.slice(0, 8).toUpperCase(), region: cleanText(req.body?.region, 80), address: cleanText(req.body?.address, 200), logoStoragePath, whatsappNumber: cleanText(req.body?.whatsappNumber, 30), allowedDomains: cleanStringArray(req.body?.allowedDomains, 20, 100), status: 'active', createdAt: now, updatedAt: now });
       const memberId = `${ref.id}_${hashEmail(adminEmail)}`;
@@ -217,8 +220,28 @@ async function route(req, res, actor) {
     if (!(await isPlatformAdmin(actor))) throw Object.assign(new Error('Acceso exclusivo de administración de plataforma.'), { status: 403 });
     const centerId = platformCenter[1]; const ref = db.doc(`centers/${centerId}`); const snap = await ref.get();
     if (!snap.exists) throw Object.assign(new Error('Centro no encontrado.'), { status: 404 });
-    const update = compact({ name: cleanText(req.body?.name, 120) || undefined, region: cleanText(req.body?.region, 80) || undefined, address: cleanText(req.body?.address, 200) || undefined, whatsappNumber: cleanText(req.body?.whatsappNumber, 30), allowedDomains: req.body?.allowedDomains ? cleanStringArray(req.body.allowedDomains, 20, 100) : undefined, status: ['active', 'suspended'].includes(req.body?.status) ? req.body.status : undefined, updatedAt: new Date().toISOString() });
-    await ref.update(update); await audit(centerId, actor, 'center.updated', 'center', centerId);
+    const previous = snap.data(); const oldLogoPath = previous.logoStoragePath; let nextLogoPath = oldLogoPath; let uploadedLogoFile;
+    if (req.body?.logoDataUrl) {
+      const logo = parseLogoDataUrl(req.body.logoDataUrl); nextLogoPath = `centers/${centerId}/branding/logo-${crypto.randomUUID()}.${logo.ext}`; uploadedLogoFile = getStorage().bucket().file(nextLogoPath);
+      await uploadedLogoFile.save(logo.buffer, { resumable: false, contentType: logo.contentType, metadata: { cacheControl: 'private, max-age=0, no-store' } });
+    } else if (req.body?.removeLogo === true) nextLogoPath = undefined;
+    const responseUpdate = compact({ name: cleanText(req.body?.name, 120) || undefined, code: cleanText(req.body?.code, 30).toUpperCase() || undefined, region: req.body?.region !== undefined ? cleanText(req.body.region, 80) : undefined, address: req.body?.address !== undefined ? cleanText(req.body.address, 200) : undefined, whatsappNumber: req.body?.whatsappNumber !== undefined ? cleanText(req.body.whatsappNumber, 30) : undefined, allowedDomains: req.body?.allowedDomains ? cleanStringArray(req.body.allowedDomains, 20, 100) : undefined, status: ['active', 'suspended'].includes(req.body?.status) ? req.body.status : undefined, ...(nextLogoPath ? { logoStoragePath: nextLogoPath } : {}), updatedAt: new Date().toISOString() });
+    const firestoreUpdate = { ...responseUpdate }; if (!nextLogoPath && oldLogoPath) firestoreUpdate.logoStoragePath = FieldValue.delete();
+    const restoringArchived = previous.status === 'archived' && responseUpdate.status === 'active';
+    if (restoringArchived) { firestoreUpdate.archivedAt = FieldValue.delete(); firestoreUpdate.archivedByUid = FieldValue.delete(); }
+    try { await ref.update(firestoreUpdate); } catch (error) { if (uploadedLogoFile) await uploadedLogoFile.delete({ ignoreNotFound: true }).catch(() => undefined); throw error; }
+    if (oldLogoPath && oldLogoPath !== nextLogoPath) await getStorage().bucket().file(oldLogoPath).delete({ ignoreNotFound: true }).catch(() => undefined);
+    await audit(centerId, actor, 'center.updated', 'center', centerId, compact({ status: responseUpdate.status }));
+    const center = { id: centerId, ...previous, ...responseUpdate }; if (!nextLogoPath) delete center.logoStoragePath; if (restoringArchived) { delete center.archivedAt; delete center.archivedByUid; }
+    return send(res, 200, { center: (await withCenterLogoUrls([center]))[0] });
+  }
+
+  if (platformCenter && method === 'DELETE') {
+    if (!(await isPlatformAdmin(actor))) throw Object.assign(new Error('Acceso exclusivo de administración de plataforma.'), { status: 403 });
+    const centerId = platformCenter[1]; const ref = db.doc(`centers/${centerId}`); const snap = await ref.get();
+    if (!snap.exists) throw Object.assign(new Error('Centro no encontrado.'), { status: 404 });
+    const update = { status: 'archived', archivedAt: new Date().toISOString(), archivedByUid: actor.uid, updatedAt: new Date().toISOString() };
+    await ref.update(update); await audit(centerId, actor, 'center.archived', 'center', centerId);
     return send(res, 200, { center: { id: centerId, ...snap.data(), ...update } });
   }
 

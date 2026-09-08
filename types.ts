@@ -45,7 +45,8 @@ export interface Center {
   logoUrl?: string;
   whatsappNumber?: string;
   allowedDomains: string[];
-  status: 'active' | 'suspended';
+  status: 'active' | 'suspended' | 'archived';
+  archivedAt?: string;
   createdAt: string;
   updatedAt: string;
 }

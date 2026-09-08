@@ -33,6 +33,32 @@
 .center-list-logo { width: 48px; height: 48px; border-radius: 13px; }
 .center-list-logo span { color: #075b5e; font-size: .78rem; font-weight: 900; }
 
+.platform-centers-layout { align-items: start; }
+.center-management-card { padding: .9rem; border: 1px solid #d9e4e1; border-radius: 14px; background: #fff; }
+.center-card-summary { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: .75rem; }
+.center-card-summary strong, .center-card-summary small { display: block; }
+.center-card-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .45rem; margin-top: .75rem; padding-top: .75rem; border-top: 1px solid #edf2f1; }
+.center-card-actions button { min-height: 36px; padding: .5rem .7rem; font-size: .72rem; }
+.danger-action, .danger-confirm { border: 1px solid #efc5cb; border-radius: 10px; background: #fff2f3; color: #a3293a; padding: .6rem .8rem; font-weight: 800; }
+.danger-confirm { border: 0; background: #ad2939; color: #fff; }
+.pill.suspended { background: #fff0cf; color: #8a5500; }
+.pill.archived { background: #ecefee; color: #61706e; }
+.archived-centers { margin-top: 1.25rem; }
+.archived-centers summary { margin: 0; }
+.archived-centers .stack { margin-top: 1rem; }
+
+.modal-backdrop { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 1rem; background: #102c2ca8; backdrop-filter: blur(5px); }
+.center-editor { width: min(760px, 100%); max-height: calc(100vh - 2rem); overflow: auto; padding: 1.4rem; }
+.center-editor .eyebrow { margin-top: 0; }
+.center-editor .center-logo-picker { margin: 1rem 0; }
+.editor-fields { margin-top: 1rem; }
+.modal-close { display: grid; place-items: center; width: 38px; height: 38px; border: 1px solid #d7e2df; border-radius: 11px; background: #fff; color: #526967; font-size: 1.35rem; }
+.modal-actions { display: flex; justify-content: flex-end; gap: .65rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e5ecea; }
+.archive-confirmation { width: min(480px, 100%); padding: 1.6rem; text-align: center; }
+.archive-confirmation p { color: #637777; line-height: 1.55; }
+.archive-icon { display: grid; place-items: center; width: 54px; height: 54px; margin: 0 auto 1rem; border-radius: 17px; background: #fff0f1; color: #ad2939; font-size: 1.5rem; font-weight: 900; }
+.archive-confirmation .modal-actions { justify-content: center; }
+
 .active-center-logo {
   width: 38px;
   height: 38px;
@@ -46,4 +72,9 @@
 @media (max-width: 560px) {
   .center-logo-picker { align-items: flex-start; }
   .center-logo-preview { width: 72px; height: 72px; border-radius: 18px; }
+  .center-card-summary { grid-template-columns: auto minmax(0, 1fr); }
+  .center-card-summary .pill { grid-column: 2; justify-self: start; }
+  .center-card-actions { justify-content: stretch; }
+  .center-card-actions button { flex: 1; }
+  .editor-fields { grid-template-columns: 1fr; }
 }
