@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { auth } from './firebase';
+import { getRedirectResult, onAuthStateChanged, signOut, type Unsubscribe } from 'firebase/auth';
+import { auth, authPersistenceReady } from './firebase';
 import { api, ApiError } from './services/api';
 import type { Center, ClinicalState, Encounter, Membership, SessionInfo } from './types';
 import LoginView from './components/LoginView';
@@ -27,35 +27,60 @@ export default function App() {
     if (!value.memberships.length && value.platformAdmin) setView('platform');
   };
 
-  useEffect(() => onAuthStateChanged(auth, async (user) => {
-    setLoading(true);
-    if (!user) { setSession(null); setState(null); setLoading(false); return; }
+  useEffect(() => {
+    let disposed = false;
+    let unsubscribe: Unsubscribe = () => undefined;
 
-    const enteredWithGoogle = user.providerData.some((provider) => provider.providerId === 'google.com');
-    if (!enteredWithGoogle || !user.emailVerified) {
-      setSession(null); setState(null);
-      await signOut(auth);
-      setError('Se cerró una sesión antigua de prueba. Ingresa nuevamente con Google y elige tu cuenta institucional.');
-      setLoading(false);
-      return;
-    }
+    const initializeAuthentication = async () => {
+      try {
+        // A full-page Google sign-in only becomes a Firebase session after its
+        // redirect result is consumed on the returning page.
+        await authPersistenceReady;
+        await getRedirectResult(auth);
+      } catch (cause) {
+        if (!disposed) {
+          const code = cause && typeof cause === 'object' && 'code' in cause ? String(cause.code) : '';
+          setError(code === 'auth/unauthorized-domain'
+            ? 'Este sitio todavía no está autorizado para iniciar sesión. Contacta al administrador de la plataforma.'
+            : 'No pudimos completar el acceso con Google. Inténtalo nuevamente.');
+        }
+      }
 
-    setError('');
-    try {
-      // Refresh the token once when the session starts so recently verified
-      // Google accounts do not keep using stale authorization claims.
-      await user.getIdToken(true);
-      await refreshSession();
-    }
-    catch (cause) {
-      const message = cause instanceof ApiError && cause.status === 403 && cause.message.includes('correo verificado')
-        ? 'La cuenta Google activa aún no confirma su correo. Vuelve a ingresar con tu cuenta institucional.'
-        : cause instanceof ApiError && cause.status === 403 && cause.message.includes('acceso activo')
-          ? 'Tu cuenta Google aún no tiene una invitación activa. Solicita acceso al administrador del centro.'
-          : cause instanceof Error ? cause.message : 'No fue posible cargar tu sesión.';
-      setError(message);
-    } finally { setLoading(false); }
-  }), []);
+      if (disposed) return;
+      unsubscribe = onAuthStateChanged(auth, async (user) => {
+        setLoading(true);
+        if (!user) { setSession(null); setState(null); setLoading(false); return; }
+
+        const enteredWithGoogle = user.providerData.some((provider) => provider.providerId === 'google.com');
+        if (!enteredWithGoogle || !user.emailVerified) {
+          setSession(null); setState(null);
+          await signOut(auth);
+          setError('Se cerró una sesión antigua de prueba. Ingresa nuevamente con Google y elige tu cuenta institucional.');
+          setLoading(false);
+          return;
+        }
+
+        setError('');
+        try {
+          // Refresh the token once when the session starts so recently verified
+          // Google accounts do not keep using stale authorization claims.
+          await user.getIdToken(true);
+          await refreshSession();
+        }
+        catch (cause) {
+          const message = cause instanceof ApiError && cause.status === 403 && cause.message.includes('correo verificado')
+            ? 'La cuenta Google activa aún no confirma su correo. Vuelve a ingresar con tu cuenta institucional.'
+            : cause instanceof ApiError && cause.status === 403 && cause.message.includes('acceso activo')
+              ? 'Tu cuenta Google aún no tiene una invitación activa. Solicita acceso al administrador del centro.'
+              : cause instanceof Error ? cause.message : 'No fue posible cargar tu sesión.';
+          setError(message);
+        } finally { setLoading(false); }
+      });
+    };
+
+    void initializeAuthentication();
+    return () => { disposed = true; unsubscribe(); };
+  }, []);
 
   useEffect(() => {
     const handler = (event: Event) => setError((event as CustomEvent<string>).detail);

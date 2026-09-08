@@ -22,4 +22,4 @@ export const auth = getAuth(firebaseApp);
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
 
-void setPersistence(auth, browserLocalPersistence);
+export const authPersistenceReady = setPersistence(auth, browserLocalPersistence);
