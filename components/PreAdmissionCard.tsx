@@ -52,7 +52,7 @@ function AddableChoice({ title, hint, icon, tone, options, values, onChange, pla
   </section>;
 }
 
-export default function PreAdmissionCard({ centerId, membership, patient, onSaved }: { centerId: string; membership: Membership; patient: Patient; onSaved: () => Promise<void> }) {
+export default function PreAdmissionCard({ centerId, membership, patient, onSaved, demoMode = false }: { centerId: string; membership: Membership; patient: Patient; onSaved: () => Promise<void>; demoMode?: boolean }) {
   const canEdit = membership.roles.some((role) => ['nurse', 'doctor', 'social_worker', 'physiatrist', 'coordinator'].includes(role));
   const canUploadPhoto = membership.roles.some((role) => ['nurse', 'doctor', 'coordinator'].includes(role));
   const [message, setMessage] = useState('');
@@ -79,7 +79,7 @@ export default function PreAdmissionCard({ centerId, membership, patient, onSave
   const [confirmed, setConfirmed] = useState(patient.preAdmissionStatus === 'validated');
 
   const save = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault(); setSaving(true); setMessage('');
+    event.preventDefault(); if (demoMode) return; setSaving(true); setMessage('');
     try {
       await api.updatePatient(centerId, patient.id, {
         birthDate, contact, comuna,
@@ -102,7 +102,7 @@ export default function PreAdmissionCard({ centerId, membership, patient, onSave
   };
 
   const uploadPhoto = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]; if (!file) return;
+    if (demoMode) return; const file = event.target.files?.[0]; if (!file) return;
     if (file.size > 5 * 1024 * 1024) { setMessage('La fotografía supera el máximo de 5 MB.'); return; }
     const reader = new FileReader(); setSaving(true); setMessage('');
     reader.onload = async () => {
@@ -117,7 +117,7 @@ export default function PreAdmissionCard({ centerId, membership, patient, onSave
   return <article className="pre-admission-card">
     <aside className="patient-identity">
       <div className="patient-photo">{patient.photoUrl ? <img src={patient.photoUrl} alt={`Fotografía de ${patient.name}`} /> : <span>{initials(patient.name)}</span>}</div>
-      {canUploadPhoto && <label className="photo-upload">{patient.photoUrl ? 'Cambiar fotografía' : 'Agregar fotografía'}<input hidden type="file" accept="image/jpeg,image/png,image/webp" capture="user" onChange={uploadPhoto} disabled={saving} /></label>}
+      {canUploadPhoto && <label className="photo-upload">{patient.photoUrl ? 'Cambiar fotografía' : 'Agregar fotografía'}<input hidden type="file" accept="image/jpeg,image/png,image/webp" capture="user" onChange={uploadPhoto} disabled={saving || demoMode} /></label>}
       <small>Imagen privada para identificación dentro del equipo.</small>
       <div className="patient-name"><p>Paciente</p><h2>{patient.name}</h2><strong>{formatRut(patient.rut)}</strong></div>
       <dl>
@@ -130,7 +130,7 @@ export default function PreAdmissionCard({ centerId, membership, patient, onSave
 
     <form className="pre-admission-form" onSubmit={save}>
       <header className="pre-title"><div><p className="eyebrow">Ficha compartida</p><h2>Preingreso clínico y social</h2><p>Selecciona opciones rápidas. Escribe sólo cuando necesites agregar un detalle particular.</p></div></header>
-      <fieldset disabled={!canEdit || saving}>
+      <fieldset disabled={!canEdit || saving || demoMode}>
         <section className="pre-section identity-fields" data-tone="teal">
           <header><span className="section-icon" aria-hidden="true">●</span><div><h3>Datos de contacto</h3><p>Información básica para coordinación del equipo.</p></div></header>
           <div className="compact-fields"><label>Fecha de nacimiento<input type="date" value={birthDate} onChange={(event) => setBirthDate(event.target.value)} /></label><label>Teléfono<input inputMode="tel" value={contact} onChange={(event) => setContact(event.target.value)} /></label><label>Comuna<input value={comuna} onChange={(event) => setComuna(event.target.value)} /></label></div>
@@ -150,7 +150,7 @@ export default function PreAdmissionCard({ centerId, membership, patient, onSave
         <section className="pre-section social-section" data-tone="orange"><header><span className="section-icon" aria-hidden="true">⌂</span><div><h3>Situación social y funcional</h3><p>Información relevante para adherencia, traslado y descarga.</p></div></header><label className="choice-label">Red de apoyo</label><MultiChoice options={SUPPORT_OPTIONS} values={supportNetwork} onChange={setSupportNetwork} /><label className="choice-label">Movilidad</label><SingleChoice options={MOBILITY_OPTIONS} value={mobility} onChange={setMobility} /><label className="choice-label">Barreras de transporte</label><MultiChoice options={TRANSPORT_OPTIONS} values={transportBarriers} onChange={setTransportBarriers} exclusiveOption="Sin barreras" /><label className="choice-label">Barreras de vivienda</label><MultiChoice options={HOUSING_OPTIONS} values={housingBarriers} onChange={setHousingBarriers} exclusiveOption="Sin barreras" /><label className="notes-field">Observación social excepcional<textarea value={socialNotes} onChange={(event) => setSocialNotes(event.target.value)} placeholder="Escribe sólo aquello que no quede representado en las opciones anteriores." /></label></section>
       </fieldset>
 
-      {canEdit ? <footer className="pre-actions"><button type="button" className={`validation-toggle ${confirmed ? 'selected' : ''}`} aria-pressed={confirmed} onClick={() => setConfirmed(!confirmed)}>{confirmed ? '✓ Antecedentes revisados' : 'Marcar como revisado'}</button><button className="primary" disabled={saving}>{saving ? 'Guardando…' : confirmed ? 'Guardar y validar' : 'Guardar borrador'}</button></footer> : <p className="readonly-note">Vista de lectura para tu perfil.</p>}
+      {canEdit ? <footer className="pre-actions"><button type="button" disabled={demoMode} className={`validation-toggle ${confirmed ? 'selected' : ''}`} aria-pressed={confirmed} onClick={() => setConfirmed(!confirmed)}>{confirmed ? '✓ Antecedentes revisados' : 'Marcar como revisado'}</button><button className="primary" disabled={saving || demoMode}>{saving ? 'Guardando…' : confirmed ? 'Guardar y validar' : 'Guardar borrador'}</button></footer> : <p className="readonly-note">Vista de lectura para tu perfil.</p>}
       {message && <p className="pre-message" role="status">{message}</p>}
     </form>
   </article>;
