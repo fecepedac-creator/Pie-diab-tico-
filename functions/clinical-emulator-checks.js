@@ -1,0 +1,20 @@
+const assert = require('node:assert/strict');
+module.exports = async ({ call, idToken, tensToken, specialistToken, centerId, patientId, episodeId, encounterId }) => {
+  const base = `/centers/${centerId}`;
+  const photo = await call(`${base}/encounters/${encounterId}/photos`, tensToken, 'POST', { kind: 'post', orientationConfirmed: true, scaleIncluded: false, dataUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=' });
+  assert.equal(photo.response.status, 201); assert.equal(photo.payload.encounter.nursingNarrative, undefined); assert.equal(photo.payload.encounter.wound.lengthCm, undefined);
+  const denied = await call(`${base}/encounters/${encounterId}`, specialistToken, 'PUT', { version: photo.payload.encounter.version }); assert.equal(denied.response.status, 403);
+  const source = await call(`${base}/encounters`, idToken, 'POST', { patientId, episodeId, careType: 'nursing' }); assert.equal(source.response.status, 201);
+  const id = source.payload.encounter.id;
+  const emptyClose = await call(`${base}/encounters/${id}`, idToken, 'PUT', { version: 1, status: 'completed' }); assert.equal(emptyClose.response.status, 400);
+  const wound = await call(`${base}/encounters/${id}`, idToken, 'PUT', { version: 1, wound: { lengthCm: 1, verification: { status: 'confirmed' } } }); assert.equal(wound.response.status, 200);
+  const nurse = await call(`${base}/encounters/${id}`, idToken, 'PUT', { version: 2, nursing: { cleaning: ['Suero'], verification: { status: 'confirmed' } } }); assert.equal(nurse.response.status, 200);
+  const narrative = await call(`${base}/encounters/${id}/narratives/nursing`, idToken, 'PUT', { text: 'Texto revisado sintético.', sourceText: nurse.payload.encounter.nursingNarrative }); assert.equal(narrative.response.status, 200, JSON.stringify(narrative.payload));
+  const staleNarrative = await call(`${base}/encounters/${id}/narratives/nursing`, idToken, 'PUT', { text: 'No debe guardarse.', sourceText: 'Versión desactualizada' }); assert.equal(staleNarrative.response.status, 409);
+  const deniedNarrative = await call(`${base}/encounters/${id}/narratives/nursing`, tensToken, 'PUT', { text: 'No autorizado.', sourceText: nurse.payload.encounter.nursingNarrative }); assert.equal(deniedNarrative.response.status, 403);
+  const closed = await call(`${base}/encounters/${id}`, idToken, 'PUT', { version: 3, status: 'completed' }); assert.equal(closed.response.status, 200, JSON.stringify(closed.payload));
+  const mutate = await call(`${base}/encounters/${id}`, idToken, 'PUT', { version: 4, wound: { lengthCm: 9 } }); assert.equal(mutate.response.status, 409);
+  const addendum = await call(`${base}/encounters/${id}/addenda`, idToken, 'POST', { text: 'Corrección sintética sin alterar la medición original.' }); assert.equal(addendum.response.status, 200); assert.equal(addendum.payload.encounter.wound.lengthCm, 1); assert.equal(addendum.payload.encounter.addenda.length, 1);
+  const denyAddendum = await call(`${base}/encounters/${id}/addenda`, tensToken, 'POST', { text: 'No permitido' }); assert.equal(denyAddendum.response.status, 403);
+  console.log('Clinical workflow emulator checks: passed');
+};

@@ -1,0 +1,28 @@
+import { useState } from 'react';
+import type { Encounter, ClinicalTask } from '../types';
+import { formatDateTime } from '../utils';
+
+export const encounterStatus = (status: Encounter['status']) => ({ draft: 'Borrador', in_progress: 'En curso', ready_for_review: 'Lista para revisar', completed: 'Completada', cancelled: 'Cancelada' }[status]);
+const dimensions = (e: Encounter) => `${e.wound.lengthCm ?? '—'} × ${e.wound.widthCm ?? '—'} × ${e.wound.depthCm ?? '—'} cm`;
+export default function EncounterEvolution({ encounters, tasks = [], photosOnly = false }: { encounters: Encounter[]; tasks?: ClinicalTask[]; photosOnly?: boolean }) {
+  const ordered = [...encounters].sort((a, b) => b.encounterDate.localeCompare(a.encounterDate));
+  const [currentId, setCurrentId] = useState(''); const [baselineId, setBaselineId] = useState('');
+  const [kind, setKind] = useState<'pre' | 'post'>('pre'); const [showCancelled, setShowCancelled] = useState(false);
+  const visible = ordered.filter((e) => showCancelled || e.status !== 'cancelled');
+  const current = visible.find((e) => e.id === currentId) || visible[0];
+  const baseline = visible.find((e) => e.id === baselineId) || visible.find((e) => e.id !== current?.id);
+  const area = (e?: Encounter) => e && e.wound.verification.status === 'confirmed' && e.wound.lengthCm != null && e.wound.widthCm != null ? e.wound.lengthCm * e.wound.widthCm : undefined;
+  const a = area(current), b = area(baseline);
+  const comparable = current && baseline && current.id !== baseline.id && current.episodeId === baseline.episodeId && a != null && b != null && b > 0 && current.status !== 'cancelled' && baseline.status !== 'cancelled';
+  return <section className="panel evolution-panel"><div className="card-heading"><div><p className="eyebrow">Una lesión · comparación entre fechas</p><h2>Evolución temporal</h2></div></div>
+    <label className="check-line"><input type="checkbox" checked={showCancelled} onChange={(e) => setShowCancelled(e.target.checked)} /> Mostrar atenciones canceladas</label>
+    {visible.length === 0 ? <p>No hay atenciones para comparar.</p> : <>
+      <div className="comparison-controls"><label>Atención<select value={current?.id || ''} onChange={(e) => setCurrentId(e.target.value)}>{visible.map((e) => <option key={e.id} value={e.id}>{formatDateTime(e.encounterDate)} · {encounterStatus(e.status)}</option>)}</select></label><label>Comparar con<select value={baseline?.id || ''} onChange={(e) => setBaselineId(e.target.value)}><option value="">Sin otra atención</option>{visible.filter((e) => e.id !== current?.id).map((e) => <option key={e.id} value={e.id}>{formatDateTime(e.encounterDate)}</option>)}</select></label><label>Momento fotográfico<select value={kind} onChange={(e) => setKind(e.target.value as 'pre' | 'post')}><option value="pre">Precuración</option><option value="post">Postcuración</option></select></label></div>
+      {!photosOnly && <p className="helper">Superficie estimada (largo × ancho): {comparable ? `${(((a! - b!) / b!) * 100).toFixed(1)}% respecto de la fecha comparada` : 'sin cálculo: se requieren dos mediciones confirmadas y una basal mayor que cero'}. No equivale a planimetría ni determina cicatrización.</p>}
+      <div className="comparison-grid">{[baseline, current].map((e, index) => <article key={index} className="comparison-card"><h3>{index === 0 ? 'Referencia' : 'Atención seleccionada'}</h3>{e ? <><time>{formatDateTime(e.encounterDate)}</time><p>{encounterStatus(e.status)}</p>{!photosOnly && <><strong>{dimensions(e)}</strong><p>Herida: {e.wound.verification.status === 'confirmed' ? 'Confirmada' : 'Borrador'} · {e.wound.verification.confirmedByName || e.wound.verification.enteredByName || 'Sin autor registrado'}</p><p>W{e.wifi.wound ?? '—'} I{e.wifi.ischemia ?? '—'} fI{e.wifi.footInfection ?? '—'} · {e.wifi.verification.status === 'confirmed' ? 'Confirmado' : 'Borrador / no evaluado'}</p><p>Indicada: {e.medical.offloadingPlan || 'Sin descarga consignada'}</p><p>Aplicada: {e.nursing.offloadingApplied.join(', ') || 'Sin descarga consignada'}</p></>}
+        {e.photos.filter((p) => p.kind === kind).map((p) => <figure key={p.id}>{p.url ? <img src={p.url} alt={`${kind === 'pre' ? 'Precuración' : 'Postcuración'} del ${formatDateTime(e.encounterDate)}`} /> : <p>Imagen no disponible. Actualiza para renovar su acceso.</p>}<figcaption>{kind === 'pre' ? 'Precuración' : 'Postcuración'} · {p.scaleIncluded ? 'Con escala' : 'Sin escala'} · {p.quality === 'accepted' ? 'Aceptada' : p.quality === 'repeat' ? 'Repetir' : 'Revisión pendiente'}</figcaption></figure>)}{!e.photos.some((p) => p.kind === kind) && <p>Sin fotografía de este momento.</p>}</> : <p>No hay otra atención.</p>}</article>)}</div>
+      <ol className="episode-history">{visible.map((e) => <li key={e.id}><strong>{formatDateTime(e.encounterDate)} · {encounterStatus(e.status)}</strong>{!photosOnly && <p>{dimensions(e)} · {e.medical.verification.status === 'confirmed' ? e.medical.clinicalImpression || e.medical.treatmentPlan || 'Sin impresión consignada' : 'Evaluación médica no confirmada'}</p>}{!photosOnly && e.addenda?.map((entry) => <p key={entry.id}>Adenda · {entry.authorName} · {formatDateTime(entry.createdAt)}: {entry.text}</p>)}</li>)}</ol>
+      {!photosOnly && tasks.map((task) => <article className="task-card" key={task.id}><strong>{task.title}</strong><p>{task.reason}</p><p>{task.result ? `Respuesta: ${task.result}` : 'Respuesta pendiente'}</p>{task.respondedByName && <small>{task.respondedByName} · {formatDateTime(task.respondedAt || task.updatedAt)}</small>}</article>)}
+    </>}
+  </section>;
+}

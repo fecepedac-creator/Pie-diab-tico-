@@ -92,8 +92,8 @@ function SelectionDetails({ selected, details, onChange, kind }: { selected: str
 }
 
 export default function PreAdmissionCard({ centerId, membership, patient, onSaved, demoMode = false }: { centerId: string; membership: Membership; patient: Patient; onSaved: () => Promise<void>; demoMode?: boolean }) {
-  const canEdit = membership.roles.some((role) => ['tens', 'nurse', 'doctor'].includes(role));
   const canValidate = membership.roles.some((role) => ['nurse', 'doctor'].includes(role));
+  const canEdit = canValidate || (membership.roles.includes('tens') && patient.preAdmissionStatus !== 'validated');
   const canUploadPhoto = membership.roles.some((role) => ['tens', 'nurse', 'doctor'].includes(role));
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
@@ -130,6 +130,7 @@ export default function PreAdmissionCard({ centerId, membership, patient, onSave
       const intent = ((event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null)?.value;
       const nextStatus = canValidate && confirmed ? 'validated' : intent === 'review' ? 'pending_validation' : 'in_progress';
       await api.updatePatient(centerId, patient.id, {
+        version: patient.version || 1,
         birthDate, contact, comuna,
         preAdmissionStatus: nextStatus,
         anamnesis: {

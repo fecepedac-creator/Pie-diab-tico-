@@ -80,7 +80,18 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const handler = (event: Event) => setError((event as CustomEvent<string>).detail);
+    const handler = async (event: Event) => {
+      const message = String((event as CustomEvent<string>).detail || 'No fue posible completar el acceso.');
+      setError(message);
+      const normalized = message.toLowerCase();
+      if (normalized.includes('inicia sesión nuevamente') || normalized.includes('tu sesión') || normalized.includes('debe iniciar sesión') || normalized.includes('sesión')) {
+        try {
+          await signOut(auth);
+          setSession(null);
+          setState(null);
+        } catch {}
+      }
+    };
     window.addEventListener('auth-error', handler); return () => window.removeEventListener('auth-error', handler);
   }, []);
 
@@ -119,7 +130,7 @@ export default function App() {
     {error && <div className="notice danger page-notice">{error}<button onClick={() => setError('')}>×</button></div>}
     <main className="page">
       {view === 'platform' && session.platformAdmin && <PlatformAdminDashboard onChanged={refreshSession} />}
-      {view === 'center' && center && canAdminCenter && <CenterAdminDashboard center={center} />}
+      {view === 'center' && center && canAdminCenter && <CenterAdminDashboard key={center.id} center={center} onChanged={refreshSession} />}
       {view === 'clinical' && center && membership && canUseClinical && <ClinicalDashboard center={center} membership={membership} state={state} onRefresh={refreshState} onEncounterChanged={replaceEncounter} />}
       {view === 'clinical' && !canUseClinical && <section className="empty-state"><h2>Perfil administrativo activo</h2><p>Este perfil no permite abrir información clínica. Puedes administrar el centro o la plataforma desde las pestañas superiores.</p></section>}
     </main>

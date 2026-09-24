@@ -92,11 +92,13 @@ export interface VerificationStamp {
 export interface Patient {
   id: string;
   centerId: string;
+  version?: number;
   rut: string;
   name: string;
   birthDate?: string;
   contact?: string;
   comuna?: string;
+  intakeAssignedToUid?: string | null;
   photoStoragePath?: string;
   photoUrl?: string;
   preAdmissionStatus: 'minimal' | 'in_progress' | 'pending_validation' | 'validated';
@@ -160,6 +162,9 @@ export interface PhotoReference {
   orientationConfirmed: boolean;
   scaleIncluded: boolean;
   quality: 'pending' | 'accepted' | 'repeat';
+  reviewReason?: string;
+  reviewedByName?: string;
+  reviewedAt?: string;
 }
 
 export interface WoundAssessment {
@@ -181,6 +186,10 @@ export interface WoundAssessment {
 }
 
 export interface WifiAssessment {
+  measuredAt?: string;
+  source?: string;
+  anklePressure?: number;
+  tcpo2?: number;
   wound?: 0 | 1 | 2 | 3;
   ischemia?: 0 | 1 | 2 | 3;
   footInfection?: 0 | 1 | 2 | 3;
@@ -216,7 +225,12 @@ export interface MedicalPlan {
   verification: VerificationStamp;
 }
 
+export interface NarrativeReview { text: string; sourceText: string; sourceVersion: number; authorName: string; reviewedAt: string }
+
 export interface Encounter {
+  narrativeReviews?: Partial<Record<'nursing' | 'medical', NarrativeReview>>;
+  careType?: 'nursing' | 'medical' | 'joint';
+  addenda?: { id: string; text: string; authorName: string; createdAt: string }[];
   id: string;
   centerId: string;
   patientId: string;
@@ -236,8 +250,12 @@ export interface Encounter {
 }
 
 export interface ClinicalTask {
+  referralSnapshot?: { text: string; encounterId?: string; version?: number; capturedAt?: string };
+  respondedByName?: string;
+  respondedAt?: string;
   id: string;
   centerId: string;
+  version?: number;
   patientId: string;
   episodeId: string;
   encounterId?: string;

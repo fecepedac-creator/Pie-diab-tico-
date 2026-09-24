@@ -16,5 +16,5 @@ export function canViewCommittee(membership: Membership) {
 }
 
 export function canUploadClinicalDocuments(membership: Membership) {
-  return hasRole(membership, ['nurse', 'doctor', 'vascular_surgeon', 'vascular_nurse', 'traumatologist']);
+  return hasRole(membership, ['nurse', 'doctor', 'general_surgeon', 'vascular_surgeon', 'vascular_nurse', 'traumatologist']);
 }

@@ -1,0 +1,31 @@
+const assert = require('node:assert/strict');
+
+module.exports = async function verifyAdministration({ call, idToken, centerId, db, hash }) {
+  const base = `/centers/${centerId}`;
+  assert.equal((await call(`${base}/members`, idToken)).response.status, 403);
+  await db.doc(`memberships/${centerId}_${hash}`).update({ roles: ['doctor', 'nurse', 'auditor', 'center_admin'] });
+  assert.equal((await call(`${base}/settings`, idToken, 'PUT', { name: '   ' })).response.status, 400);
+  await db.doc(`centers/${centerId}`).update({ address: 'Dirección conservada' });
+  const settings = await call(`${base}/settings`, idToken, 'PUT', { name: 'Nombre actualizado' });
+  assert.equal(settings.response.status, 200); assert.equal(settings.payload.center.address, 'Dirección conservada');
+  assert.equal((await call(`${base}/members`, idToken, 'POST', { email: 'incorrecto', roles: ['nurse'] })).response.status, 400);
+  assert.equal((await call(`${base}/members`, idToken, 'POST', { email: 'nuevo@hospital.cl', roles: ['nurse', 'platform_admin'] })).response.status, 400);
+  const created = await call(`${base}/members`, idToken, 'POST', { email: 'NUEVO@hospital.cl', displayName: 'Nuevo integrante', roles: ['nurse'] });
+  assert.equal(created.response.status, 201); assert.equal(created.payload.member.status, 'invited');
+  const memberId = created.payload.member.id;
+  const duplicate = await call(`${base}/members`, idToken, 'POST', { email: 'nuevo@hospital.cl', roles: ['center_admin'] });
+  assert.equal(duplicate.response.status, 409);
+  assert.deepEqual((await db.doc(`memberships/${memberId}`).get()).data().roles, ['nurse']);
+  assert.equal((await call(`${base}/members/${memberId}`, idToken, 'PUT', { roles: [] })).response.status, 400);
+  const edited = await call(`${base}/members/${memberId}`, idToken, 'PUT', { roles: ['nurse', 'doctor'] });
+  assert.equal(edited.response.status, 200); assert.deepEqual(edited.payload.member.roles, ['nurse', 'doctor']);
+  assert.equal((await call(`${base}/members/${memberId}`, idToken, 'PUT', { status: 'disabled' })).payload.member.status, 'disabled');
+  assert.equal((await call(`${base}/members/${memberId}`, idToken, 'PUT', { status: 'active' })).payload.member.status, 'invited');
+  assert.equal((await call(`${base}/members/${memberId}`, idToken, 'PUT', { status: 'invited' })).response.status, 400);
+  assert.equal((await call(`${base}/members/${centerId}_${hash}`, idToken, 'PUT', { status: 'disabled' })).response.status, 409);
+  assert.equal((await call(`${base}/members/${centerId}_${hash}`, idToken, 'PUT', { roles: ['doctor'] })).response.status, 409);
+  const foreignId = 'otro-centro_miembro';
+  await db.doc(`memberships/${foreignId}`).set({ centerId: 'otro-centro', roles: ['nurse'], status: 'active' });
+  assert.equal((await call(`${base}/members/${foreignId}`, idToken, 'PUT', { roles: ['center_admin'] })).response.status, 404);
+  console.log('Administración: invitaciones, duplicados, perfiles, aislamiento y continuidad verificados.');
+};
