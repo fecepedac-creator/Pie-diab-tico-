@@ -69,7 +69,7 @@ export default function ProfileDemoDashboard({ onClose }: { onClose: () => void 
   return <div className="profile-demo-shell" role="dialog" aria-modal="true" aria-label="Demostración de perfiles">
     <header className="profile-demo-header">
       <div><span className="demo-badge">MODO DEMO · SOLO VISUALIZACIÓN</span><h1>Vista por perfil</h1><p>Todos los nombres, antecedentes y tareas de esta sección son ficticios.</p></div>
-      <button className="ghost" onClick={onClose}>Cerrar demostración</button>
+      <button className="ghost" onClick={onClose}>Abrir prueba interactiva</button>
     </header>
     <div className="profile-demo-layout">
       <aside className="profile-demo-roles" aria-label="Seleccionar perfil">
@@ -77,7 +77,7 @@ export default function ProfileDemoDashboard({ onClose }: { onClose: () => void 
         {DEMO_ROLES.map((item) => <button key={item} className={role === item ? 'selected' : ''} onClick={() => setRole(item)}><strong>{ROLE_LABELS[item]}</strong><small>{ROLE_HINTS[item]}</small></button>)}
       </aside>
       <main className="profile-demo-content">
-        <div className="demo-readonly-banner"><strong>Vista protegida</strong><span>Puedes recorrer las pantallas, pero aquí no se guarda, envía ni modifica información.</span></div>
+        <div className="demo-readonly-banner"><strong>Vista protegida</strong><span>Aquí no se guardan cambios. Para iniciar un registro fotográfico, abre la prueba interactiva y entra como TENS.</span></div>
         {role === 'center_admin'
           ? <CenterAdminDashboard key={role} center={demoCenter} demoMode demoMembers={demoMembers} />
           : <ClinicalDashboard key={role} center={demoCenter} membership={membership} state={demoState} onRefresh={noChange} onEncounterChanged={() => undefined} demoMode />}

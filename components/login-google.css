@@ -25,3 +25,15 @@
   color: #547070;
   font-size: .82rem;
 }
+
+.local-review-access {
+  margin: 1.2rem 0;
+  padding: 1rem;
+  border: 1px solid #c8d9d5;
+  border-radius: 12px;
+  background: #f1faf7;
+}
+
+.local-review-access p { margin: 0 0 .75rem; }
+.local-review-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.local-review-actions button { min-height: 44px; }

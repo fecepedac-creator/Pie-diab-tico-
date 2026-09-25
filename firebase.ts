@@ -21,7 +21,9 @@ if (import.meta.env.DEV && firebaseConfig.projectId !== 'demo-pie-diabetico') {
   throw new Error('El desarrollo local sólo admite el proyecto sintético demo-pie-diabetico.');
 }
 
+export const localReviewAuthEnabled = import.meta.env.DEV && firebaseConfig.projectId === 'demo-pie-diabetico';
+
 export const firebaseApp = initializeApp(firebaseConfig);
 export const auth = getAuth(firebaseApp);
-if (import.meta.env.DEV) connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
+if (localReviewAuthEnabled) connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
 export const authPersistenceReady = setPersistence(auth, browserLocalPersistence);

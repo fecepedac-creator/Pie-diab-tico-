@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { onAuthStateChanged, signOut, type Unsubscribe } from 'firebase/auth';
-import { auth, authPersistenceReady } from './firebase';
+import { auth, authPersistenceReady, localReviewAuthEnabled } from './firebase';
 import { api, ApiError } from './services/api';
 import type { Center, ClinicalState, Encounter, Membership, SessionInfo } from './types';
 import LoginView from './components/LoginView';
@@ -49,7 +49,7 @@ export default function App() {
         if (!user) { setSession(null); setState(null); setLoading(false); return; }
 
         const enteredWithGoogle = user.providerData.some((provider) => provider.providerId === 'google.com');
-        if (!enteredWithGoogle || !user.emailVerified) {
+        if ((!enteredWithGoogle && !localReviewAuthEnabled) || !user.emailVerified) {
           setSession(null); setState(null);
           await signOut(auth);
           setError('Se cerró una sesión antigua de prueba. Ingresa nuevamente con Google y elige tu cuenta institucional.');
@@ -115,7 +115,7 @@ export default function App() {
 
   return <div className="app-shell">
     <header className="topbar">
-      <div className="brand"><span className="brand-mark small">PD</span><div><strong>Pie Diabético</strong><small>Gestión clínica coordinada</small></div></div>
+      <div className="brand"><span className="brand-mark small">PD</span><div><strong>Pie Diabético</strong><small>{localReviewAuthEnabled ? 'Prueba local · datos ficticios' : 'Gestión clínica coordinada'}</small></div></div>
       <div className="top-actions">
         {center?.logoUrl && <img className="active-center-logo" src={center.logoUrl} alt={`Logo de ${center.name}`} />}
         {session.centers.length > 0 && <select aria-label="Centro activo" value={centerId} onChange={(event) => chooseCenter(event.target.value)}>{session.centers.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>}

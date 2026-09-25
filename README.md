@@ -34,6 +34,23 @@ npm run test:emulators
 
 El test de emuladores usa exclusivamente identidades y pacientes sintéticos.
 
+### Prueba local interactiva
+
+Desde esta versión candidata, iniciar los emuladores y mantenerlos abiertos:
+
+```powershell
+.\node_modules\.bin\firebase.cmd emulators:start --project demo-pie-diabetico --only "auth,functions,firestore,storage"
+```
+
+En otra terminal, cargar el centro, un paciente, un episodio y una atención previa ficticios; después iniciar la interfaz:
+
+```powershell
+npm run seed:review
+npm run dev -- --host 127.0.0.1 --port 5173 --strictPort
+```
+
+Abrir `http://127.0.0.1:5173/` y elegir TENS, enfermería o medicina en el acceso local. Seleccionar **Paciente ficticio de prueba** → **Plantar antepié** → **Iniciar registro fotográfico** (TENS) o **Nueva atención** (enfermería/medicina). Los cambios se guardan sólo en los emuladores y se pierden al apagarlos. La ruta `clinical-preview.html` es una maqueta de sólo lectura.
+
 Verificación rápida de salud/productivo sin credenciales:
 
 ```bash
