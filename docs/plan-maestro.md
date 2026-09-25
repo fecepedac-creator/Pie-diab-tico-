@@ -42,6 +42,7 @@ Unidad de seguimiento: paciente → episodio de herida → atenciones, documento
 | Enfermería | Confirmar valoración compartida y curación; gestionar pendientes del equipo |
 | Médico de pie diabético | Confirmar evaluación médica y WIfI registrado; plan, seguimiento y derivaciones |
 | Especialistas derivados | Consultar episodios habilitados y responder su derivación; sin sobrescribir la evaluación del equipo tratante |
+| Fisiatría | Optimizar descarga y abordar dolor y función cuando se solicite; tras el cierre de la herida, abordar prevención secundaria y evaluación protésica cuando corresponda. Registrar su aporte propio sin modificar la evolución tratante |
 | Enfermería vascular | Respuesta y documentación de su ámbito; acordar si necesita un formulario propio antes de ampliarlo |
 | Trabajo social | Evaluación social de casos derivados y respuesta; sin edición de antecedentes médicos |
 | Auditoría | Bitácora de acciones; acceso al contenido clínico sólo si se define un permiso adicional específico |

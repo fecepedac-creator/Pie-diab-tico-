@@ -10,6 +10,7 @@ Actualizado: 24 de septiembre de 2026. Fuente de verdad para esta versión candi
 - Auditoría: las mutaciones principales registran el evento en la misma operación de Firestore. Las cargas eliminan el archivo nuevo si la escritura asociada falla.
 - Entorno local: configuración de proyecto demo y emuladores; el desarrollo rechaza una configuración Firebase que no sea demo. CI valida código y ejecuta los emuladores con datos sintéticos.
 - Revisión navegable local: `http://127.0.0.1:5173/` ofrece acceso de prueba TENS, enfermería, medicina, Cirugía General, Cirugía Vascular y fisiatra al centro ficticio cuando los emuladores están activos. TENS inicia el registro fotográfico; enfermería o medicina inician una atención clínica; las especialidades responden sus derivaciones en **Casos derivados**. El caso de Fisiatría se navegó hasta su formulario con una gestión propia pendiente. `clinical-preview.html` continúa como maqueta de sólo lectura.
+- Fisiatría: según el alcance indicado por el usuario, participa para optimizar descarga y abordar dolor y función cuando se solicite; tras el cierre, para prevención secundaria o evaluación protésica cuando corresponda. Su formulario local ofrece botones para descarga, prevención, prótesis y dolor sin generar conclusiones clínicas; requiere texto profesional para confirmar. El caso ficticio disponible es de descarga activa; falta recorrer un caso cicatrizado y uno protésico.
 
 ## Verificación de este candidato
 

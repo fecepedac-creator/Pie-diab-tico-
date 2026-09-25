@@ -5,6 +5,18 @@ import { api } from '../services/api';
 import { ROLE_LABELS, type ClinicalAttachment, type ClinicalTask, type Encounter, type Membership, type Patient, type WoundEpisode } from '../types';
 import { copyText, formatDate, formatDateTime } from '../utils';
 
+const PHYSIATRY_SECTIONS = [
+  { button: 'Añadir descarga', heading: 'Optimización de descarga' },
+  { button: 'Añadir prevención secundaria', heading: 'Prevención secundaria tras cierre' },
+  { button: 'Añadir evaluación protésica', heading: 'Evaluación protésica' },
+  { button: 'Añadir manejo del dolor', heading: 'Evaluación y manejo del dolor' },
+] as const;
+const containsAssessment = (value: string) => value.split(/\r?\n/).some((line) => {
+  const text = line.trim();
+  return text.length > 0 && !PHYSIATRY_SECTIONS.some(({ heading }) => text === `${heading}:`);
+});
+const episodeStatus = { active: 'Herida activa', healed: 'Herida cicatrizada', referred: 'Episodio derivado', closed: 'Episodio cerrado' } as const;
+
 export default function SpecialistCaseSummary({ centerId, membership, patient, episode, encounters, tasks, attachments, onRefresh, onResolved, demoMode = false }: { centerId: string; membership: Membership; patient: Patient; episode: WoundEpisode; encounters: Encounter[]; tasks: ClinicalTask[]; attachments: ClinicalAttachment[]; onRefresh: () => Promise<void>; onResolved: () => void; demoMode?: boolean }) {
   const ordered = useMemo(() => [...encounters].sort((a, b) => a.encounterDate.localeCompare(b.encounterDate)), [encounters]);
   const confirmed = ordered.filter((e) => e.status !== 'cancelled' && e.wound.verification.status === 'confirmed'); const latest = confirmed.at(-1); const first = confirmed[0];
@@ -18,10 +30,11 @@ export default function SpecialistCaseSummary({ centerId, membership, patient, e
   const [result, setResult] = useState(responseTask?.result || ''); const [message, setMessage] = useState('');
   const area = (encounter?: Encounter) => encounter?.wound.lengthCm != null && encounter.wound.widthCm != null ? encounter.wound.lengthCm * encounter.wound.widthCm : undefined;
   const firstArea = area(first); const latestArea = area(latest); const change = firstArea && latestArea != null ? Math.round(((latestArea - firstArea) / firstArea) * 100) : undefined;
-  const respond = async (event: FormEvent) => { event.preventDefault(); if (demoMode || !responseTask) return; try { await api.updateTask(centerId, responseTask.id, { version: responseTask.version || 1, status: 'resolved', result }); await onRefresh(); onResolved(); } catch (cause) { setMessage(cause instanceof Error ? cause.message : 'No fue posible registrar la respuesta.'); } };
+  const respond = async (event: FormEvent) => { event.preventDefault(); if (demoMode || !responseTask) return; if (responseTask.recipientRole === 'physiatrist' && !containsAssessment(result)) { setMessage('Completa los hallazgos y la conducta antes de confirmar; los títulos por sí solos no son una evaluación.'); return; } try { await api.updateTask(centerId, responseTask.id, { version: responseTask.version || 1, status: 'resolved', result }); await onRefresh(); onResolved(); } catch (cause) { setMessage(cause instanceof Error ? cause.message : 'No fue posible registrar la respuesta.'); } };
   const accept = async () => { if (demoMode || !responseTask) return; try { await api.updateTask(centerId, responseTask.id, { version: responseTask.version || 1, status: 'accepted' }); await onRefresh(); setMessage('Gestión aceptada. Ahora puedes registrar tu evaluación.'); } catch (cause) { setMessage(cause instanceof Error ? cause.message : 'No fue posible aceptar la gestión.'); } };
   const saveDraft = async () => { if (demoMode || !responseTask) return; try { await api.updateTask(centerId, responseTask.id, { version: responseTask.version || 1, status: 'in_progress', result }); await onRefresh(); setMessage('Borrador guardado.'); } catch (cause) { setMessage(cause instanceof Error ? cause.message : 'No fue posible guardar.'); } };
   const copySummary = () => copyText(responseTask?.referralSnapshot?.text || buildSummary(patient, episode, latest, responseTask, change)).then(() => setMessage('Resumen copiado.')).catch(() => setMessage('No se pudo copiar el resumen.'));
+  const addPhysiatrySection = (heading: string) => setResult((current) => current.split(/\r?\n/).some((line) => line.trim().startsWith(`${heading}:`)) ? current : `${current.trimEnd()}${current.trim() ? '\n\n' : ''}${heading}:\n`);
   const responseForm = <form className="panel specialist-response" onSubmit={respond}>
     <div className="card-heading"><div>
       <p className="eyebrow">Tu aporte al caso derivado</p>
@@ -32,14 +45,17 @@ export default function SpecialistCaseSummary({ centerId, membership, patient, e
     {responseTask && ['created', 'notified'].includes(responseTask.status)
       ? <button type="button" className="primary" disabled={demoMode} onClick={() => void accept()}>Aceptar gestión y comenzar evaluación</button>
       : responseTask
-        ? <fieldset disabled={demoMode || responseTask.status === 'resolved' || responseTask.status === 'rejected'}><label>Hallazgos, conducta, exámenes y control<textarea required value={result} onChange={(event) => setResult(event.target.value)} placeholder="Registra evaluación, conducta, exámenes adicionales y plazo de control." /></label><button type="button" onClick={() => void saveDraft()}>Guardar borrador</button><button className="primary">Confirmar respuesta y resolver gestión</button></fieldset>
+        ? <fieldset disabled={demoMode || responseTask.status === 'resolved' || responseTask.status === 'rejected'}>
+          {responseTask.recipientRole === 'physiatrist' && <div className="physiatry-shortcuts"><strong>Preparar apartados de la evaluación</strong><p>Selecciona sólo los ámbitos pertinentes a esta derivación; completa luego los hallazgos y el plan en el texto libre.</p><div>{PHYSIATRY_SECTIONS.map(({ button, heading }) => <button key={heading} type="button" className="ghost" disabled={result.split(/\r?\n/).some((line) => line.trim().startsWith(`${heading}:`))} onClick={() => addPhysiatrySection(heading)}>{button}</button>)}</div></div>}
+          <label>Hallazgos, conducta, exámenes y control<textarea required value={result} onChange={(event) => setResult(event.target.value)} placeholder="Registra evaluación, conducta, exámenes adicionales y plazo de control." /></label><button type="button" onClick={() => void saveDraft()}>Guardar borrador</button><button className="primary">Confirmar respuesta y resolver gestión</button>
+        </fieldset>
         : <p>No existe una gestión asignada a este perfil.</p>}
     {demoMode && <p className="muted">Esta demostración es de sólo lectura. Abre la prueba interactiva para responder con datos ficticios.</p>}
     {message && <p className="pre-message" role="status">{message}</p>}
   </form>;
 
   return <section className="specialist-case stack">
-    <header className="specialist-hero"><div><p className="eyebrow">Caso derivado · {membership.roles.map((role) => ROLE_LABELS[role]).join(' · ')}</p><h2>{patient.name}</h2><p>{episode.location}, pie {episode.side === 'right' ? 'derecho' : 'izquierdo'} · episodio iniciado {formatDate(episode.createdAt)}</p></div><span className={`committee-priority ${activeTask?.priority || episode.priority}`}>{priorityLabel(activeTask?.priority || episode.priority)}</span></header>
+    <header className="specialist-hero"><div><p className="eyebrow">Caso derivado · {membership.roles.map((role) => ROLE_LABELS[role]).join(' · ')}</p><h2>{patient.name}</h2><p>{episode.location}, pie {episode.side === 'right' ? 'derecho' : 'izquierdo'} · {episodeStatus[episode.status]} · episodio iniciado {formatDate(episode.createdAt)}</p></div><span className={`committee-priority ${activeTask?.priority || episode.priority}`}>{priorityLabel(activeTask?.priority || episode.priority)}</span></header>
 
     <article className="referral-reason"><div><span>Por qué se deriva</span><h3>{activeTask?.title || 'Derivación sin título'}</h3><p>{activeTask?.reason || 'No se registró un motivo específico.'}</p><small>{activeTask ? `Enviada por ${activeTask.createdByName} · ${formatDateTime(activeTask.createdAt)}` : 'Sin gestión asociada'}</small></div><button className="ghost" type="button" onClick={copySummary}>Copiar resumen</button></article>
     {responseForm}

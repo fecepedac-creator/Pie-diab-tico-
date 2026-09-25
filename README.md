@@ -51,6 +51,8 @@ npm run dev -- --host 127.0.0.1 --port 5173 --strictPort
 
 Abrir `http://127.0.0.1:5173/` y elegir TENS, enfermería, medicina, Cirugía General, Cirugía Vascular o fisiatra en el acceso local. Seleccionar **Paciente ficticio de prueba** → **Plantar antepié**. TENS puede iniciar el registro fotográfico; enfermería y medicina, una nueva atención. En **Casos derivados**, cada especialidad ve **Tu aporte al caso derivado** al inicio del caso: aceptar gestión, registrar evaluación, guardar borrador o confirmar respuesta. Tras confirmar, el caso sale de sus derivados y la respuesta queda visible para medicina y enfermería en **Evolución y respuestas de especialidades**, con autor y hora. Los borradores aparecen identificados como sin confirmar. `npm run seed:review` agrega las cuentas y derivaciones ficticias que falten sin borrar respuestas previas. Para reiniciar deliberadamente sólo las tres derivaciones de muestra, ejecutar `npm run seed:review -- --reset-referrals`. Los demás datos de prueba se conservan hasta apagar los emuladores. La ruta `clinical-preview.html` es una maqueta de sólo lectura.
 
+Fisiatría ofrece cuatro botones para preparar apartados de la respuesta: **descarga**, **prevención secundaria tras cierre**, **evaluación protésica** y **evaluación y manejo del dolor**. Los botones sólo añaden encabezados editables; el profesional debe escribir los hallazgos y la conducta. El caso sintético actual representa la indicación de descarga con herida activa. El recorrido posterior al cierre y la evaluación protésica aún requieren un caso de prueba específico.
+
 Verificación rápida de salud/productivo sin credenciales:
 
 ```bash

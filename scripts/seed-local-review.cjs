@@ -68,7 +68,7 @@ async function main() {
   for (const task of [
     { id: 'derivacion-cirugia-general', recipientRole: 'general_surgeon', type: 'general_surgery', title: 'Evaluación por Cirugía General', reason: 'Evaluar necesidad de desbridamiento quirúrgico en caso ficticio.' },
     { id: 'derivacion-cirugia-vascular', recipientRole: 'vascular_surgeon', type: 'vascular', title: 'Evaluación por Cirugía Vascular', reason: 'Evaluar perfusión y necesidad de estudio vascular en caso ficticio.' },
-    { id: 'derivacion-fisiatria', recipientRole: 'physiatrist', type: 'physiatry', title: 'Evaluación por Fisiatría', reason: 'Evaluar descarga, movilidad, ayudas técnicas y plan de rehabilitación en caso ficticio.' },
+    { id: 'derivacion-fisiatria', recipientRole: 'physiatrist', type: 'physiatry', title: 'Evaluación por Fisiatría', reason: 'Optimizar descarga durante el tratamiento de una herida plantar activa en caso ficticio.' },
   ]) {
     const ref = db.doc(`centers/${centerId}/tasks/${task.id}`);
     const value = {
@@ -76,7 +76,13 @@ async function main() {
       createdByUid: members.doctor, createdByName: 'Medicina de prueba', createdAt: now, updatedAt: now,
     };
     if (resetReferrals) await ref.set(value);
-    else await createIfAbsent(ref, value);
+    else {
+      await createIfAbsent(ref, value);
+      if (task.id === 'derivacion-fisiatria') {
+        const existing = (await ref.get()).data();
+        if (existing?.status === 'created' && existing.version === 1 && existing.reason === 'Evaluar descarga, movilidad, ayudas técnicas y plan de rehabilitación en caso ficticio.') await ref.update({ reason: task.reason });
+      }
+    }
   }
   console.log(JSON.stringify({ ok: true, projectId, centerId, patientId, episodeId, roles: accounts.map(({ roles }) => roles[0]) }));
 }
