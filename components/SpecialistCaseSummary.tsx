@@ -5,7 +5,7 @@ import { api } from '../services/api';
 import { ROLE_LABELS, type ClinicalAttachment, type ClinicalTask, type Encounter, type Membership, type Patient, type WoundEpisode } from '../types';
 import { copyText, formatDate, formatDateTime } from '../utils';
 
-export default function SpecialistCaseSummary({ centerId, membership, patient, episode, encounters, tasks, attachments, onRefresh, demoMode = false }: { centerId: string; membership: Membership; patient: Patient; episode: WoundEpisode; encounters: Encounter[]; tasks: ClinicalTask[]; attachments: ClinicalAttachment[]; onRefresh: () => Promise<void>; demoMode?: boolean }) {
+export default function SpecialistCaseSummary({ centerId, membership, patient, episode, encounters, tasks, attachments, onRefresh, onResolved, demoMode = false }: { centerId: string; membership: Membership; patient: Patient; episode: WoundEpisode; encounters: Encounter[]; tasks: ClinicalTask[]; attachments: ClinicalAttachment[]; onRefresh: () => Promise<void>; onResolved: () => void; demoMode?: boolean }) {
   const ordered = useMemo(() => [...encounters].sort((a, b) => a.encounterDate.localeCompare(b.encounterDate)), [encounters]);
   const confirmed = ordered.filter((e) => e.status !== 'cancelled' && e.wound.verification.status === 'confirmed'); const latest = confirmed.at(-1); const first = confirmed[0];
   const assigned = tasks.filter((task) => membership.roles.includes(task.recipientRole)); const activeTask = assigned.find((task) => !['resolved', 'rejected'].includes(task.status)) || assigned[0];
@@ -18,15 +18,31 @@ export default function SpecialistCaseSummary({ centerId, membership, patient, e
   const [result, setResult] = useState(responseTask?.result || ''); const [message, setMessage] = useState('');
   const area = (encounter?: Encounter) => encounter?.wound.lengthCm != null && encounter.wound.widthCm != null ? encounter.wound.lengthCm * encounter.wound.widthCm : undefined;
   const firstArea = area(first); const latestArea = area(latest); const change = firstArea && latestArea != null ? Math.round(((latestArea - firstArea) / firstArea) * 100) : undefined;
-  const respond = async (event: FormEvent) => { event.preventDefault(); if (demoMode || !responseTask) return; try { await api.updateTask(centerId, responseTask.id, { version: responseTask.version || 1, status: 'resolved', result }); await onRefresh(); setMessage('Respuesta registrada y gestión resuelta.'); } catch (cause) { setMessage(cause instanceof Error ? cause.message : 'No fue posible registrar la respuesta.'); } };
+  const respond = async (event: FormEvent) => { event.preventDefault(); if (demoMode || !responseTask) return; try { await api.updateTask(centerId, responseTask.id, { version: responseTask.version || 1, status: 'resolved', result }); await onRefresh(); onResolved(); } catch (cause) { setMessage(cause instanceof Error ? cause.message : 'No fue posible registrar la respuesta.'); } };
   const accept = async () => { if (demoMode || !responseTask) return; try { await api.updateTask(centerId, responseTask.id, { version: responseTask.version || 1, status: 'accepted' }); await onRefresh(); setMessage('Gestión aceptada. Ahora puedes registrar tu evaluación.'); } catch (cause) { setMessage(cause instanceof Error ? cause.message : 'No fue posible aceptar la gestión.'); } };
   const saveDraft = async () => { if (demoMode || !responseTask) return; try { await api.updateTask(centerId, responseTask.id, { version: responseTask.version || 1, status: 'in_progress', result }); await onRefresh(); setMessage('Borrador guardado.'); } catch (cause) { setMessage(cause instanceof Error ? cause.message : 'No fue posible guardar.'); } };
   const copySummary = () => copyText(responseTask?.referralSnapshot?.text || buildSummary(patient, episode, latest, responseTask, change)).then(() => setMessage('Resumen copiado.')).catch(() => setMessage('No se pudo copiar el resumen.'));
+  const responseForm = <form className="panel specialist-response" onSubmit={respond}>
+    <div className="card-heading"><div>
+      <p className="eyebrow">Tu aporte al caso derivado</p>
+      <h3>Evaluación de {responseTask ? ROLE_LABELS[responseTask.recipientRole] : 'especialidad'}</h3>
+      <label>Gestión a responder<select value={responseTask?.id || ''} onChange={(event) => { setSelectedTask(event.target.value); setResult(assigned.find((task) => task.id === event.target.value)?.result || ''); }}>{assigned.map((task) => <option key={task.id} value={task.id}>{task.title} · {task.status}</option>)}</select></label>
+      <p>Primero acepta la gestión. Luego registra tus hallazgos y conducta; puedes guardar un borrador o confirmar tu respuesta. Tu aporte queda separado de la evolución del equipo tratante. Al confirmar, el caso sale de tus derivados.</p>
+    </div></div>
+    {responseTask && ['created', 'notified'].includes(responseTask.status)
+      ? <button type="button" className="primary" disabled={demoMode} onClick={() => void accept()}>Aceptar gestión y comenzar evaluación</button>
+      : responseTask
+        ? <fieldset disabled={demoMode || responseTask.status === 'resolved' || responseTask.status === 'rejected'}><label>Hallazgos, conducta, exámenes y control<textarea required value={result} onChange={(event) => setResult(event.target.value)} placeholder="Registra evaluación, conducta, exámenes adicionales y plazo de control." /></label><button type="button" onClick={() => void saveDraft()}>Guardar borrador</button><button className="primary">Confirmar respuesta y resolver gestión</button></fieldset>
+        : <p>No existe una gestión asignada a este perfil.</p>}
+    {demoMode && <p className="muted">Esta demostración es de sólo lectura. Abre la prueba interactiva para responder con datos ficticios.</p>}
+    {message && <p className="pre-message" role="status">{message}</p>}
+  </form>;
 
   return <section className="specialist-case stack">
     <header className="specialist-hero"><div><p className="eyebrow">Caso derivado · {membership.roles.map((role) => ROLE_LABELS[role]).join(' · ')}</p><h2>{patient.name}</h2><p>{episode.location}, pie {episode.side === 'right' ? 'derecho' : 'izquierdo'} · episodio iniciado {formatDate(episode.createdAt)}</p></div><span className={`committee-priority ${activeTask?.priority || episode.priority}`}>{priorityLabel(activeTask?.priority || episode.priority)}</span></header>
 
     <article className="referral-reason"><div><span>Por qué se deriva</span><h3>{activeTask?.title || 'Derivación sin título'}</h3><p>{activeTask?.reason || 'No se registró un motivo específico.'}</p><small>{activeTask ? `Enviada por ${activeTask.createdByName} · ${formatDateTime(activeTask.createdAt)}` : 'Sin gestión asociada'}</small></div><button className="ghost" type="button" onClick={copySummary}>Copiar resumen</button></article>
+    {responseForm}
 
     {responseTask?.referralSnapshot && <details className="panel"><summary>Antecedentes conservados al derivar · versión {responseTask.referralSnapshot.version}</summary><pre className="referral-snapshot">{responseTask.referralSnapshot.text}</pre></details>}
     <div className="specialist-kpis"><Kpi label="Atenciones" value={String(ordered.length)} /><Kpi label="Dimensiones actuales" value={latest ? dimensions(latest) : 'Sin medición'} /><Kpi label="Cambio de área" value={change == null ? 'Sin cálculo' : `${change > 0 ? '+' : ''}${change}%`} alert={change != null && change > 0} /><Kpi label="WIfI actual" value={latest ? `W${latest.wifi.wound ?? '—'} I${latest.wifi.ischemia ?? '—'} fI${latest.wifi.footInfection ?? '—'}` : 'Sin registro'} /></div>
@@ -40,7 +56,6 @@ export default function SpecialistCaseSummary({ centerId, membership, patient, e
 
     <article className="panel"><div className="card-heading"><div><p className="eyebrow">Registro fotográfico</p><h3>Fotografías ordenadas por fecha</h3></div><span className="pill">{photos.length} imágenes</span></div><div className="dated-photo-grid">{photos.map((photo) => <figure key={photo.id}>{photo.url ? <img src={photo.url} alt={`${photo.kind === 'pre' ? 'Precuración' : 'Postcuración'} del ${formatDate(photo.encounterDate)}`} /> : <div className="photo-placeholder">Imagen no disponible</div>}<figcaption><strong>{photo.kind === 'pre' ? 'Precuración' : 'Postcuración'}</strong><span>{formatDate(photo.encounterDate)}</span><small>{photo.scaleIncluded ? 'Con referencia de escala' : 'Sin escala confirmada'}</small></figcaption></figure>)}{photos.length === 0 && <p className="muted">No hay fotografías registradas.</p>}</div></article>
 
-    <form className="panel specialist-response" onSubmit={respond}><div className="card-heading"><div><p className="eyebrow">Respuesta del especialista</p><h3>Evaluación y recomendación</h3><label>Gestión a responder<select value={responseTask?.id || ''} onChange={(e) => { setSelectedTask(e.target.value); setResult(assigned.find((t) => t.id === e.target.value)?.result || ''); }}>{assigned.map((task) => <option key={task.id} value={task.id}>{task.title} · {task.status}</option>)}</select></label><p>Tu respuesta se agrega a la gestión; no modifica la evolución del equipo tratante.</p></div></div>{responseTask && ['created', 'notified'].includes(responseTask.status) ? <button type="button" className="primary" disabled={demoMode} onClick={() => void accept()}>Aceptar gestión</button> : responseTask ? <fieldset disabled={demoMode || responseTask.status === 'resolved' || responseTask.status === 'rejected'}><textarea required value={result} onChange={(event) => setResult(event.target.value)} placeholder="Registra evaluación, conducta, exámenes adicionales y plazo de control." /><button type="button" onClick={() => void saveDraft()}>Guardar borrador</button><button className="primary">Confirmar respuesta y resolver gestión</button></fieldset> : <p>No existe una gestión asignada a este perfil.</p>}{message && <p className="pre-message" role="status">{message}</p>}</form>
   </section>;
 }
 

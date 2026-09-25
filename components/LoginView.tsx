@@ -30,10 +30,10 @@ export default function LoginView({ error }: { error?: string }) {
   const [busy, setBusy] = useState(false);
   const [ready, setReady] = useState(false);
   const [localError, setLocalError] = useState('');
-  const enterLocalReview = async (role: 'tens' | 'nurse' | 'doctor') => {
+  const enterLocalReview = async (role: 'tens' | 'nurse' | 'doctor' | 'general_surgeon' | 'vascular_surgeon') => {
     if (!localReviewAuthEnabled) return;
     setBusy(true); setLocalError('');
-    const email = role === 'tens' ? 'tens@ejemplo.test' : role === 'nurse' ? 'enfermeria@ejemplo.test' : 'medicina@ejemplo.test';
+    const email = ({ tens: 'tens@ejemplo.test', nurse: 'enfermeria@ejemplo.test', doctor: 'medicina@ejemplo.test', general_surgeon: 'cirugia@ejemplo.test', vascular_surgeon: 'vascular@ejemplo.test' } as const)[role];
     try { await authPersistenceReady; await signInWithEmailAndPassword(auth, email, 'SyntheticOnly-PD-Review!'); }
     catch { setLocalError('No se pudo entrar al entorno local. Inicia los emuladores y carga los datos de prueba.'); }
     finally { setBusy(false); }
@@ -117,7 +117,7 @@ export default function LoginView({ error }: { error?: string }) {
           <div ref={buttonHost} className="google-signin-host" />
           {(!ready || busy) && <span>{busy ? 'Validando acceso seguro…' : 'Preparando acceso con Google…'}</span>}
         </div>}
-        {localReviewAuthEnabled && <div className="local-review-access"><p><strong>Prueba local con datos ficticios</strong></p><div className="local-review-actions"><button type="button" className="ghost" disabled={busy} onClick={() => void enterLocalReview('tens')}>Entrar como TENS</button><button type="button" className="ghost" disabled={busy} onClick={() => void enterLocalReview('nurse')}>Entrar como enfermería</button><button type="button" className="ghost" disabled={busy} onClick={() => void enterLocalReview('doctor')}>Entrar como medicina</button></div>{localError && <p role="alert">{localError}</p>}</div>}
+        {localReviewAuthEnabled && <div className="local-review-access"><p><strong>Prueba local con datos ficticios</strong></p><div className="local-review-actions"><button type="button" className="ghost" disabled={busy} onClick={() => void enterLocalReview('tens')}>Entrar como TENS</button><button type="button" className="ghost" disabled={busy} onClick={() => void enterLocalReview('nurse')}>Entrar como enfermería</button><button type="button" className="ghost" disabled={busy} onClick={() => void enterLocalReview('doctor')}>Entrar como medicina</button><button type="button" className="ghost" disabled={busy} onClick={() => void enterLocalReview('general_surgeon')}>Entrar como Cirugía General</button><button type="button" className="ghost" disabled={busy} onClick={() => void enterLocalReview('vascular_surgeon')}>Entrar como Cirugía Vascular</button></div>{localError && <p role="alert">{localError}</p>}</div>}
         <p className="access-note"><strong>Un solo acceso para todo el equipo.</strong> Al ingresar, verás automáticamente los paneles habilitados para tus perfiles.</p>
         <div className="trust-grid" aria-label="Características de seguridad">
           <span>Acceso por invitación</span><span>Permisos por perfil</span><span>Registro de cambios</span>

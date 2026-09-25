@@ -49,7 +49,7 @@ npm run seed:review
 npm run dev -- --host 127.0.0.1 --port 5173 --strictPort
 ```
 
-Abrir `http://127.0.0.1:5173/` y elegir TENS, enfermería o medicina en el acceso local. Seleccionar **Paciente ficticio de prueba** → **Plantar antepié** → **Iniciar registro fotográfico** (TENS) o **Nueva atención** (enfermería/medicina). Los cambios se guardan sólo en los emuladores y se pierden al apagarlos. La ruta `clinical-preview.html` es una maqueta de sólo lectura.
+Abrir `http://127.0.0.1:5173/` y elegir TENS, enfermería, medicina, Cirugía General o Cirugía Vascular en el acceso local. Seleccionar **Paciente ficticio de prueba** → **Plantar antepié**. TENS puede iniciar el registro fotográfico; enfermería y medicina, una nueva atención. En **Casos derivados**, cada cirugía ve **Tu aporte al caso derivado** al inicio del caso: aceptar gestión, registrar evaluación, guardar borrador o confirmar respuesta. Tras confirmar, el caso sale de sus derivados y la respuesta queda visible para el equipo tratante en **Comparar evolución entre fechas**. `npm run seed:review` vuelve a abrir sólo las dos derivaciones sintéticas para repetir la prueba; los otros datos de prueba se conservan hasta apagar los emuladores. La ruta `clinical-preview.html` es una maqueta de sólo lectura.
 
 Verificación rápida de salud/productivo sin credenciales:
 

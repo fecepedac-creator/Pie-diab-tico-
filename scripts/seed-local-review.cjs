@@ -24,6 +24,8 @@ const accounts = [
   { email: 'tens@ejemplo.test', name: 'TENS de prueba', roles: ['tens'] },
   { email: 'enfermeria@ejemplo.test', name: 'Enfermería de prueba', roles: ['nurse'] },
   { email: 'medicina@ejemplo.test', name: 'Medicina de prueba', roles: ['doctor'] },
+  { email: 'cirugia@ejemplo.test', name: 'Cirugía general de prueba', roles: ['general_surgeon'] },
+  { email: 'vascular@ejemplo.test', name: 'Cirugía vascular de prueba', roles: ['vascular_surgeon'] },
 ];
 
 async function createIfAbsent(ref, value) {
@@ -61,6 +63,15 @@ async function main() {
     wound: emptyWound(), wifi: emptyWifi(), nursing: emptyNursing(), medical: emptyMedical(), photos: [],
     nursingNarrative: 'Registro previo ficticio.', medicalNarrative: 'Registro previo ficticio.', createdAt: now, updatedAt: now,
   });
+  for (const task of [
+    { id: 'derivacion-cirugia-general', recipientRole: 'general_surgeon', type: 'general_surgery', title: 'Evaluación por Cirugía General', reason: 'Evaluar necesidad de desbridamiento quirúrgico en caso ficticio.' },
+    { id: 'derivacion-cirugia-vascular', recipientRole: 'vascular_surgeon', type: 'vascular', title: 'Evaluación por Cirugía Vascular', reason: 'Evaluar perfusión y necesidad de estudio vascular en caso ficticio.' },
+  ]) {
+    await db.doc(`centers/${centerId}/tasks/${task.id}`).set({
+      ...task, centerId, patientId, episodeId, encounterId: 'atencion-anterior', priority: 'soon', status: 'created', version: 1,
+      createdByUid: members.doctor, createdByName: 'Medicina de prueba', createdAt: now, updatedAt: now,
+    });
+  }
   console.log(JSON.stringify({ ok: true, projectId, centerId, patientId, episodeId, roles: accounts.map(({ roles }) => roles[0]) }));
 }
 
