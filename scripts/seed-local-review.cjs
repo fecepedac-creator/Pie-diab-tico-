@@ -20,12 +20,14 @@ const centerId = 'centro-revision-local';
 const patientId = 'paciente-ficticio';
 const episodeId = 'episodio-pie-derecho';
 const password = 'SyntheticOnly-PD-Review!';
+const resetReferrals = process.argv.includes('--reset-referrals');
 const accounts = [
   { email: 'tens@ejemplo.test', name: 'TENS de prueba', roles: ['tens'] },
   { email: 'enfermeria@ejemplo.test', name: 'Enfermería de prueba', roles: ['nurse'] },
   { email: 'medicina@ejemplo.test', name: 'Medicina de prueba', roles: ['doctor'] },
   { email: 'cirugia@ejemplo.test', name: 'Cirugía general de prueba', roles: ['general_surgeon'] },
   { email: 'vascular@ejemplo.test', name: 'Cirugía vascular de prueba', roles: ['vascular_surgeon'] },
+  { email: 'fisiatria@ejemplo.test', name: 'Fisiatría de prueba', roles: ['physiatrist'] },
 ];
 
 async function createIfAbsent(ref, value) {
@@ -66,11 +68,15 @@ async function main() {
   for (const task of [
     { id: 'derivacion-cirugia-general', recipientRole: 'general_surgeon', type: 'general_surgery', title: 'Evaluación por Cirugía General', reason: 'Evaluar necesidad de desbridamiento quirúrgico en caso ficticio.' },
     { id: 'derivacion-cirugia-vascular', recipientRole: 'vascular_surgeon', type: 'vascular', title: 'Evaluación por Cirugía Vascular', reason: 'Evaluar perfusión y necesidad de estudio vascular en caso ficticio.' },
+    { id: 'derivacion-fisiatria', recipientRole: 'physiatrist', type: 'physiatry', title: 'Evaluación por Fisiatría', reason: 'Evaluar descarga, movilidad, ayudas técnicas y plan de rehabilitación en caso ficticio.' },
   ]) {
-    await db.doc(`centers/${centerId}/tasks/${task.id}`).set({
+    const ref = db.doc(`centers/${centerId}/tasks/${task.id}`);
+    const value = {
       ...task, centerId, patientId, episodeId, encounterId: 'atencion-anterior', priority: 'soon', status: 'created', version: 1,
       createdByUid: members.doctor, createdByName: 'Medicina de prueba', createdAt: now, updatedAt: now,
-    });
+    };
+    if (resetReferrals) await ref.set(value);
+    else await createIfAbsent(ref, value);
   }
   console.log(JSON.stringify({ ok: true, projectId, centerId, patientId, episodeId, roles: accounts.map(({ roles }) => roles[0]) }));
 }
