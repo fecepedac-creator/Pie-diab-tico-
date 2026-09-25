@@ -4,6 +4,13 @@ import { formatDateTime } from '../utils';
 
 export const encounterStatus = (status: Encounter['status']) => ({ draft: 'Borrador', in_progress: 'En curso', ready_for_review: 'Lista para revisar', completed: 'Completada', cancelled: 'Cancelada' }[status]);
 const dimensions = (e: Encounter) => `${e.wound.lengthCm ?? '—'} × ${e.wound.widthCm ?? '—'} × ${e.wound.depthCm ?? '—'} cm`;
+const taskResponseText = (task: ClinicalTask) => {
+  if (task.status === 'resolved') return task.result ? `Respuesta confirmada: ${task.result}` : 'Respuesta confirmada; texto no disponible.';
+  if (task.status === 'rejected') return 'Gestión rechazada.';
+  if (task.result) return `Borrador de respuesta (sin confirmar): ${task.result}`;
+  if (task.status === 'accepted' || task.status === 'in_progress') return 'Evaluación en curso; respuesta pendiente.';
+  return 'Respuesta pendiente.';
+};
 export default function EncounterEvolution({ encounters, tasks = [], photosOnly = false }: { encounters: Encounter[]; tasks?: ClinicalTask[]; photosOnly?: boolean }) {
   const ordered = [...encounters].sort((a, b) => b.encounterDate.localeCompare(a.encounterDate));
   const [currentId, setCurrentId] = useState(''); const [baselineId, setBaselineId] = useState('');
@@ -22,7 +29,7 @@ export default function EncounterEvolution({ encounters, tasks = [], photosOnly 
       <div className="comparison-grid">{[baseline, current].map((e, index) => <article key={index} className="comparison-card"><h3>{index === 0 ? 'Referencia' : 'Atención seleccionada'}</h3>{e ? <><time>{formatDateTime(e.encounterDate)}</time><p>{encounterStatus(e.status)}</p>{!photosOnly && <><strong>{dimensions(e)}</strong><p>Herida: {e.wound.verification.status === 'confirmed' ? 'Confirmada' : 'Borrador'} · {e.wound.verification.confirmedByName || e.wound.verification.enteredByName || 'Sin autor registrado'}</p><p>W{e.wifi.wound ?? '—'} I{e.wifi.ischemia ?? '—'} fI{e.wifi.footInfection ?? '—'} · {e.wifi.verification.status === 'confirmed' ? 'Confirmado' : 'Borrador / no evaluado'}</p><p>Indicada: {e.medical.offloadingPlan || 'Sin descarga consignada'}</p><p>Aplicada: {e.nursing.offloadingApplied.join(', ') || 'Sin descarga consignada'}</p></>}
         {e.photos.filter((p) => p.kind === kind).map((p) => <figure key={p.id}>{p.url ? <img src={p.url} alt={`${kind === 'pre' ? 'Precuración' : 'Postcuración'} del ${formatDateTime(e.encounterDate)}`} /> : <p>Imagen no disponible. Actualiza para renovar su acceso.</p>}<figcaption>{kind === 'pre' ? 'Precuración' : 'Postcuración'} · {p.scaleIncluded ? 'Con escala' : 'Sin escala'} · {p.quality === 'accepted' ? 'Aceptada' : p.quality === 'repeat' ? 'Repetir' : 'Revisión pendiente'}</figcaption></figure>)}{!e.photos.some((p) => p.kind === kind) && <p>Sin fotografía de este momento.</p>}</> : <p>No hay otra atención.</p>}</article>)}</div>
       <ol className="episode-history">{visible.map((e) => <li key={e.id}><strong>{formatDateTime(e.encounterDate)} · {encounterStatus(e.status)}</strong>{!photosOnly && <p>{dimensions(e)} · {e.medical.verification.status === 'confirmed' ? e.medical.clinicalImpression || e.medical.treatmentPlan || 'Sin impresión consignada' : 'Evaluación médica no confirmada'}</p>}{!photosOnly && e.addenda?.map((entry) => <p key={entry.id}>Adenda · {entry.authorName} · {formatDateTime(entry.createdAt)}: {entry.text}</p>)}</li>)}</ol>
-      {!photosOnly && tasks.map((task) => <article className="task-card" key={task.id}><strong>{task.title}</strong><p>{task.reason}</p><p>{task.result ? `Respuesta: ${task.result}` : 'Respuesta pendiente'}</p>{task.respondedByName && <small>{task.respondedByName} · {formatDateTime(task.respondedAt || task.updatedAt)}</small>}</article>)}
+      {!photosOnly && tasks.map((task) => <article className="task-card" key={task.id}><strong>{task.title}</strong><p>{task.reason}</p><p>{taskResponseText(task)}</p>{task.respondedByName && <small>{task.respondedByName} · {formatDateTime(task.respondedAt || task.updatedAt)}</small>}</article>)}
     </>}
   </section>;
 }

@@ -17,7 +17,7 @@ Actualizado: 24 de septiembre de 2026. Fuente de verdad para esta versión candi
 - `npm run test:emulators`: aprobado el 24/09/2026 con 61 comprobaciones base, escenarios nuevos de concurrencia, permisos, preingreso, derivaciones y auditoría; sólo proyecto `demo-pie-diabetico`.
 - No se ha ejecutado una validación clínica con personas usuarias, una prueba móvil real ni una comprobación operativa de este candidato en un entorno remoto.
 - El 24/09/2026 se reprodujo en navegador el botón deshabilitado de la maqueta y se verificó el flujo local real de nuevo registro fotográfico TENS y nueva atención de medicina con persistencia en emulador. Evidencia y límites: [RESULTADO_NUEVA_ATENCION.md](RESULTADO_NUEVA_ATENCION.md).
-- El 24/09/2026 se verificó en navegador el borrador y cierre de respuesta de Cirugía General, el cierre de Cirugía Vascular y la lectura de ambas respuestas por medicina. El formulario se hizo visible al inicio del caso y el cierre muestra confirmación; [resultado y límites](RESULTADO_RESPUESTA_ESPECIALISTAS.md).
+- El 24/09/2026 se verificó en navegador el borrador y cierre de respuesta de Cirugía General, el cierre de Cirugía Vascular y la lectura de ambas respuestas por medicina. El formulario se hizo visible al inicio del caso y el cierre muestra confirmación. Medicina y enfermería consultan el aporte en **Evolución y respuestas de especialidades**, con estado de borrador o confirmado; [resultado y límites](RESULTADO_RESPUESTA_ESPECIALISTAS.md).
 
 ## Estado de salida
 

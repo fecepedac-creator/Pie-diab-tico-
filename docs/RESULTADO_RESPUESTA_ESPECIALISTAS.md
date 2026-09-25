@@ -11,6 +11,6 @@ La derivación aparece en **Casos derivados** del perfil destinatario. Al selecc
 ## Verificación y límite
 
 - Cirugía General aceptó una gestión, guardó una evaluación ficticia como borrador y la recuperó tras recargar. Después la confirmó; apareció un aviso visible de cierre.
-- Cirugía Vascular aceptó y confirmó otra gestión ficticia. El caso salió de su bandeja conforme a la regla de acceso. Medicina vio ambas respuestas, con autor y hora, en **Comparar evolución entre fechas**.
+- Cirugía Vascular aceptó y confirmó otra gestión ficticia. El caso salió de su bandeja conforme a la regla de acceso. Medicina vio ambas respuestas, con autor y hora, en la sección ahora llamada **Evolución y respuestas de especialidades**. La pantalla etiqueta los borradores como **sin confirmar** y las respuestas resueltas como **confirmadas**.
 - `npm run validate` aprobó tipado, 14 pruebas unitarias, compilación y revisión sintáctica. El acceso sintético queda restringido al desarrollo con proyecto demo.
 - La respuesta actual es texto libre. No hay formulario estructurado distinto para cada especialidad ni firma en la ficha clínica institucional; esos requisitos requieren definición y validación clínica antes de un piloto.
