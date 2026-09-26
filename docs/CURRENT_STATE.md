@@ -1,6 +1,14 @@
 # Estado vigente — Pie Diabético
 
-Actualizado: 24 de septiembre de 2026. Fuente de verdad para esta versión candidata local; los documentos de go-live fechados el 13 de septiembre son evidencia histórica y no acreditan el estado actual de producción.
+Actualizado: 25 de septiembre de 2026. Fuente de verdad para esta versión candidata local; los documentos de go-live fechados el 13 de septiembre son evidencia histórica y no acreditan el estado actual de producción.
+
+## Cierre de dependencias de producción y CI de R1
+
+- Rama aislada `codex/r1-dependencies-ci-20260925`, iniciada exactamente en `011db37` de la candidata R1. El checkout principal no se modificó.
+- Auditoría inicial de producción: raíz 0 alertas; Functions 6 moderadas (cadena `firebase-admin` / `@google-cloud/storage` / `gaxios` / `uuid`). Se actualizó `firebase-admin` de 14.3.0 a 14.5.0 en Functions y se fijó `uuid` 11.1.1 sólo bajo `gaxios`, que usa `uuid.v4()` para el límite multipart. Auditoría final de producción: 0 alertas en raíz y 0 en Functions.
+- CI instala ambos árboles con `npm ci`, valida tipado, 14 pruebas unitarias, compilación y sintaxis, ejecuta la prueba sintética con emuladores y audita dependencias de producción de raíz y Functions. La ejecución automática del PR en borrador #13 aprobó en GitHub Actions con Node 22.
+- Verificación local: `npm ci` en ambos árboles, `npm run validate` y las dos auditorías de producción aprobaron. El smoke de emuladores aislados aprobó 61 comprobaciones base y escenarios de concurrencia, permisos, preingreso, tareas y auditoría (`auditEvents: 25`). Se usó Node 24 local; CI usa Node 22.
+- Riesgo residual: el reemplazo de `uuid` cruza una versión mayor de la dependencia transitiva; `gaxios` sólo invoca la API `v4()` y pasaron el smoke y CI en Node 22, pero el entorno remoto aún debe comprobarse. Una auditoría completa de raíz reporta 12 alertas moderadas en herramientas de desarrollo; no afectan la auditoría de producción ni se incluyeron en esta corrección. Sigue vigente el NO-GO clínico y de despliegue indicado abajo.
 
 ## Resultado de paso 1
 
