@@ -29,6 +29,9 @@ firebase-debug.log*
 
 # Secrets
 .env
+.env.*
+!.env.example
+!.env.development
 *.json.json
 service-account.json
 server/service-account.json

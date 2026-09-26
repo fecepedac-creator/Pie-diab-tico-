@@ -1,9 +1,7 @@
 const https = require('https');
 
 const defaultTargets = [
-  'https://policlinico-de-pie-diabetico.web.app',
   'https://simulador-clinico.web.app',
-  'https://simulador-clinico-2.web.app',
 ];
 
 function normalizeTarget(raw) {
@@ -81,11 +79,6 @@ async function main() {
   }));
 
   console.log(JSON.stringify(passRows, null, 2));
-  const fs = require('fs');
-  const outPath = 'docs/_canary-health-latest.json';
-  fs.writeFileSync(outPath, JSON.stringify({ checkedAt: new Date().toISOString(), rows: passRows }, null, 2));
-  console.log(`Guardado: ${outPath}`);
-
   const failed = passRows.filter((row) => row.status !== 200 || row.healthOk !== true);
   if (failed.length > 0) {
     console.log(`Resultado: ${failed.length} objetivo(s) pendientes de canary`);

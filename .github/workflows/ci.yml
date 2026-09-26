@@ -23,3 +23,4 @@ jobs:
       - run: npm run validate
       - run: npm run test:emulators
       - run: npm audit --omit=dev
+      - run: npm audit --omit=dev --prefix functions

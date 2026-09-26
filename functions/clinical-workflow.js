@@ -14,6 +14,7 @@ const taskTransitions = {
 function taskGrantsAccess(task, member) {
   return member.roles.includes(task.recipientRole)
     && !terminalTaskStatuses.has(task.status)
+    && (task.recipientRole !== 'social_worker' || Boolean(task.assignedToUid))
     && (!task.assignedToUid || task.assignedToUid === member.uid);
 }
 function assertTaskTransition(previous, next) {

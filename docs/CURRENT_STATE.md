@@ -1,6 +1,14 @@
 # Estado vigente — Pie Diabético
 
-Actualizado: 24 de septiembre de 2026. Fuente de verdad para esta versión candidata local; los documentos de go-live fechados el 13 de septiembre son evidencia histórica y no acreditan el estado actual de producción.
+Actualizado: 25 de septiembre de 2026. Fuente de verdad para esta versión candidata local; los documentos de go-live fechados el 13 de septiembre son evidencia histórica y no acreditan el estado actual de producción.
+
+## Integración de preparación para producción — 25/09/2026
+
+- Rama aislada de coordinación: `codex/r1-production-readiness`; base `011db37`. Se incorporaron los cambios de autorización `eaac9c7`, paquete documental R0 `b5c5532`, preparación canary `cad20e1` y dependencias/CI `458b163`. El checkout principal conserva sus cambios sin confirmar.
+- El alcance aprobado por el usuario para el piloto permite a enfermería y medicina consultar pacientes de **su propio centro**; la ratificación clínica y TI/seguridad permanece pendiente. El acceso de trabajo social requiere una asignación individual en servidor. La API ya acepta esa asignación, pero la interfaz aún no ofrece el selector para coordinación, enfermería o medicina; V06 no puede considerarse cerrado.
+- `simulador-clinico` no está listo: la Cloud Functions API sigue deshabilitada y aún faltan comprobaciones de Storage, contenido, facturación y recuperación. Ninguna parte de esta candidata se publicó allí ni en producción.
+- La auditoría de dependencias de producción en el hilo T4 quedó sin alertas en raíz y Functions; PR #13 registró validación de CI aprobada para esa rama. La combinación integrada pasó `npm run validate` (15 pruebas unitarias), las dos auditorías de producción (0 alertas) y `npm run test:emulators` (`baselineChecks: 61`, siete escenarios de candidata y 26 eventos de auditoría), todo con datos sintéticos. La validación se realizó con Node 24 local; CI de la rama T4 pasó con Node 22, pero aún no ha ejecutado esta combinación exacta.
+- R0 sigue sin aprobaciones institucionales, decisión MFA, retención y RTO/RPO. V06/V10/V11 móvil, canary, restauración y rollback operativos siguen pendientes. **NO-GO para datos reales y despliegue productivo.**
 
 ## Resultado de paso 1
 

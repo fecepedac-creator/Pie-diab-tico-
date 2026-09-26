@@ -764,7 +764,7 @@ async function route(req, res, actor) {
       const task = snap.data();
       if (req.body.version !== (task.version || 1)) throw Object.assign(new Error('La gestión cambió en otra sesión. Recarga antes de guardar.'), { status: 409 });
       workflow.assertTaskTransition(task.status, req.body?.status);
-      const isRecipient = member.roles.includes(task.recipientRole) && (!task.assignedToUid || task.assignedToUid === actor.uid);
+      const isRecipient = member.roles.includes(task.recipientRole) && (task.recipientRole !== 'social_worker' || Boolean(task.assignedToUid)) && (!task.assignedToUid || task.assignedToUid === actor.uid);
       const isManager = hasAnyRole(member, ['coordinator', 'nurse', 'doctor']) || task.createdByUid === actor.uid;
       const status = req.body?.status || task.status;
       if (!isRecipient && !isManager) throw Object.assign(new Error('No puedes actualizar esta gestión.'), { status: 403 });

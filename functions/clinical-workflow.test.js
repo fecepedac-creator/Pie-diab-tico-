@@ -26,6 +26,16 @@ test('assigned and closed derivations do not grant another specialist case acces
   assert.throws(() => w.assertTaskTransition('created', 'resolved'));
   assert.doesNotThrow(() => w.assertTaskTransition('accepted', 'resolved'));
 });
+test('social access requires a named active assignee', () => {
+  const member = { uid: 'social-1', roles: ['social_worker'] };
+  const task = { id: 't', patientId: 'p', episodeId: 'ep', recipientRole: 'social_worker', status: 'created' };
+  const state = { patients: [{ id: 'p', social: { notes: 'privado' } }], episodes: [{ id: 'ep', patientId: 'p' }], encounters: [], tasks: [task], attachments: [] };
+  assert.equal(w.taskGrantsAccess(task, member), false);
+  assert.equal(w.projectState(member, state).patients.length, 0);
+  assert.equal(w.taskGrantsAccess({ ...task, assignedToUid: 'social-1' }, member), true);
+  assert.equal(w.taskGrantsAccess({ ...task, assignedToUid: 'social-2' }, member), false);
+  assert.equal(w.taskGrantsAccess({ ...task, assignedToUid: 'social-1', status: 'resolved' }, member), false);
+});
 test('combined roles preserve referral access only on assigned episodes', () => {
   const state = { patients: [{ id: 'p', anamnesis: { secret: true } }], episodes: [{ id: 'ep', patientId: 'p' }, { id: 'other', patientId: 'p' }], encounters: [{ ...encounter(), medicalNarrative: 'authorized' }, { ...encounter(), id: 'e2', episodeId: 'other', medicalNarrative: 'private' }], tasks: [{ id: 't', patientId: 'p', episodeId: 'ep', recipientRole: 'vascular_surgeon' }], attachments: [{ episodeId: 'ep' }, { episodeId: 'other' }] };
   const projected = w.projectState({ roles: ['tens', 'vascular_surgeon'] }, state);

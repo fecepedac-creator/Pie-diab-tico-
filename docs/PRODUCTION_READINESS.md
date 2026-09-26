@@ -1,6 +1,6 @@
 # Pie Diabético — preparación para producción
 
-Estado: **EN CURSO / NO-GO**. Actualizado: 25/09/2026.
+Estado: **EN CURSO / NO-GO**. Actualizado: 25/09/2026, después de revisar T1–T4.
 
 ## Versión y alcance
 
@@ -12,11 +12,11 @@ Estado: **EN CURSO / NO-GO**. Actualizado: 25/09/2026.
 
 | ID | Resultado verificable | Entrada | Salida exigida | Estado |
 | --- | --- | --- | --- | --- |
-| T1 | Candidata sin bloqueantes de autorización e integridad | `011db37` | Revisión de hallazgos previos sobre la candidata, pruebas negativas de API con centros y perfiles, commit exacto y riesgos residuales | En ejecución |
-| T2 | Paquete R0 aprobable | `011db37` y decisión de alcance del usuario | Matriz de datos/acciones/roles, consentimiento, registro institucional, MFA y responsables listos para aprobación; firmas reales pendientes identificadas | En ejecución |
-| T3 | Canary diagnosticado y procedimiento revisable | `011db37` | Proyecto elegido, APIs y Hosting/Functions comprobados, pasos y reversión para versión exacta sin datos reales | En ejecución |
-| T4 | Dependencias y CI verificadas | `011db37` | Auditoría de raíz y Functions, actualización mínima si procede, CI y pruebas sintéticas reproducibles | En ejecución |
-| T5 | Candidata integrada y congelada | T1, T2 técnico, T3, T4 | Un solo commit candidato, validación completa y manifiesto de artefactos; sin conflictos ni cambios ajenos | Pendiente |
+| T1 | Candidata sin bloqueantes de autorización e integridad | `011db37` | `eaac9c7`: acceso social asignado, pruebas negativas entre centros y cierre de caso; pendiente selector de responsable en interfaz | Completada para integración |
+| T2 | Paquete R0 aprobable | `011db37` y decisión de alcance del usuario | `b5c5532`: matriz y decisiones preparadas; seis aprobaciones institucionales, MFA, retención y RTO/RPO siguen pendientes | Documentación completada; aprobación pendiente |
+| T3 | Canary diagnosticado y procedimiento revisable | `011db37` | `cad20e1`: `simulador-clinico` elegido, guardas locales y reversión documentados; Cloud Functions API aún deshabilitada | Preparación completada; entorno bloqueado |
+| T4 | Dependencias y CI verificadas | `011db37` | `458b163`: auditorías de producción sin alertas, CI ampliada y PR #13 con validación aprobada | Completada para integración |
+| T5 | Candidata integrada y congelada | T1, T2 técnico, T3, T4 | Un solo commit candidato, validación completa y manifiesto de artefactos; sin conflictos ni cambios ajenos | En integración |
 | T6 | Canary funcional y recuperable | T5 y entorno T3 | API, reglas, Hosting y configuración coherentes; pruebas sintéticas, salud, rollback y observación documentados | Pendiente |
 | T7 | Validación clínica y móvil | T2 aprobado y T6 | V06, V10 y V11 con usuarios autorizados, dispositivos reales y evidencia; ningún bloqueo alto | Pendiente |
 | T8 | Auditoría final independiente | T5–T7 | Repetir arquitectura, permisos, privacidad, integridad, UX, pruebas, operación y versión desplegada; dictamen GO/NO-GO con evidencia y límites | Pendiente |
