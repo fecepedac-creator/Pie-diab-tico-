@@ -72,6 +72,18 @@
 .exception-entry { display: grid; grid-template-columns: 1fr auto; gap: .45rem; margin-top: .75rem; }
 .exception-entry input { min-width: 0; min-height: 38px; margin: 0; padding: .55rem .65rem; font-size: .72rem; }
 .exception-entry button { border: 0; border-radius: 10px; background: var(--section-color); color: #fff; padding: .55rem .7rem; font-size: .7rem; font-weight: 800; }
+.selection-details { display: grid; gap: .65rem; margin-top: .85rem; padding-top: .8rem; border-top: 1px solid #e8efed; }
+.detail-intro { margin: 0; color: #526967; font-size: .7rem; font-weight: 850; }
+.selection-detail-card { padding: .7rem; border: 1px solid color-mix(in srgb, var(--section-color) 20%, #dfe8e6); border-radius: 12px; background: color-mix(in srgb, var(--section-color) 4%, white); }
+.detail-heading { display: flex; align-items: baseline; justify-content: space-between; gap: .7rem; margin-bottom: .5rem; }
+.detail-heading strong { color: #274342; font-size: .74rem; }
+.detail-heading span { color: #728684; font-size: .64rem; text-align: right; }
+.detail-entry { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .35rem; margin-top: .4rem; }
+.detail-entry input { min-width: 0; min-height: 38px; margin: 0; padding: .55rem .65rem; font-size: .72rem; }
+.detail-entry button { width: 38px; border: 1px solid #e2d6d8; border-radius: 9px; background: #fff7f7; color: #ad4652; font-size: 1rem; font-weight: 900; }
+.add-detail { margin-top: .5rem; padding: .42rem .55rem; border: 1px dashed var(--section-color); border-radius: 9px; background: transparent; color: var(--section-color); font-size: .68rem; font-weight: 850; }
+.habit-detail { display: block; margin-top: .55rem; color: #607876; font-size: .68rem; font-weight: 800; }
+.habit-detail input { min-height: 38px; margin: .3rem 0 0; padding: .55rem .65rem; font-size: .72rem; }
 .identity-fields, .social-section { grid-column: 1 / -1; }
 .compact-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .7rem; }
 .compact-fields input { min-height: 40px; padding: .55rem .65rem; font-size: .76rem; }
@@ -109,4 +121,6 @@
   .social-section > header, .social-section .notes-field { grid-column: auto; }
   .pre-actions { flex-direction: column; }
   .pre-actions button { width: 100%; }
+  .detail-heading { display: block; }
+  .detail-heading span { display: block; margin-top: .2rem; text-align: left; }
 }

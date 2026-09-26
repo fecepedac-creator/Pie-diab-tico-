@@ -15,7 +15,7 @@ function cleanText(value, max = 500) {
 
 function cleanEmail(value) {
   const email = cleanText(value, 254).toLowerCase();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('Correo electrónico inválido.');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw Object.assign(new Error('Correo electrónico inválido.'), { status: 400 });
   return email;
 }
 
@@ -48,6 +48,14 @@ function cleanStringArray(value, maxItems = 30, maxLength = 120) {
   return [...new Set(value.map((item) => cleanText(item, maxLength)).filter(Boolean))].slice(0, maxItems);
 }
 
+function cleanDetailMap(value, allowedKeys = [], maxEntries = 12, maxLength = 300) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return Object.fromEntries(allowedKeys.map((key) => {
+    const entries = cleanStringArray(value[key], maxEntries, maxLength);
+    return entries.length ? [key, entries] : null;
+  }).filter(Boolean));
+}
+
 function stamp(actor, status = 'draft', previous = {}) {
   const now = new Date().toISOString();
   return {
@@ -56,7 +64,7 @@ function stamp(actor, status = 'draft', previous = {}) {
     enteredByUid: previous.enteredByUid || actor.uid,
     enteredByName: previous.enteredByName || actor.name,
     updatedAt: now,
-    ...(status === 'confirmed' ? { confirmedByUid: actor.uid, confirmedByName: actor.name, confirmedAt: now } : {}),
+    ...(status === 'confirmed' ? { confirmedByUid: actor.uid, confirmedByName: actor.name, confirmedAt: now } : { confirmedByUid: null, confirmedByName: null, confirmedAt: null }),
   };
 }
 
@@ -80,10 +88,10 @@ function nursingNarrative(encounter) {
   const w = encounter.wound || emptyWound();
   const n = encounter.nursing || emptyNursing();
   return [
-    `Curación avanzada de lesión en pie diabético. Herida de ${measurement(w)}.`,
-    `Lecho: granulación ${w.granulationPercent ?? '-'}%, esfacelo ${w.sloughPercent ?? '-'}%, necrosis ${w.necrosisPercent ?? '-'}%. Exudado: ${w.exudate || 'no consignado'}; olor: ${w.odor || 'no consignado'}.`,
+    `Registro de enfermería (${n.verification.status === 'confirmed' ? 'confirmado' : 'borrador'}). Herida de ${measurement(w)}.`,
+    `Lecho: granulación ${w.granulationPercent ?? '-'}%, esfacelo ${w.sloughPercent ?? '-'}%, necrosis ${w.necrosisPercent ?? '-'}%. Exudado: ${({ none: 'ausente', low: 'escaso', moderate: 'moderado', high: 'abundante' })[w.exudate] || 'no consignado'}; olor: ${({ none: 'ausente', present: 'presente' })[w.odor] || 'no consignado'}.`,
     `Bordes: ${listSentence(w.edges)}. Piel perilesional: ${listSentence(w.periwound)}. Signos de infección: ${listSentence(w.infectionSigns)}. Dolor EVA: ${w.painScore ?? 'no consignado'}.`,
-    `Se realiza limpieza con ${listSentence(n.cleaning)}; desbridamiento: ${listSentence(n.debridement)}; apósito primario: ${listSentence(n.primaryDressings)}; apósito secundario: ${listSentence(n.secondaryDressings)}.`,
+    `Limpieza registrada: ${listSentence(n.cleaning)}; desbridamiento: ${listSentence(n.debridement)}; apósito primario: ${listSentence(n.primaryDressings)}; apósito secundario: ${listSentence(n.secondaryDressings)}.`,
     `Protección perilesional: ${listSentence(n.periwoundProtection)}. Terapias avanzadas: ${listSentence(n.advancedTherapies)}. Descarga aplicada: ${listSentence(n.offloadingApplied)}. Educación: ${listSentence(n.education)}. Tolerancia: ${n.tolerance || 'no consignada'}.`,
     n.notes ? `Observaciones de enfermería: ${n.notes}.` : '',
   ].filter(Boolean).join(' ');
@@ -94,7 +102,7 @@ function medicalNarrative(encounter) {
   const wifi = encounter.wifi || emptyWifi();
   const m = encounter.medical || emptyMedical();
   return [
-    `Evaluación médica de herida de ${measurement(w)}. Exudado ${w.exudate || 'no consignado'}, olor ${w.odor || 'no consignado'}, signos de infección: ${listSentence(w.infectionSigns)}.`,
+    `Evaluación médica de herida de ${measurement(w)}. Exudado ${({ none: 'ausente', low: 'escaso', moderate: 'moderado', high: 'abundante' })[w.exudate] || 'no consignado'}, olor ${({ none: 'ausente', present: 'presente' })[w.odor] || 'no consignado'}, signos de infección: ${listSentence(w.infectionSigns)}.`,
     `Clasificación WIfI registrada: W${wifi.wound ?? '-'} I${wifi.ischemia ?? '-'} fI${wifi.footInfection ?? '-'}; ITB ${wifi.abi ?? 'no consignado'}; presión de ortejo ${wifi.toePressure ?? 'no consignada'} mmHg. La etapa clínica no se calcula automáticamente y requiere juicio profesional.`,
     `Impresión: ${m.clinicalImpression || 'no consignada'}. Evaluación de infección: ${m.infectionAssessment || 'no consignada'}. Antimicrobianos: ${m.antibiotics || 'no consignados'}.`,
     `Plan: ${m.treatmentPlan || 'no consignado'}. Descarga: ${m.offloadingPlan || 'no consignada'}. Exámenes solicitados: ${listSentence(m.requestedTests)}. Control en ${m.followUpDays ?? 'plazo no consignado'} días. Signos de alarma: ${m.warningSigns || 'no consignados'}.`,
@@ -107,6 +115,6 @@ function sanitizeRoles(value) {
 
 module.exports = {
   CENTER_ROLES, CLINICAL_ROLES, DOCTOR_ROLES, cleanText, cleanEmail, hashEmail,
-  normalizeRut, isValidRut, cleanStringArray, sanitizeRoles, stamp, emptyWound,
+  normalizeRut, isValidRut, cleanStringArray, cleanDetailMap, sanitizeRoles, stamp, emptyWound,
   emptyWifi, emptyNursing, emptyMedical, nursingNarrative, medicalNarrative,
 };

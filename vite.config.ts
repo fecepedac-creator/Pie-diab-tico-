@@ -13,6 +13,13 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 5173,
     strictPort: false,
+    proxy: {
+      '/api': {
+        target: 'http://127.0.0.1:5001',
+        changeOrigin: true,
+        rewrite: (url) => url.replace(/^\/api/, '/demo-pie-diabetico/southamerica-west1/api'),
+      },
+    },
   },
   preview: {
     host: '0.0.0.0',

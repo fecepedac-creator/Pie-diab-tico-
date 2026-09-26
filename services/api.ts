@@ -13,8 +13,8 @@ import type {
   WoundEpisode,
 } from '../types';
 
-const productionApi = 'https://policlinico-de-pie-diabetico.web.app/api';
-const API_BASE = import.meta.env.DEV ? (import.meta.env.VITE_API_URL || '/api') : productionApi;
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
+if (import.meta.env.DEV && API_BASE !== '/api') throw new Error('El desarrollo local sólo admite la API sintética del emulador.');
 
 export class ApiError extends Error {
   status: number;
@@ -66,6 +66,7 @@ export const api = {
     request<{ member: Membership }>(`/centers/${centerId}/members/${memberId}`, json('PUT', input)),
 
   getState: (centerId: string) => request<ClinicalState>(`/centers/${centerId}/state`),
+  listTensMembers: (centerId: string) => request<{ members: { uid: string; displayName: string }[] }>(`/centers/${centerId}/tens-members`),
   createPatient: (centerId: string, input: Partial<Patient>) =>
     request<{ patient: Patient }>(`/centers/${centerId}/patients`, json('POST', input)),
   updatePatient: (centerId: string, patientId: string, input: Partial<Patient>) =>
@@ -83,6 +84,12 @@ export const api = {
   uploadPhoto: (centerId: string, encounterId: string, input: { dataUrl: string; kind: 'pre' | 'post'; orientationConfirmed: boolean; scaleIncluded: boolean }) =>
     request<{ encounter: Encounter }>(`/centers/${centerId}/encounters/${encounterId}/photos`, json('POST', input)),
 
+  reviewNarrative: (centerId: string, encounterId: string, section: 'nursing' | 'medical', text: string, sourceText: string) =>
+    request<{ review: import('../types').NarrativeReview }>(`/centers/${centerId}/encounters/${encounterId}/narratives/${section}`, json('PUT', { text, sourceText })),
+  reviewPhoto: (centerId: string, encounterId: string, photoId: string, input: { version: number; quality: 'accepted' | 'repeat'; reason: string }) =>
+    request<{ encounter: Encounter }>(`/centers/${centerId}/encounters/${encounterId}/photos/${photoId}`, json('PUT', input)),
+  addAddendum: (centerId: string, encounterId: string, text: string) =>
+    request<{ encounter: Encounter }>(`/centers/${centerId}/encounters/${encounterId}/addenda`, json('POST', { text })),
   createTask: (centerId: string, input: Partial<ClinicalTask>) =>
     request<{ task: ClinicalTask }>(`/centers/${centerId}/tasks`, json('POST', input)),
   updateTask: (centerId: string, taskId: string, input: Partial<ClinicalTask>) =>
