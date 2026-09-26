@@ -10,4 +10,6 @@ Rama aislada: `codex/r1-production-readiness`. La combinación funcional verific
 
 Controles locales sobre la combinación integrada: `npm run validate` pasó (15 pruebas unitarias, tipado, build y sintaxis); `npm run test:emulators` pasó (`baselineChecks: 61`, siete escenarios de candidata, 26 eventos de auditoría); `npm audit --omit=dev --audit-level=low` en raíz y Functions informó cero vulnerabilidades. Navegación local de asignación social en `RESULTADO_ASIGNACION_SOCIAL.md`.
 
-**Límites:** Node 24 local; CI remota pasó sólo para T4 con Node 22 y aún no evaluó esta combinación. Ningún artefacto se publicó; Hosting, Functions, canary, V06/V10/V11, aprobaciones R0 y recuperación siguen sin prueba final. Estado **NO-GO**.
+**CI remota:** PR borrador [#14](https://github.com/fecepedac-creator/Pie-diab-tico-/pull/14), trabajo `validate` aprobado para `233d160` en Node 22 con `npm run validate`, emuladores y auditorías de producción. Este manifiesto no autoriza fusionar ni publicar.
+
+**Límites:** validación local con Node 24; ningún artefacto se publicó. Hosting, Functions, canary, V06/V10/V11, aprobaciones R0 y recuperación siguen sin prueba final. Estado **NO-GO**.
