@@ -1,6 +1,13 @@
 # Estado vigente — Pie Diabético
 
-Actualizado: 25 de septiembre de 2026. Fuente de verdad para esta versión candidata local; los documentos de go-live fechados el 13 de septiembre son evidencia histórica y no acreditan el estado actual de producción.
+Actualizado: 26 de septiembre de 2026. Fuente de verdad para esta versión candidata local; los documentos de go-live fechados el 13 de septiembre son evidencia histórica y no acreditan el estado actual de producción.
+
+## Asignación social desde la interfaz — 26/09/2026
+
+- Rama aislada `codex/r1-social-assignment-ui`, iniciada en `1b8389d`. Se preparó una vista para que coordinación, enfermería y medicina creen una gestión social, seleccionen una persona activa y consulten responsable/estado; trabajo social puede aceptar, guardar respuesta y cerrar. El acceso social continúa condicionado a `assignedToUid` en servidor. El checkout principal no se modificó.
+- **Pendiente obligatorio antes de usar esta vista:** la API actual sólo entrega el listado de integrantes a `center_admin`, y la proyección de tareas para coordinación/trabajo social omite `version`. Por eso la vista todavía no puede cargar responsables ni guardar las transiciones de esos perfiles. Se solicitó autorización para dos ajustes mínimos de lectura en servidor: `/social-members` limitado al mismo centro y `version` en la proyección operativa. No se han aplicado fuera del límite UI/API cliente indicado para esta tarea.
+- `npm run validate` pasó con 15 pruebas unitarias, tipado, compilación y sintaxis antes del último ajuste de cuentas ficticias; el tipado volvió a pasar después. En el navegador local autenticado, coordinación vio el formulario bloqueado por ausencia de la ruta, y trabajo social sin asignación no vio pacientes. El flujo positivo completo de asignar, aceptar, responder y cerrar sigue pendiente; no se afirma V06 aprobado.
+- Se usaron sólo emuladores `demo-pie-diabetico` y datos ficticios. No hubo despliegue ni datos reales. **NO-GO para V06 real, piloto clínico y producción.**
 
 ## Integración de preparación para producción — 25/09/2026
 

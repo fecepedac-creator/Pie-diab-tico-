@@ -197,6 +197,16 @@
 }
 
 .role-patient-view { display: grid; gap: 1rem; }
+.social-task-panel { display: grid; gap: 1rem; }
+.social-task-panel h2, .social-task-panel p { margin-bottom: 0; }
+.social-task-form, .social-response, .social-task-assignment { display: grid; gap: .75rem; }
+.social-task-form label, .social-response label, .social-task-assignment label { display: grid; gap: .35rem; min-width: 0; }
+.social-task-form textarea, .social-response textarea { min-height: 90px; }
+.social-task-card { display: grid; gap: .65rem; padding: 1rem; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+.social-task-heading, .social-task-actions { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .5rem; }
+.social-task-actions { justify-content: flex-start; }
+.social-task-assignment { grid-template-columns: minmax(0, 1fr) auto; align-items: end; }
+@media (max-width: 560px) { .social-task-assignment { grid-template-columns: 1fr; } .social-task-actions button { width: 100%; } }
 .role-patient-view > fieldset { display: grid; gap: .7rem; padding: 0; border: 0; }
 .role-patient-view > fieldset > label { margin-top: .3rem; color: #4f6865; font-size: .72rem; font-weight: 850; }
 .role-patient-view textarea { min-height: 88px; }

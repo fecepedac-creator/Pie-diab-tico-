@@ -67,6 +67,7 @@ export const api = {
 
   getState: (centerId: string) => request<ClinicalState>(`/centers/${centerId}/state`),
   listTensMembers: (centerId: string) => request<{ members: { uid: string; displayName: string }[] }>(`/centers/${centerId}/tens-members`),
+  listSocialMembers: (centerId: string) => request<{ members: { uid: string; displayName: string }[] }>(`/centers/${centerId}/social-members`),
   createPatient: (centerId: string, input: Partial<Patient>) =>
     request<{ patient: Patient }>(`/centers/${centerId}/patients`, json('POST', input)),
   updatePatient: (centerId: string, patientId: string, input: Partial<Patient>) =>
