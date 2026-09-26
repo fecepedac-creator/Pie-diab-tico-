@@ -42,7 +42,8 @@ test('combined roles preserve referral access only on assigned episodes', () => 
   assert.equal(projected.encounters[0].medicalNarrative, 'authorized'); assert.equal(projected.encounters.length, 1); assert.equal(projected.attachments.length, 1);
 });
 test('coordinator tasks exclude clinical free text and snapshot', () => {
-  const result = w.operationalTask({ reason: 'secret', result: 'secret', title: 'diagnosis', referralSnapshot: { text: 'secret' } });
+  const result = w.operationalTask({ version: 3, reason: 'secret', result: 'secret', title: 'diagnosis', referralSnapshot: { text: 'secret' } });
+  assert.equal(result.version, 3);
   assert.equal(result.result, undefined); assert.equal(result.referralSnapshot, undefined); assert.equal(result.reason, ''); assert.notEqual(result.title, 'diagnosis');
 });
 test('missing and coerced WIfI values are not grade zero', () => {

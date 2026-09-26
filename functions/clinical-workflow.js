@@ -38,8 +38,8 @@ function photoOnlyEncounter(encounter) {
     wound: emptyWound(), wifi: emptyWifi(), nursing: emptyNursing(), medical: emptyMedical() };
 }
 function operationalTask(task) {
-  const { id, centerId, patientId, episodeId, recipientRole, assignedToUid, priority, dueAt, status, createdByUid, createdByName, createdAt, updatedAt, type } = task;
-  return { id, centerId, patientId, episodeId, recipientRole, assignedToUid, priority, dueAt, status, createdByUid, createdByName, createdAt, updatedAt, type, title: 'Gestión del equipo', reason: '' };
+  const { id, centerId, patientId, episodeId, recipientRole, assignedToUid, priority, dueAt, status, version, createdByUid, createdByName, createdAt, updatedAt, type } = task;
+  return { id, centerId, patientId, episodeId, recipientRole, assignedToUid, priority, dueAt, status, version, createdByUid, createdByName, createdAt, updatedAt, type, title: 'Gestión del equipo', reason: '' };
 }
 function projectState(member, state) {
   if (has(member, primary)) return state;

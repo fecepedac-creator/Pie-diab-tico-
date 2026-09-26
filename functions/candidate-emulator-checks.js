@@ -76,6 +76,12 @@ module.exports = async function verifyCandidate({ call, token, auth, db, centerI
   const otherSocialHash = crypto.createHash('sha256').update(otherSocialEmail).digest('hex');
   await db.doc(`memberships/${centerId}_${otherSocialHash}`).set({ id: `${centerId}_${otherSocialHash}`, centerId, uid: otherSocialUser.uid, email: otherSocialEmail, emailLower: otherSocialEmail, roles: ['social_worker'], status: 'active', createdAt: now, updatedAt: now });
   const otherSocialToken = await token(otherSocialEmail, otherSocialPassword);
+  const socialMembers = await call(`${base}/social-members`, idToken);
+  assert.equal(socialMembers.response.status, 200);
+  assert.deepEqual(socialMembers.payload.members.map((item) => item.uid).sort(), [socialUser.uid, otherSocialUser.uid].sort());
+  assert.equal((await call(`${base}/social-members`, socialToken)).response.status, 403);
+  assert.equal((await call(`${base}/social-members`, tensToken)).response.status, 403);
+  assert.equal((await call(`/centers/${otherCenterId}/social-members`, idToken)).response.status, 403);
   assert.equal((await call(`${base}/patients/${created.id}`, socialToken, 'PUT', { version: 5, social: { notes: 'Sin derivación' } })).response.status, 403);
   const episode = await call(`${base}/episodes`, idToken, 'POST', { patientId: created.id, side: 'left', location: 'Caso social sintético' });
   assert.equal(episode.response.status, 201);
@@ -93,6 +99,7 @@ module.exports = async function verifyCandidate({ call, token, auth, db, centerI
   assert.equal((await call(`${base}/patients/${created.id}`, otherSocialToken, 'PUT', { version: 5, social: { notes: 'Responsable ajeno' } })).response.status, 403);
   const socialState = await call(`${base}/state`, socialToken);
   assert.equal(socialState.response.status, 200);
+  assert.equal(socialState.payload.tasks.find((task) => task.id === referral.payload.task.id).version, 2);
   assert(socialState.payload.patients.some((patient) => patient.id === created.id));
   assert.equal(socialState.payload.patients.find((patient) => patient.id === created.id).anamnesis.medicalHistory.length, 0);
   const socialUpdate = await call(`${base}/patients/${created.id}`, socialToken, 'PUT', { version: 5, social: { notes: 'Visita social realizada' }, socialVerification: { status: 'confirmed' } });

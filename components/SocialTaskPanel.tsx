@@ -97,8 +97,8 @@ export default function SocialTaskPanel({ centerId, membership, patient, episode
       </form>}
     </>}
     <div className="stack">{visibleTasks.map((task) => <article className="social-task-card" key={task.id}>
-      <div className="social-task-heading"><strong>{task.title}</strong><span className={`pill ${task.status}`}>{statusLabel[task.status]}</span></div>
-      <p>{task.reason}</p><p><strong>Responsable:</strong> {manager ? memberName(task.assignedToUid) : 'Tú'}</p>
+      <div className="social-task-heading"><strong>{task.title === 'Gestión del equipo' ? 'Gestión social' : task.title}</strong><span className={`pill ${task.status}`}>{statusLabel[task.status]}</span></div>
+      {task.reason && <p>{task.reason}</p>}<p><strong>Responsable:</strong> {manager ? memberName(task.assignedToUid) : 'Tú'}</p>
       {manager && active(task) && ['created', 'notified'].includes(task.status) && <SocialAssigneePicker task={task} members={members} disabled={demoMode || busy || loadingMembers || Boolean(memberError)} onAssign={(uid) => void update(task, uid)} />}
       {task.result && <p><strong>Respuesta:</strong> {task.result}</p>}
       {!manager && <SocialResponse task={task} centerId={centerId} disabled={demoMode || busy} onRefresh={onRefresh} onClosed={onClosed} />}

@@ -460,6 +460,12 @@ async function route(req, res, actor) {
     return send(res, 200, { members: team.docs.map((doc) => doc.data()).filter((item) => item.status === 'active' && item.uid && item.roles?.includes('tens')).map((item) => ({ uid: item.uid, displayName: item.displayName || 'TENS' })) });
   }
 
+  if (subpath === '/social-members' && method === 'GET') {
+    requireRole(member, ['coordinator', 'nurse', 'doctor']);
+    const team = await db.collection('memberships').where('centerId', '==', centerId).get();
+    return send(res, 200, { members: team.docs.map((doc) => doc.data()).filter((item) => item.status === 'active' && item.uid && item.roles?.includes('social_worker')).map((item) => ({ uid: item.uid, displayName: item.displayName || 'Trabajo social' })) });
+  }
+
   if (subpath === '/patients' && method === 'POST') {
     requireRole(member, ['coordinator', 'tens', 'nurse', 'doctor']);
     const rut = normalizeRut(req.body?.rut); const name = cleanText(req.body?.name, 150);
