@@ -8,6 +8,11 @@ Actualizado: 26 de septiembre de 2026. Fuente de verdad para esta versión candi
 - `npm run validate` pasó con 15 pruebas unitarias, tipado, compilación y sintaxis; `npm run test:emulators` pasó con 61 controles base, siete escenarios de candidata y 26 eventos de auditoría. En navegador local con datos ficticios se comprobó creación y asignación, exclusión de otra cuenta social, aceptación, respuesta persistida tras recarga, cierre y retirada del caso; una segunda navegación confirmó el nombre y estado de la gestión para coordinación. Véase `docs/RESULTADO_ASIGNACION_SOCIAL.md`.
 - La revisión fue local y de escritorio; V06/V10/V11 con usuarios autorizados y móviles reales sigue pendiente. No hubo despliegue ni datos reales. **NO-GO para piloto clínico y producción.**
 
+## Candidata local congelada — 26/09/2026
+
+- T5 quedó integrada en `codex/r1-production-readiness`; `docs/CANDIDATE_MANIFEST_R1.md` registra archivos y controles. La combinación exacta pasó `npm run validate`, `npm run test:emulators` y auditorías de dependencias de producción en raíz y Functions con cero alertas. CI remota para esta combinación sigue pendiente; la aprobación de PR #13 sólo cubre T4.
+- T6 no puede ejecutarse aún: la Cloud Functions API de `simulador-clinico` sigue deshabilitada y faltan verificaciones del entorno y recuperación. T7 requiere R0 aprobado y T6; T8 requiere T5–T7. Se mantiene **NO-GO**.
+
 ## Integración de preparación para producción — 25/09/2026
 
 - Rama aislada de coordinación: `codex/r1-production-readiness`; base `011db37`. Se incorporaron los cambios de autorización `eaac9c7`, paquete documental R0 `b5c5532`, preparación canary `cad20e1` y dependencias/CI `458b163`. El checkout principal conserva sus cambios sin confirmar.
