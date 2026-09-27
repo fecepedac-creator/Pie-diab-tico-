@@ -4,6 +4,8 @@ const { getAuth } = require('firebase-admin/auth');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { getStorage } = require('firebase-admin/storage');
 const crypto = require('node:crypto');
+const logger = require('firebase-functions/logger');
+const { routeFamily, securityEvent } = require('./security-events');
 const workflow = require('./clinical-workflow');
 const nursingCatalog = require('./nursing-catalog');
 const { validatePhotoMeasurement } = require('./photo-measurement');
@@ -109,8 +111,8 @@ function send(res, status, payload) {
 }
 
 function requestIdFromReq(req) {
-  const incoming = req.get('x-request-id');
-  if (incoming && /^[\w-]{8,128}$/.test(incoming)) return incoming;
+  // A client-controlled value may contain identifiers and cannot be trusted
+  // as an audit correlation key.
   return crypto.randomUUID();
 }
 
@@ -130,15 +132,16 @@ function requestErrorPayload(req, status, error) {
 
 async function actorFromRequest(req) {
   const match = (req.get('authorization') || '').match(/^Bearer (.+)$/);
-  if (!match) throw Object.assign(new Error('Debes iniciar sesión.'), { status: 401 });
+  if (!match) throw Object.assign(new Error('Debes iniciar sesión.'), { status: 401, auditReason: 'missing_token' });
   let decoded;
   try {
     decoded = await auth.verifyIdToken(match[1]);
   } catch (error) {
-    throw Object.assign(new Error('Tu sesión no es válida o venció. Inicia sesión nuevamente.'), { status: 401 });
+    throw Object.assign(new Error('Tu sesión no es válida o venció. Inicia sesión nuevamente.'), { status: 401, auditReason: 'invalid_token' });
   }
+  req.verifiedActorUid = decoded.uid;
   if (!decoded.email || decoded.email_verified !== true) {
-    throw Object.assign(new Error('Se requiere un correo verificado.'), { status: 403 });
+    throw Object.assign(new Error('Se requiere un correo verificado.'), { status: 403, auditReason: 'unverified_email' });
   }
   return { uid: decoded.uid, email: cleanEmail(decoded.email), name: cleanText(decoded.name || decoded.email, 120) };
 }
@@ -153,9 +156,9 @@ async function membershipFor(centerId, actor) {
   const ref = db.doc(`memberships/${id}`); const centerRef = db.doc(`centers/${centerId}`);
   return db.runTransaction(async (transaction) => {
     const centerSnap = await transaction.get(centerRef); const snap = await transaction.get(ref);
-    if (!centerSnap.exists || centerSnap.data().status !== 'active') throw Object.assign(new Error('Este centro no se encuentra activo.'), { status: 403 });
-    if (!snap.exists || snap.data().status === 'disabled') throw Object.assign(new Error('No tienes acceso activo a este centro.'), { status: 403 });
-    if (snap.data().uid && snap.data().uid !== actor.uid) throw Object.assign(new Error('La invitación está vinculada a otra cuenta.'), { status: 403 });
+    if (!centerSnap.exists || centerSnap.data().status !== 'active') throw Object.assign(new Error('Este centro no se encuentra activo.'), { status: 403, auditReason: 'center_inactive' });
+    if (!snap.exists || snap.data().status === 'disabled' || snap.data().centerId !== centerId) throw Object.assign(new Error('No tienes acceso activo a este centro.'), { status: 403, auditReason: 'membership_inactive' });
+    if (snap.data().uid && snap.data().uid !== actor.uid) throw Object.assign(new Error('La invitación está vinculada a otra cuenta.'), { status: 403, auditReason: 'membership_identity_mismatch' });
     const now = new Date().toISOString(); const update = { uid: actor.uid, status: 'active', lastAccessAt: now, updatedAt: now };
     transaction.update(ref, update);
     return { id: snap.id, ...snap.data(), ...update };
@@ -164,7 +167,7 @@ async function membershipFor(centerId, actor) {
 
 function requireRole(member, roles) {
   if (!member.roles.some((role) => roles.includes(role))) {
-    throw Object.assign(new Error('Tu perfil no permite realizar esta acción.'), { status: 403 });
+    throw Object.assign(new Error('Tu perfil no permite realizar esta acción.'), { status: 403, auditReason: 'insufficient_role' });
   }
 }
 
@@ -342,7 +345,9 @@ async function route(req, res, actor) {
       const snap = await db.doc(`centers/${member.centerId}`).get();
       if (snap.exists && snap.data().status === 'active') { active.push(await membershipFor(member.centerId, actor)); centers.push({ id: snap.id, ...snap.data() }); }
     }
-    return send(res, 200, { user: actor, platformAdmin, memberships: active, centers: await withCenterLogoUrls(centers) });
+    const visibleCenters = await withCenterLogoUrls(centers);
+    logger.info('security_event', securityEvent(req, 'session.validated', 200, 'session_validated'));
+    return send(res, 200, { user: actor, platformAdmin, memberships: active, centers: visibleCenters });
   }
 
   if (path === '/platform/centers') {
@@ -403,6 +408,7 @@ async function route(req, res, actor) {
   if (!centerMatch) throw Object.assign(new Error('Ruta no encontrada.'), { status: 404 });
   const centerId = centerMatch[1]; const subpath = centerMatch[2] || '';
   const member = await membershipFor(centerId, actor);
+  req.authorizedCenterId = centerId;
 
   const privatePhotoMatch = subpath.match(/^\/encounters\/([^/]+)\/photos\/([^/]+)\/image$/);
   if (privatePhotoMatch && method === 'GET') {
@@ -969,19 +975,23 @@ async function route(req, res, actor) {
 }
 
 exports.api = onRequest({ region: 'southamerica-west1', memory: '512MiB', timeoutSeconds: 60, maxInstances: 10, invoker: 'public' }, async (req, res) => {
-  await setCors(req, res);
-  if (req.method === 'OPTIONS') return res.status(204).send('');
   const requestId = requestIdFromReq(req);
+  req.apiRequestId = requestId;
   try {
+    await setCors(req, res);
+    if (req.method === 'OPTIONS') return res.status(204).send('');
+    res.set('X-Request-Id', requestId).set('Access-Control-Expose-Headers', 'X-Request-Id');
     const requestPath = req.path.replace(/^\/api/, '') || '/';
     const publicRequest = requestPath === '/health' || /^\/public\/centers\/[^/]+\/logo$/.test(requestPath);
     const actor = publicRequest ? null : await actorFromRequest(req);
-    req.apiRequestId = requestId;
     return await route(req, res, actor);
   } catch (error) {
     const status = error?.status ?? (error?.code?.startsWith?.('auth/') ? 401 : 500);
-    const detail = error?.message || 'No fue posible completar la solicitud.';
-    console.error('api_error', { message: detail, path: req.path, status, requestId });
+    if (status === 401 || status === 403) {
+      logger.warn('security_event', securityEvent(req, 'access.denied', status, error?.auditReason));
+    } else {
+      logger.error('api_error', { requestId, status, route: routeFamily(req.path) });
+    }
     return send(res, status, requestErrorPayload({ apiRequestId: requestId }, status, { ...error, requestId }));
   }
 });

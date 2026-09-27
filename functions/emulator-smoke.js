@@ -70,11 +70,16 @@ async function callNoAuthWithHeaders(path, method = 'GET', body, headers = {}) {
   const idToken = await token();
   const health = await call('/health', idToken); assert.equal(health.response.status, 200);
   const session = await call('/session', idToken); assert.equal(session.response.status, 200); assert.equal(session.payload.platformAdmin, true); assert.equal(session.payload.memberships[0].centerId, centerId);
+  assert.match(session.response.headers.get('x-request-id'), /^[0-9a-f-]{36}$/);
   const unauthSession = await callNoAuth('/session'); assert.equal(unauthSession.response.status, 401);
   assert.equal(typeof unauthSession.payload.requestId, 'string');
   assert.match(unauthSession.payload.requestId, /^[0-9a-f-]{36}$/);
   assert.equal(typeof unauthSession.payload.code, 'string');
   assert.equal(unauthSession.payload.code, 'validation_or_authorization_error');
+  assert.equal(unauthSession.response.headers.get('x-request-id'), unauthSession.payload.requestId);
+  const clientId = await callNoAuthWithHeaders('/session', 'GET', undefined, { 'X-Request-Id': 'patient-secret-id' });
+  assert.equal(clientId.response.status, 401);
+  assert.notEqual(clientId.payload.requestId, 'patient-secret-id');
   const invalidTokenSession = await callNoAuth('/session', 'GET', undefined);
   assert.equal(invalidTokenSession.response.status, 401);
   const forcedInvalidToken = await fetch(`http://127.0.0.1:${process.env.PD_TEST_API_PORT || 5001}${functionApiBase}/session`, {
@@ -82,6 +87,11 @@ async function callNoAuthWithHeaders(path, method = 'GET', body, headers = {}) {
     headers: { Authorization: 'Bearer not-a-token', 'Content-Type': 'application/json' },
   });
   assert.equal(forcedInvalidToken.status, 401);
+  const unverifiedEmail = 'unverified.synthetic@hospital.cl'; const unverifiedPassword = 'SyntheticOnly-1193!';
+  await auth.createUser({ email: unverifiedEmail, password: unverifiedPassword, emailVerified: false });
+  const unverifiedSession = await call('/session', await token(unverifiedEmail, unverifiedPassword));
+  assert.equal(unverifiedSession.response.status, 403);
+  assert.equal(unverifiedSession.response.headers.get('x-request-id'), unverifiedSession.payload.requestId);
   const corsAllowedOrigin = await callNoAuthWithHeaders('/centers/centro-sintetico/state', 'OPTIONS', undefined, { Origin: 'https://hospital.cl' });
   assert.equal(corsAllowedOrigin.response.status, 204);
   assert.equal(corsAllowedOrigin.response.headers.get('access-control-allow-origin'), 'https://hospital.cl');
@@ -117,6 +127,12 @@ async function callNoAuthWithHeaders(path, method = 'GET', body, headers = {}) {
   assert(doctorRead.createdAt && doctorRead.details.requestId);
   assert.equal(JSON.stringify(doctorRead.details).includes('Paciente Sintético'), false, 'La bitácora no debe copiar contenido clínico ni identidad textual');
   const tensEmail = 'tens.prueba@hospital.cl'; const tensPassword = 'SyntheticOnly-5830!'; const tensUser = await auth.createUser({ email: tensEmail, password: tensPassword, emailVerified: true, displayName: 'TENS Sintética' }); const tensHash = crypto.createHash('sha256').update(tensEmail).digest('hex'); await db.doc(`memberships/${centerId}_${tensHash}`).set({ id: `${centerId}_${tensHash}`, centerId, uid: tensUser.uid, email: tensEmail, emailLower: tensEmail, displayName: 'TENS Sintética', roles: ['tens'], status: 'active', createdAt: now, updatedAt: now }); const tensToken = await token(tensEmail, tensPassword);
+  const otherCenterLogs = db.collection(`centers/${brandedCenter.payload.center.id}/auditLogs`);
+  const otherCenterLogCount = (await otherCenterLogs.get()).size;
+  const foreignAudit = await call(`/centers/${brandedCenter.payload.center.id}/audit`, tensToken);
+  assert.equal(foreignAudit.response.status, 403);
+  assert.equal(foreignAudit.response.headers.get('x-request-id'), foreignAudit.payload.requestId);
+  assert.equal((await otherCenterLogs.get()).size, otherCenterLogCount, 'A foreign denial must not enter that center audit log');
   const assignedMainPatient = await call(`/centers/${centerId}/patients/${patientId}`, idToken, 'PUT', { version: updatedPatient.payload.patient.version, intakeAssignedToUid: tensUser.uid }); assert.equal(assignedMainPatient.response.status, 200);
   await require('./candidate-emulator-checks')({ call, token, auth, db, centerId, idToken, tensToken, tensUid: tensUser.uid, now });
   const tensState = await call(`/centers/${centerId}/state`, tensToken); assert.equal(tensState.response.status, 200); assert.equal(tensState.payload.tasks.length, 0); assert.equal(tensState.payload.attachments.length, 0); assert.equal(tensState.payload.encounters[0].wound.lengthCm, undefined); assert.equal(tensState.payload.encounters[0].photos.length, 1);
@@ -149,6 +165,7 @@ async function callNoAuthWithHeaders(path, method = 'GET', body, headers = {}) {
   const auditorEmail = 'auditoria.prueba@hospital.cl'; const auditorPassword = 'SyntheticOnly-8163!'; const auditorUser = await auth.createUser({ email: auditorEmail, password: auditorPassword, emailVerified: true, displayName: 'Auditor Sintético' }); const auditorHash = crypto.createHash('sha256').update(auditorEmail).digest('hex'); await db.doc(`memberships/${centerId}_${auditorHash}`).set({ id: `${centerId}_${auditorHash}`, centerId, uid: auditorUser.uid, email: auditorEmail, emailLower: auditorEmail, displayName: 'Auditor Sintético', roles: ['auditor'], status: 'active', createdAt: now, updatedAt: now }); const auditorToken = await token(auditorEmail, auditorPassword); const auditorState = await call(`/centers/${centerId}/state`, auditorToken); assert.equal(auditorState.response.status, 403);
   const readsAfterDenial = await db.collection(`centers/${centerId}/auditLogs`).where('action', '==', 'clinical_state.access_granted').get();
   assert.equal(readsAfterDenial.docs.some((doc) => doc.data().actorUid === auditorUser.uid), false, 'Un acceso denegado no debe figurar como lectura concedida');
+  assert.equal(auditorState.response.headers.get('x-request-id'), auditorState.payload.requestId);
   const deniedLogs = await call(`/centers/${centerId}/audit`, idToken); assert.equal(deniedLogs.response.status, 403);
   await db.doc(`memberships/${centerId}_${hash}`).update({ roles: ['doctor', 'nurse', 'auditor'] });
   const logs = await call(`/centers/${centerId}/audit`, idToken); assert.equal(logs.response.status, 200); assert(logs.payload.events.length >= 5);
@@ -202,6 +219,11 @@ async function callNoAuthWithHeaders(path, method = 'GET', body, headers = {}) {
   const archivedClinicalCenter = await call(`/platform/centers/${centerId}`, idToken, 'DELETE'); assert.equal(archivedClinicalCenter.response.status, 200); assert.equal(archivedClinicalCenter.payload.center.status, 'archived');
   const blockedState = await call(`/centers/${centerId}/state`, idToken); assert.equal(blockedState.response.status, 403);
   const restoredClinicalCenter = await call(`/platform/centers/${centerId}`, idToken, 'PUT', { status: 'active' }); assert.equal(restoredClinicalCenter.response.status, 200);
+  const ownMembership = db.doc(`memberships/${centerId}_${hash}`);
+  await ownMembership.update({ centerId: 'otro-centro' });
+  const mismatchedMembership = await call(`/centers/${centerId}/state`, idToken);
+  assert.equal(mismatchedMembership.response.status, 403);
+  await ownMembership.update({ centerId });
   console.log(JSON.stringify({ ok: true, baselineChecks: 61, candidateScenarios: ['concurrent-rut', 'tens-draft', 'patient-version', 'social-assignment', 'task-assignment', 'task-lifecycle', 'atomic-audit'], auditEvents: logs.payload.events.length }));
 
 })().finally(() => deleteApp(app)).catch((error) => { console.error(error); process.exitCode = 1; });
