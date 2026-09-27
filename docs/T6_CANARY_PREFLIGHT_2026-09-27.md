@@ -1,6 +1,8 @@
-# T6 — preflight del canary dedicado, detenido
+# T6 — preflight y validación parcial del canary dedicado
 
-**Reanudación de sólo lectura, 27/09/2026, 11:26 UTC:** se aclaró la existencia de publicaciones hechas por el hilo concurrente y se verificaron las capas descritas abajo. Este informe conserva el corte inicial como evidencia histórica. T6 sigue **NO-GO**: el acceso Google invitado no está validado y no se acreditaron los flujos clínicos, recuperación ni reversión. Este hilo no efectuó despliegues ni escrituras remotas.
+**Actualización 27/09/2026, 12:05 UTC:** la sesión web con `fecepedac@gmail.com` está activa en `https://pie-diabetico-canary-2026.web.app/`. La administración muestra «Centro Canary Sintético», una membresía activa y los perfiles administrador del centro y médico. Desde esa sesión se creó un paciente, episodio y atención ficticios; el borrador clínico reapareció en versión 2 tras recargar. En Firestore, `centers/canary-centro-01/auditLogs` contiene eventos y se abrieron `episode.created` (11:28:12 UTC) y `encounter.updated` (11:28:42 UTC), ambos con ese correo y centro. La cuenta de facturación indica moneda CLP; el presupuesto del proyecto muestra 25 mensuales, alertas 50/90/100 % y modalidad «Solo alertas», sin tope de gasto. La carga de foto sintética sigue sin prueba por permiso de la extensión de Chrome. Aún faltan pruebas negativas de acceso por rol y centro, auditoría completa, recuperación, reversión y observación de 24–48 horas. **T6 continúa NO-GO para declarar aplicación remota completa o usar pacientes reales.**
+
+**Reanudación de sólo lectura, 27/09/2026, 11:26 UTC:** se aclaró la existencia de publicaciones hechas por el hilo concurrente y se verificaron las capas descritas abajo. El corte siguiente es histórico: antes de la actualización de las 12:05 UTC, el acceso Google invitado y los flujos clínicos seguían sin validar. Este hilo no efectuó despliegues ni escrituras remotas.
 
 ## Conciliación posterior de versiones y puertas
 
