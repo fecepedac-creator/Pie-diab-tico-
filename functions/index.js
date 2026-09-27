@@ -750,9 +750,10 @@ async function route(req, res, actor) {
       const ownPhotos = (previous.photos || []).filter((photo) => photo.capturedByUid === actor.uid);
       if (!ownPhotos.length) throw Object.assign(new Error('Guarda al menos una fotografía antes de enviar el registro.'), { status: 400 });
       if (registration.status === 'needs_repeat' && !ownPhotos.some((photo) => photo.kind === registration.repeatKind && photo.capturedAt > registration.repeatRequestedAt)) throw Object.assign(new Error('Guarda una nueva fotografía del momento solicitado antes de reenviar.'), { status: 400 });
+      const submittedPhotoIds = ['pre', 'post'].map((kind) => ownPhotos.filter((photo) => photo.kind === kind).at(-1)?.id).filter(Boolean);
       const now = new Date().toISOString();
-      transaction.update(ref, { photoRegistration: { ...registration, status: 'submitted', submittedAt: now, submittedByUid: actor.uid, submittedByName: actor.name, reviewedAt: null, reviewedByUid: null, reviewedByName: null }, updatedAt: now, version: previous.version + 1 });
-      auditIn(transaction, centerId, actor, 'photo_registration.submitted', 'encounter', id, { photoCount: previous.photos.length });
+      transaction.update(ref, { photoRegistration: { ...registration, status: 'submitted', submittedAt: now, submittedByUid: actor.uid, submittedByName: actor.name, submittedPhotoIds, reviewedAt: null, reviewedByUid: null, reviewedByName: null }, updatedAt: now, version: previous.version + 1 });
+      auditIn(transaction, centerId, actor, 'photo_registration.submitted', 'encounter', id, { photoCount: submittedPhotoIds.length });
     });
     const current = await ref.get();
     return send(res, 200, { encounter: (await withPhotoUrls([workflow.photoOnlyEncounter({ id, ...current.data() })]))[0] });
@@ -801,11 +802,10 @@ async function route(req, res, actor) {
       const photos = snap.data().photos.map((photo) => photo.id === reviewPhotoMatch[2] ? { ...photo, quality: req.body.quality, reviewReason: cleanText(req.body.reason, 500), reviewedByName: actor.name, reviewedByUid: actor.uid, reviewedAt: now } : photo);
       const registration = snap.data().photoRegistration;
       let photoRegistration;
-      if (registration && ['submitted', 'needs_repeat', 'reviewed'].includes(registration.status)) {
+      if (registration && ['submitted', 'reviewed'].includes(registration.status) && registration.submittedPhotoIds?.includes(reviewPhotoMatch[2])) {
         if (req.body.quality === 'repeat') photoRegistration = { ...registration, status: 'needs_repeat', repeatRequestedAt: now, repeatKind: snap.data().photos.find((photo) => photo.id === reviewPhotoMatch[2]).kind, repeatReason: cleanText(req.body.reason, 500), reviewedAt: null, reviewedByUid: null, reviewedByName: null };
-        else {
-          const latest = ['pre', 'post'].map((kind) => photos.filter((photo) => photo.kind === kind).at(-1)).filter(Boolean);
-          if (latest.length && latest.every((photo) => photo.quality === 'accepted')) photoRegistration = { ...registration, status: 'reviewed', reviewedAt: now, reviewedByUid: actor.uid, reviewedByName: actor.name };
+        else if (registration.status === 'submitted') {
+          if (registration.submittedPhotoIds.every((id) => photos.find((photo) => photo.id === id)?.quality === 'accepted')) photoRegistration = { ...registration, status: 'reviewed', reviewedAt: now, reviewedByUid: actor.uid, reviewedByName: actor.name };
         }
       }
       transaction.update(ref, { photos, ...(photoRegistration ? { photoRegistration } : {}), version: snap.data().version + 1, updatedAt: now });

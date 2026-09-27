@@ -192,6 +192,7 @@ export interface PhotoRegistration {
   submittedAt?: string;
   submittedByUid?: string;
   submittedByName?: string;
+  submittedPhotoIds?: string[];
   repeatRequestedAt?: string;
   repeatKind?: 'pre' | 'post';
   repeatReason?: string;
