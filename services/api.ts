@@ -46,6 +46,18 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return payload as T;
 }
 
+async function requestImage(path: string): Promise<Blob> {
+  const user = auth.currentUser;
+  if (!user) throw new ApiError(401, 'La sesión no está disponible.');
+  const token = await user.getIdToken();
+  const response = await fetch(`${API_BASE}${path}`, { headers: { Authorization: `Bearer ${token}` } });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({ error: 'Imagen no disponible.' }));
+    throw new ApiError(response.status, payload.error || `Error ${response.status}`);
+  }
+  return response.blob();
+}
+
 function json(method: string, body: unknown): RequestInit {
   return { method, body: JSON.stringify(body) };
 }
@@ -92,6 +104,8 @@ export const api = {
     request<{ encounter: Encounter }>(`/centers/${centerId}/encounters/${encounterId}`, json('PUT', input)),
   uploadPhoto: (centerId: string, encounterId: string, input: { dataUrl: string; kind: 'pre' | 'post'; orientationConfirmed: boolean; scaleIncluded: boolean; measurement?: Omit<PhotoMeasurement, 'method' | 'lengthCm' | 'widthCm' | 'areaCm2'> }) =>
     request<{ encounter: Encounter }>(`/centers/${centerId}/encounters/${encounterId}/photos`, json('POST', input)),
+  getEncounterPhoto: (centerId: string, encounterId: string, photoId: string) =>
+    requestImage(`/centers/${centerId}/encounters/${encounterId}/photos/${photoId}/image`),
 
   reviewNarrative: (centerId: string, encounterId: string, section: 'nursing' | 'medical', text: string, sourceText: string) =>
     request<{ review: import('../types').NarrativeReview }>(`/centers/${centerId}/encounters/${encounterId}/narratives/${section}`, json('PUT', { text, sourceText })),
