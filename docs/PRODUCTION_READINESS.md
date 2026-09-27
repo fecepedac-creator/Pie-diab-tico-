@@ -1,6 +1,6 @@
 # Pie Diabético — preparación para producción
 
-Estado: **EN CURSO / NO-GO para aplicación remota completa y pacientes reales**. Actualizado: 27/09/2026. El destino exclusivo del canary sintético es `pie-diabetico-canary-2026`; `simulador-clinico` pertenece a otra aplicación y queda excluido. La Function y Hosting ya están publicados en el canary dedicado; health JSON 200 y sesión anónima 401 pasaron, pero el acceso invitado presenta `origin_mismatch` y faltan flujos sintéticos, recuperación y observación. El PR borrador #14 pasó CI en `a678222`. Véanse el [estado vigente](CURRENT_STATE.md) y el [procedimiento canary](CANARY_R1_ESTADO_Y_PROCEDIMIENTO.md).
+Estado: **EN CURSO / NO-GO para aplicación remota completa y pacientes reales**. Actualizado: 27/09/2026. El destino exclusivo del canary sintético es `pie-diabetico-canary-2026`; `simulador-clinico` pertenece a otra aplicación y queda excluido. Function y Hosting están publicados allí: health JSON 200, sesión anónima 401 y login invitado funcionan; el hilo operador informó persistencia de un borrador ficticio tras recarga. Faltan foto, permisos negativos, recuperación y observación. La CI de `a678222` terminó **después** de la release Hosting de ese commit. Véanse el [estado vigente](CURRENT_STATE.md) y el [informe T6](T6_CANARY_PREFLIGHT_2026-09-27.md).
 
 ## Versión y alcance
 
@@ -17,7 +17,7 @@ Estado: **EN CURSO / NO-GO para aplicación remota completa y pacientes reales**
 | T3 | Canary diagnosticado y procedimiento revisable | `011db37` | `cad20e1` y corrección `b43517e`: proyecto exclusivo `pie-diabetico-canary-2026`; servicios iniciales verificados antes de la publicación sintética | Entorno inicial preparado; T6 debe conciliar las versiones remotas y completar su protocolo |
 | T4 | Dependencias y CI verificadas | `011db37` | `458b163`: auditorías de producción sin alertas, CI ampliada y PR #13 con validación aprobada | Completada para integración |
 | T5 | Candidata integrada y congelada | T1, T2 técnico, T3, T4 | Integración funcional `28defba`, destino aislado `b43517e`, guarda OAuth `a678222`; CI del PR borrador #14 aprobada para `a678222` en Node 22 | Candidata técnica para T6; sin autorización de fusión ni despliegue productivo |
-| T6 | Canary funcional y recuperable | T5 y entorno T3 | API, reglas, Hosting y configuración coherentes; pruebas sintéticas, salud, rollback y observación documentados | En curso / bloqueada por `origin_mismatch`; sólo health y sesión anónima verificados; faltan flujo invitado, recuperación y observación |
+| T6 | Canary funcional y recuperable | T5 y entorno T3 | API, reglas, Hosting y configuración coherentes; pruebas sintéticas, salud, rollback y observación documentados | En curso: login y borrador ficticio persistente informados; foto bloqueada por extensión del navegador; faltan permisos negativos, recuperación, reversión y observación |
 | T7 | Validación clínica y móvil | T2 aprobado y T6 | V06, V10 y V11 con usuarios autorizados, dispositivos reales y evidencia; ningún bloqueo alto | Pendiente |
 | T8 | Auditoría final independiente | T5–T7 | Repetir arquitectura, permisos, privacidad, integridad, UX, pruebas, operación y versión desplegada; dictamen GO/NO-GO con evidencia y límites | Pendiente |
 
