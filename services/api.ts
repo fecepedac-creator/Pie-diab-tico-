@@ -8,6 +8,7 @@ import type {
   ClinicalTask,
   Encounter,
   Membership,
+  PhotoMeasurement,
   NursingCatalog,
   NursingCatalogOptions,
   Patient,
@@ -89,7 +90,7 @@ export const api = {
     request<{ encounter: Encounter }>(`/centers/${centerId}/encounters`, json('POST', input)),
   updateEncounter: (centerId: string, encounterId: string, input: Partial<Encounter> & { version: number }) =>
     request<{ encounter: Encounter }>(`/centers/${centerId}/encounters/${encounterId}`, json('PUT', input)),
-  uploadPhoto: (centerId: string, encounterId: string, input: { dataUrl: string; kind: 'pre' | 'post'; orientationConfirmed: boolean; scaleIncluded: boolean }) =>
+  uploadPhoto: (centerId: string, encounterId: string, input: { dataUrl: string; kind: 'pre' | 'post'; orientationConfirmed: boolean; scaleIncluded: boolean; measurement?: Omit<PhotoMeasurement, 'method' | 'lengthCm' | 'widthCm' | 'areaCm2'> }) =>
     request<{ encounter: Encounter }>(`/centers/${centerId}/encounters/${encounterId}/photos`, json('POST', input)),
 
   reviewNarrative: (centerId: string, encounterId: string, section: 'nursing' | 'medical', text: string, sourceText: string) =>
