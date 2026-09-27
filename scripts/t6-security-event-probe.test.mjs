@@ -1,14 +1,31 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import ts from 'typescript';
+import { fileURLToPath } from 'node:url';
+import { build } from 'esbuild';
 
-const source = readFileSync(new URL('../diagnostics/securityEventProbe.ts', import.meta.url), 'utf8');
-const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext } }).outputText;
-const { isEligibleTensSession, runT6SecurityEventProbe, T6_REQUESTS } = await import(`data:text/javascript,${encodeURIComponent(compiled)}`);
+const compiled = await build({
+  entryPoints: [fileURLToPath(new URL('../diagnostics/securityEventProbe.ts', import.meta.url))],
+  bundle: true,
+  write: false,
+  platform: 'node',
+  format: 'esm',
+  logLevel: 'silent',
+});
+const { isApprovedT6CanaryOrigin, isEligibleTensSession, runT6SecurityEventProbe, T6_REQUESTS } = await import(`data:text/javascript,${encodeURIComponent(compiled.outputFiles[0].text)}`);
 const origin = 'https://pie-diabetico-canary-2026.web.app';
 const token = 'T6_TEST_TOKEN_DO_NOT_BUNDLE';
 const ids = [1, 2, 3].map((i) => `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`);
+
+test('the exact HTTPS canary origin is the only approved host', () => {
+  assert.equal(isApprovedT6CanaryOrigin(origin), true);
+  for (const rejected of [
+    'https://pie-diabetico-canary-2026.firebaseapp.com',
+    'https://other.web.app',
+    'https://pie-diabetico-canary-2026.web.app.evil.example',
+    'http://pie-diabetico-canary-2026.web.app',
+    'https://pie-diabetico-canary-2026.web.app:444',
+  ]) assert.equal(isApprovedT6CanaryOrigin(rejected), false);
+});
 
 test('only the current active single-role TENS membership enables the probe', () => {
   const session = {
@@ -76,10 +93,11 @@ test('fail closed on unexpected status or missing request ID without further GET
   }
 });
 
-test('invalid origin or empty token sends no request', async () => {
+test('unapproved host or empty token sends no request', async () => {
   let calls = 0;
   const fetchRequest = async () => { calls += 1; throw new Error('should not fetch'); };
-  await assert.rejects(runT6SecurityEventProbe(token, 'https://evil.example/path', () => undefined, fetchRequest));
+  await assert.rejects(runT6SecurityEventProbe(token, 'https://other.web.app', () => undefined, fetchRequest));
+  await assert.rejects(runT6SecurityEventProbe(token, 'https://pie-diabetico-canary-2026.firebaseapp.com', () => undefined, fetchRequest));
   await assert.rejects(runT6SecurityEventProbe('', origin, () => undefined, fetchRequest));
   assert.equal(calls, 0);
 });

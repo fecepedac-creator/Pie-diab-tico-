@@ -1,5 +1,7 @@
 // Temporary T6 harness. No API client, response parser, storage, or logging is used here.
 import type { SessionInfo } from '../types';
+import { isApprovedT6CanaryOrigin } from './securityEventGate';
+export { isApprovedT6CanaryOrigin } from './securityEventGate';
 
 export function isEligibleTensSession(session: SessionInfo, currentUid: string | undefined): boolean {
   const member = session.memberships.find((item) => item.centerId === 'canary-centro-01');
@@ -32,7 +34,7 @@ export async function runT6SecurityEventProbe(
   onResult: (result: T6ProbeResult) => void,
   fetchRequest: typeof fetch = fetch,
 ): Promise<void> {
-  if (!token || !origin || new URL(origin).origin !== origin) throw new Error('Diagnóstico no disponible.');
+  if (!token || !isApprovedT6CanaryOrigin(origin)) throw new Error('Diagnóstico no disponible.');
 
   for (const request of T6_REQUESTS) {
     const url = new URL(request.path, origin);

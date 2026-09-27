@@ -7,12 +7,14 @@ import LoginView from './components/LoginView';
 import PlatformAdminDashboard from './components/PlatformAdminDashboard';
 import CenterAdminDashboard from './components/CenterAdminDashboard';
 import ClinicalDashboard from './components/ClinicalDashboard';
+import { isApprovedT6CanaryOrigin } from './diagnostics/securityEventGate';
 
 type View = 'clinical' | 'center' | 'platform';
 
 // Vite removes this import and its chunk from every ordinary build.
 const t6DiagnosticRequested = import.meta.env.MODE === 'canary'
   && import.meta.env.VITE_T6_SECURITY_EVENT_DIAGNOSTIC === 'enabled'
+  && isApprovedT6CanaryOrigin(window.location.origin)
   && new URLSearchParams(window.location.search).get('t6_security_event') === '1';
 const T6SecurityEventDiagnostic = t6DiagnosticRequested
   ? lazy(() => import('./diagnostics/T6SecurityEventDiagnostic'))

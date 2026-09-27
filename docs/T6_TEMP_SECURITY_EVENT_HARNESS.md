@@ -4,7 +4,7 @@
 
 ## Contrato del harness
 
-El build ordinario no incluye el chunk. La interfaz aparece sólo si se compila con `--mode canary`, `VITE_T6_SECURITY_EVENT_DIAGNOSTIC=enabled` y se abre `?t6_security_event=1`. Se carga la sesión de la aplicación (`GET /api/session`) para verificar una membresía **activa y de rol único TENS** en `canary-centro-01`, con UID coincidente y centro activo. Este GET de preparación ya existe en la aplicación; su cuerpo de sesión se usa **sólo en memoria** para la puerta de rol. En esta ruta se omite la carga automática de `/state` y no se monta el panel clínico.
+El build ordinario no incluye el chunk. La interfaz aparece sólo si se compila con `--mode canary`, `VITE_T6_SECURITY_EVENT_DIAGNOSTIC=enabled`, el origen de ejecución es **exactamente** `https://pie-diabetico-canary-2026.web.app` y se abre `?t6_security_event=1`. Un Hosting distinto no carga ni habilita el chunk, incluso si recibe por error el mismo artefacto. Se carga la sesión de la aplicación (`GET /api/session`) para verificar una membresía **activa y de rol único TENS** en `canary-centro-01`, con UID coincidente y centro activo. Este GET de preparación ya existe en la aplicación; su cuerpo de sesión se usa **sólo en memoria** para la puerta de rol. En esta ruta se omite la carga automática de `/state` y no se monta el panel clínico.
 
 Con esa puerta aprobada y un clic explícito, el harness obtiene `auth.currentUser.getIdToken()` en memoria y hace, secuencialmente y una sola vez por carga de módulo, estos GET al `location.origin`:
 
@@ -12,15 +12,15 @@ Con esa puerta aprobada y un clic explícito, el harness obtiene `auth.currentUs
 2. `/api/centers/canary-centro-01/audit` → 403.
 3. `/api/centers/t6-no-center/state` → 403.
 
-Si el estado o el `X-Request-Id` UUID esperado falla, se detiene sin pedir el siguiente recurso. Usa `mode: same-origin`, rechaza redirects, no manda cookies, no manda referrer y no lee ni representa ningún cuerpo de **esas tres respuestas**. La pantalla contiene sólo etiqueta fija, HTTP y `X-Request-Id`; los errores son genéricos. No registra ni almacena token, UID, correo, payload o dato clínico. El servidor sigue siendo la autoridad de permisos; esta puerta de cliente sólo limita la operación accidental del harness.
+Si el origen exacto, el estado o el `X-Request-Id` UUID esperado falla, se detiene sin pedir el siguiente recurso. Usa `mode: same-origin`, rechaza redirects, no manda cookies, no manda referrer y no lee ni representa ningún cuerpo de **esas tres respuestas**. La pantalla contiene sólo etiqueta fija, HTTP y `X-Request-Id`; los errores son genéricos. No registra ni almacena token, UID, correo, payload o dato clínico. El servidor sigue siendo la autoridad de permisos; esta puerta de cliente sólo limita la operación accidental del harness.
 
 ## Evidencia local
 
-- `node --test scripts/t6-security-event-probe.test.mjs`: 4/4 pruebas; puerta TENS de rol único, whitelist exacta, mismo origen, GET, token sólo en Authorization, cuerpos sin analizar, y aborto ante estado o UUID inesperados.
+- `node --test scripts/t6-security-event-probe.test.mjs`: 5/5 pruebas; origen HTTPS exacto permitido/rechazado antes de cualquier GET, puerta TENS de rol único, whitelist exacta, GET, token sólo en Authorization, cuerpos sin analizar, y aborto ante estado o UUID inesperados.
 - `npm run typecheck`: PASS.
 - `npm run build` + `node scripts/check-t6-build.mjs normal`: PASS, un JS y sin marcadores diagnósticos. Artefacto `index-CH-Y5faK.js`, SHA-256 `75646DFC5128A4CA91DFE7C51119F3D553A45EBE8966D9594E20BFDE5AE65D3C`.
 - Build canary sintético **sin** flag + `node scripts/check-t6-build.mjs normal`: PASS, un JS y sin interfaz diagnóstica.
-- Build canary **sintético** con flag + `node scripts/check-t6-build.mjs diagnostic`: PASS, dos JS; chunk `T6SecurityEventDiagnostic-Bjgm3JJX.js`, SHA-256 `30F71A261F570F4E8BFDA622D9F45E85EDC74A0D4C92DBA3229D51FCD8F5C346`; entrada `index-CXz2QFD4.js`, SHA-256 `2A33FE75C87A8806C7B8F2F55AD3CEFDD2CCC6B2B7C1CF5C70D71A0B58FF7C99`. La configuración Firebase y OAuth de esa compilación fue deliberadamente ficticia y **no es publicable**.
+- Build canary **sintético** con flag + `node scripts/check-t6-build.mjs diagnostic`: PASS, dos JS; chunk `T6SecurityEventDiagnostic-BriHaSca.js`, SHA-256 `D5BCDBC41A0D750F0629A51260FCAAF1CDCD0E846F9797671530FEE2F079A95C`; entrada `index-tn6MJEnH.js`, SHA-256 `BFAA692F5847970BEE895360801A95F5239D526E9EF17F7F1BFF618CFA9B9A7F`. La configuración Firebase y OAuth de esa compilación fue deliberadamente ficticia y **no es publicable**.
 - Ningún bundle contiene token de prueba, centinela inválido ni correo TENS de prueba. La prueba local no acredita el resultado de Cloud Logging ni el estado remoto.
 
 ## Procedimiento propuesto: Hosting canary temporal y restauración
