@@ -733,6 +733,31 @@ async function route(req, res, actor) {
     return send(res, 200, { encounter: saved });
   }
 
+  const submitPhotoRegistrationMatch = subpath.match(/^\/encounters\/([^/]+)\/photo-registration\/submit$/);
+  if (submitPhotoRegistrationMatch && method === 'POST') {
+    requireRole(member, ['tens']);
+    if (hasAnyRole(member, PRIMARY_CLINICAL_ROLES)) throw Object.assign(new Error('La entrega de TENS requiere el perfil de registro fotográfico.'), { status: 403 });
+    const id = submitPhotoRegistrationMatch[1]; const ref = db.doc(`centers/${centerId}/encounters/${id}`);
+    await db.runTransaction(async (transaction) => {
+      const snap = await transaction.get(ref);
+      if (!snap.exists) throw Object.assign(new Error('Registro fotográfico no encontrado.'), { status: 404 });
+      const previous = snap.data(); workflow.assertMutable(previous);
+      const patient = await transaction.get(db.doc(`centers/${centerId}/patients/${previous.patientId}`));
+      if (!patient.exists || patient.data().intakeAssignedToUid !== actor.uid) throw Object.assign(new Error('El paciente no está asignado a tu cuenta.'), { status: 403 });
+      if (Number(req.body?.version) !== previous.version) throw Object.assign(new Error('El registro cambió. Actualiza antes de enviarlo.'), { status: 409 });
+      const registration = previous.photoRegistration || { status: 'in_progress' };
+      if (['submitted', 'reviewed'].includes(registration.status)) throw Object.assign(new Error('El registro ya fue enviado a revisión.'), { status: 409 });
+      const ownPhotos = (previous.photos || []).filter((photo) => photo.capturedByUid === actor.uid);
+      if (!ownPhotos.length) throw Object.assign(new Error('Guarda al menos una fotografía antes de enviar el registro.'), { status: 400 });
+      if (registration.status === 'needs_repeat' && !ownPhotos.some((photo) => photo.kind === registration.repeatKind && photo.capturedAt > registration.repeatRequestedAt)) throw Object.assign(new Error('Guarda una nueva fotografía del momento solicitado antes de reenviar.'), { status: 400 });
+      const now = new Date().toISOString();
+      transaction.update(ref, { photoRegistration: { ...registration, status: 'submitted', submittedAt: now, submittedByUid: actor.uid, submittedByName: actor.name, reviewedAt: null, reviewedByUid: null, reviewedByName: null }, updatedAt: now, version: previous.version + 1 });
+      auditIn(transaction, centerId, actor, 'photo_registration.submitted', 'encounter', id, { photoCount: previous.photos.length });
+    });
+    const current = await ref.get();
+    return send(res, 200, { encounter: (await withPhotoUrls([workflow.photoOnlyEncounter({ id, ...current.data() })]))[0] });
+  }
+
   const photoMatch = subpath.match(/^\/encounters\/([^/]+)\/photos$/);
   if (photoMatch && method === 'POST') {
     requireRole(member, ['tens', 'nurse', 'doctor']); const id = photoMatch[1]; const ref = db.doc(`centers/${centerId}/encounters/${id}`); const snap = await ref.get();
@@ -741,6 +766,7 @@ async function route(req, res, actor) {
     if (tensOnly && (await db.doc(`centers/${centerId}/patients/${snap.data().patientId}`).get()).data()?.intakeAssignedToUid !== actor.uid) throw Object.assign(new Error('El preingreso no está asignado a tu cuenta.'), { status: 403 });
 
     workflow.assertMutable(snap.data());
+    if (tensOnly && ['submitted', 'reviewed'].includes(snap.data().photoRegistration?.status)) throw Object.assign(new Error('El registro ya fue enviado. Espera la revisión o una solicitud de repetición.'), { status: 409 });
     if (!['pre', 'post'].includes(req.body?.kind) || req.body?.orientationConfirmed !== true) throw Object.assign(new Error('Confirma el momento y la orientación de la fotografía.'), { status: 400 });
     const episode = await db.doc(`centers/${centerId}/episodes/${snap.data().episodeId}`).get();
     if (!episode.exists || episode.data().consentForPhotography !== true) throw Object.assign(new Error('Debes registrar consentimiento para fotografías antes de capturar.'), { status: 400 });
@@ -754,7 +780,7 @@ async function route(req, res, actor) {
     await photoFile.save(buffer, { resumable: false, contentType: match[1], metadata: { cacheControl: 'private, max-age=0, no-store' } });
     const photo = { id: photoId, kind, storagePath, capturedAt: new Date().toISOString(), capturedByUid: actor.uid, capturedByName: actor.name, mimeType: match[1], orientationConfirmed: req.body?.orientationConfirmed === true, scaleIncluded: req.body?.scaleIncluded === true, ...(measurement ? { measurement } : {}), quality: 'pending' };
     try {
-      await db.runTransaction(async (transaction) => { const current = await transaction.get(ref); if (!current.exists) throw Object.assign(new Error('Atención no encontrada.'), { status: 404 }); workflow.assertMutable(current.data()); const consent = await transaction.get(episode.ref); if (!consent.data()?.consentForPhotography) throw Object.assign(new Error('Consentimiento fotográfico no disponible.'), { status: 400 }); if (tensOnly) { const currentPatient = await transaction.get(db.doc(`centers/${centerId}/patients/${current.data().patientId}`)); if (currentPatient.data()?.intakeAssignedToUid !== actor.uid) throw Object.assign(new Error('El preingreso no está asignado a tu cuenta.'), { status: 403 }); } transaction.update(ref, { photos: FieldValue.arrayUnion(photo), updatedAt: new Date().toISOString(), version: FieldValue.increment(1) }); auditIn(transaction, centerId, actor, 'photo.uploaded', 'encounter', id, { kind, measured: Boolean(measurement) }); });
+      await db.runTransaction(async (transaction) => { const current = await transaction.get(ref); if (!current.exists) throw Object.assign(new Error('Atención no encontrada.'), { status: 404 }); workflow.assertMutable(current.data()); const consent = await transaction.get(episode.ref); if (!consent.data()?.consentForPhotography) throw Object.assign(new Error('Consentimiento fotográfico no disponible.'), { status: 400 }); if (tensOnly) { const currentPatient = await transaction.get(db.doc(`centers/${centerId}/patients/${current.data().patientId}`)); if (currentPatient.data()?.intakeAssignedToUid !== actor.uid) throw Object.assign(new Error('El preingreso no está asignado a tu cuenta.'), { status: 403 }); if (['submitted', 'reviewed'].includes(current.data().photoRegistration?.status)) throw Object.assign(new Error('El registro ya fue enviado. Espera la revisión o una solicitud de repetición.'), { status: 409 }); } transaction.update(ref, { photos: FieldValue.arrayUnion(photo), updatedAt: new Date().toISOString(), version: FieldValue.increment(1) }); auditIn(transaction, centerId, actor, 'photo.uploaded', 'encounter', id, { kind, measured: Boolean(measurement) }); });
     } catch (error) { await photoFile.delete({ ignoreNotFound: true }).catch(() => undefined); throw error; }
 
     const current = await ref.get(); return send(res, 201, { encounter: (await withPhotoUrls([hasAnyRole(member, PRIMARY_CLINICAL_ROLES) ? { id, ...current.data() } : workflow.photoOnlyEncounter({ id, ...current.data() })]))[0] });
@@ -771,8 +797,18 @@ async function route(req, res, actor) {
       if (Number(req.body.version) !== snap.data().version) throw Object.assign(new Error('La atención cambió. Actualiza antes de revisar.'), { status: 409 });
       if (!['accepted', 'repeat'].includes(req.body.quality) || (req.body.quality === 'repeat' && !cleanText(req.body.reason))) throw Object.assign(new Error('Indica la calidad y el motivo de repetición.'), { status: 400 });
       if (!snap.data().photos.some((p) => p.id === reviewPhotoMatch[2])) throw Object.assign(new Error('Foto no encontrada.'), { status: 404 });
-      const photos = snap.data().photos.map((photo) => photo.id === reviewPhotoMatch[2] ? { ...photo, quality: req.body.quality, reviewReason: cleanText(req.body.reason, 500), reviewedByName: actor.name, reviewedByUid: actor.uid, reviewedAt: new Date().toISOString() } : photo);
-      transaction.update(ref, { photos, version: snap.data().version + 1, updatedAt: new Date().toISOString() });
+      const now = new Date().toISOString();
+      const photos = snap.data().photos.map((photo) => photo.id === reviewPhotoMatch[2] ? { ...photo, quality: req.body.quality, reviewReason: cleanText(req.body.reason, 500), reviewedByName: actor.name, reviewedByUid: actor.uid, reviewedAt: now } : photo);
+      const registration = snap.data().photoRegistration;
+      let photoRegistration;
+      if (registration && ['submitted', 'needs_repeat', 'reviewed'].includes(registration.status)) {
+        if (req.body.quality === 'repeat') photoRegistration = { ...registration, status: 'needs_repeat', repeatRequestedAt: now, repeatKind: snap.data().photos.find((photo) => photo.id === reviewPhotoMatch[2]).kind, repeatReason: cleanText(req.body.reason, 500), reviewedAt: null, reviewedByUid: null, reviewedByName: null };
+        else {
+          const latest = ['pre', 'post'].map((kind) => photos.filter((photo) => photo.kind === kind).at(-1)).filter(Boolean);
+          if (latest.length && latest.every((photo) => photo.quality === 'accepted')) photoRegistration = { ...registration, status: 'reviewed', reviewedAt: now, reviewedByUid: actor.uid, reviewedByName: actor.name };
+        }
+      }
+      transaction.update(ref, { photos, ...(photoRegistration ? { photoRegistration } : {}), version: snap.data().version + 1, updatedAt: now });
       auditIn(transaction, centerId, actor, 'photo.reviewed', 'encounter', ref.id);
     });
 

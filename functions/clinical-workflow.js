@@ -33,8 +33,8 @@ function intakePatient(patient) {
   return { ...visible, anamnesis: patient.anamnesis, verification: patient.verification, socialVerification: patient.socialVerification, photoStoragePath: patient.photoStoragePath };
 }
 function photoOnlyEncounter(encounter) {
-  const { id, centerId, patientId, episodeId, encounterDate, status, photos, version, createdAt, updatedAt, careType } = encounter;
-  return { id, centerId, patientId, episodeId, encounterDate, status, photos, version, createdAt, updatedAt, careType,
+  const { id, centerId, patientId, episodeId, encounterDate, status, photos, photoRegistration, version, createdAt, updatedAt, careType } = encounter;
+  return { id, centerId, patientId, episodeId, encounterDate, status, photos, photoRegistration, version, createdAt, updatedAt, careType,
     wound: emptyWound(), wifi: emptyWifi(), nursing: emptyNursing(), medical: emptyMedical() };
 }
 function operationalTask(task) {
