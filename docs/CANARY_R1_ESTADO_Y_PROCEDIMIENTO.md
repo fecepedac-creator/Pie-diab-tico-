@@ -2,6 +2,8 @@
 
 > Actualización del 26/09/2026: el objetivo vigente permite publicación técnica restringida con datos sintéticos antes de la revisión jurídica. Véase [plan y protocolo vigente](PLAN_PUBLICACION_RESTRINGIDA_2026-09-26.md). Las condiciones anteriores de aprobación clínica completa siguen aplicando al piloto con pacientes reales. El usuario activó **Blaze** en `simulador-clinico`, verificado en Firebase; hay dos alertas iguales de CLP 25/mes, monto que decidió mantener por ahora. `functions:list` no encontró ninguna Function y `/api/health` sigue en 404. No se desplegó código.
 
+> Preinspección de sólo lectura del 27/09/2026 UTC: el bucket indicado por la configuración web devolvió 404 al consultar metadatos, Auth respondió `auth/configuration-not-found` y Firestore tenía dos colecciones raíz con documentos. Sólo se comprobó existencia, sin inspeccionar contenido. No se escribió ni desplegó nada. Debe verificarse la naturaleza de esos datos antes de cargar casos sintéticos; T6 aún no tiene condiciones de entrada completas.
+
 **Corte:** 25/09/2026 en Chile (consultas remotas registradas el 26/09 UTC). **Candidata examinada:** `011db37128fe1c459455ad248e79030164ac3cbe`, rama `codex/r1-candidate-20260924`. Este documento registra sólo la preparación del canary; no acredita publicación ni habilita uso clínico.
 
 ## Decisión actual
