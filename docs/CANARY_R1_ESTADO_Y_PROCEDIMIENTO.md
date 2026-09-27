@@ -2,6 +2,8 @@
 
 > Actualización del 26/09/2026: el objetivo vigente permite publicación técnica restringida con datos sintéticos antes de la revisión jurídica. Véase [plan y protocolo vigente](PLAN_PUBLICACION_RESTRINGIDA_2026-09-26.md). Las condiciones anteriores de aprobación clínica completa siguen aplicando al piloto con pacientes reales. Una comprobación nueva mantiene `simulador-clinico` en Spark, con Cloud Functions API deshabilitada y `/api/health` 404.
 
+> Decisión posterior del usuario: **mantener Spark**. La publicación completa del canary se detiene; la consulta de Cloud Functions API llegó a responder, pero no existe ninguna Function y Cloud Build/Artifact Registry siguen bloqueados por el plan. No se activó Blaze ni se desplegó código.
+
 **Corte:** 25/09/2026 en Chile (consultas remotas registradas el 26/09 UTC). **Candidata examinada:** `011db37128fe1c459455ad248e79030164ac3cbe`, rama `codex/r1-candidate-20260924`. Este documento registra sólo la preparación del canary; no acredita publicación ni habilita uso clínico.
 
 ## Decisión actual
