@@ -96,12 +96,13 @@ export default function EncounterPhotoCapture({ centerId, encounter, onChanged, 
       const result = await api.uploadPhoto(centerId, encounter.id, { dataUrl, kind, orientationConfirmed: orientation, scaleIncluded: scale, ...(calculated ? { measurement: calculated.input } : {}) });
       onChanged(result.encounter);
       setFile(undefined); setImageSize({ width: 0, height: 0 }); setIdentity(false); setOrientation(false); setSharp(false); setScale(false); clearMarks();
-      setMessage(calculated ? 'Fotografía y medición estimada guardadas. Pendientes de revisión clínica.' : 'Fotografía guardada. Pendiente de revisión clínica.');
+      if (kind === 'pre') setKind('post');
+      setMessage(`Fotografía ${kind === 'pre' ? 'precuración' : 'postcuración'} guardada${calculated ? ' con medición estimada' : ''}. ${kind === 'pre' ? 'Puedes continuar aquí con la foto postcuración.' : 'Pendiente de revisión clínica.'}`);
     } catch (cause) { setMessage(cause instanceof Error ? cause.message : 'No fue posible guardar.'); }
     finally { setBusy(false); }
   };
 
-  return <section className="photo-capture"><fieldset disabled={disabled || busy}><legend>Preparar fotografía</legend>
+  return <section className="photo-capture">{message && <p className="photo-save-message" role="status">{message}</p>}<fieldset disabled={disabled || busy}><legend>Preparar fotografía</legend>
     <label>Momento<select value={kind} onChange={(event) => setKind(event.target.value as 'pre' | 'post')}><option value="pre">Precuración</option><option value="post">Postcuración</option></select></label>
     <label>Seleccionar o tomar foto<input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" onChange={(event) => {
       const selected = event.target.files?.[0]; event.target.value = '';
@@ -131,5 +132,5 @@ export default function EncounterPhotoCapture({ centerId, encounter, onChanged, 
     </div>}
     <button type="button" className="primary" disabled={!file || !identity || !orientation || !sharp || (marksStarted && !calculated)} onClick={() => void upload()}>{busy ? 'Guardando…' : 'Guardar fotografía'}</button>
     <p className="helper">Las medidas son estimaciones de una imagen plana. Confirma con medición clínica cuando influyan en una decisión.</p>
-  </fieldset>{message && <p role="status">{message}</p>}</section>;
+  </fieldset></section>;
 }

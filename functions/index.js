@@ -404,6 +404,33 @@ async function route(req, res, actor) {
   const centerId = centerMatch[1]; const subpath = centerMatch[2] || '';
   const member = await membershipFor(centerId, actor);
 
+  const privatePhotoMatch = subpath.match(/^\/encounters\/([^/]+)\/photos\/([^/]+)\/image$/);
+  if (privatePhotoMatch && method === 'GET') {
+    requireRole(member, CLINICAL_ROLES);
+    const encounterId = privatePhotoMatch[1];
+    const encounterSnap = await db.doc(`centers/${centerId}/encounters/${encounterId}`).get();
+    if (!encounterSnap.exists) throw Object.assign(new Error('Fotografía no encontrada.'), { status: 404 });
+    const encounter = { id: encounterSnap.id, ...encounterSnap.data() };
+    const photo = (encounter.photos || []).find((item) => item.id === privatePhotoMatch[2]);
+    if (!photo) throw Object.assign(new Error('Fotografía no encontrada.'), { status: 404 });
+    const [patientSnap, episodeSnap, tasksSnap] = await Promise.all([
+      db.doc(`centers/${centerId}/patients/${encounter.patientId}`).get(),
+      db.doc(`centers/${centerId}/episodes/${encounter.episodeId}`).get(),
+      db.collection(`centers/${centerId}/tasks`).where('episodeId', '==', encounter.episodeId).get(),
+    ]);
+    const visible = workflow.projectState(member, {
+      patients: patientSnap.exists ? [{ id: patientSnap.id, ...patientSnap.data() }] : [],
+      episodes: episodeSnap.exists ? [{ id: episodeSnap.id, ...episodeSnap.data() }] : [],
+      encounters: [encounter], tasks: tasksSnap.docs.map((item) => ({ id: item.id, ...item.data() })), attachments: [],
+    });
+    if (!visible.encounters.some((item) => item.id === encounterId)) throw Object.assign(new Error('Fotografía no disponible para tu perfil.'), { status: 403 });
+    const expectedPrefix = `centers/${centerId}/patients/${encounter.patientId}/encounters/${encounterId}/`;
+    if (typeof photo.storagePath !== 'string' || !photo.storagePath.startsWith(expectedPrefix) || !['image/jpeg', 'image/png', 'image/webp'].includes(photo.mimeType)) throw Object.assign(new Error('Fotografía no disponible.'), { status: 404 });
+    const [buffer] = await getStorage().bucket().file(photo.storagePath).download();
+    await audit(centerId, actor, 'photo.viewed', 'photo', photo.id, { encounterId });
+    return res.status(200).set('Content-Type', photo.mimeType).set('Cache-Control', 'private, no-store').set('X-Content-Type-Options', 'nosniff').send(buffer);
+  }
+
   if (subpath === '/nursing-catalog' && method === 'GET') {
     requireRole(member, ['center_admin', 'nurse', 'doctor']);
     const snap = await db.doc(`centers/${centerId}/config/nursingCatalog`).get();
