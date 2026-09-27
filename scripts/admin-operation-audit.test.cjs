@@ -1,5 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const { spawnSync } = require('node:child_process');
 const { options, createAudit } = require('./admin-operation-audit.cjs');
 
 function withEnv(values, work) {
@@ -16,6 +17,22 @@ function withEnv(values, work) {
 }
 
 const common = ['--operator', 'operador@ejemplo.test', '--ticket', 'T6-123', '--purpose', 'Ensayo sintetico autorizado'];
+
+test('recovery demo requires local Storage emulator and a UUID request ID', () => {
+  const env = { ...process.env, FIRESTORE_EMULATOR_HOST: '127.0.0.1:8085' };
+  for (const key of ['GCLOUD_PROJECT', 'GOOGLE_CLOUD_PROJECT', 'GCP_PROJECT', 'FIREBASE_AUTH_EMULATOR_HOST', 'FIREBASE_STORAGE_EMULATOR_HOST']) delete env[key];
+  const args = ['scripts/recovery-smoke.cjs', '--project', 'demo-pie-diabetico', '--bucket', 'demo-pie-diabetico.appspot.com', ...common, '--request-id', 'custom123'];
+  const run = (variables) => spawnSync(process.execPath, args, { cwd: require('node:path').join(__dirname, '..'), env: { ...env, ...variables }, encoding: 'utf8' });
+  const missing = run({});
+  assert.equal(missing.status, 1);
+  assert.match(missing.stderr, /requiere FIREBASE_STORAGE_EMULATOR_HOST local/);
+  const remote = run({ FIREBASE_STORAGE_EMULATOR_HOST: 'remote.example:9199' });
+  assert.equal(remote.status, 1);
+  assert.match(remote.stderr, /FIREBASE_STORAGE_EMULATOR_HOST debe ser local/);
+  const badId = run({ FIREBASE_STORAGE_EMULATOR_HOST: '127.0.0.1:9199' });
+  assert.equal(badId.status, 1);
+  assert.match(badId.stderr, /requiere --request-id UUID/);
+});
 
 test('project selection rejects production, simulador and mismatched credentials', () => withEnv({}, () => {
   for (const project of ['policlinico-de-pie-diabetico', 'simulador-clinico', 'other-project']) {

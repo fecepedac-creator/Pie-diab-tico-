@@ -3,9 +3,14 @@ const crypto = require('node:crypto');
 const { initializeApp, deleteApp } = require('firebase-admin/app');
 const { getFirestore } = require('firebase-admin/firestore');
 const { getStorage } = require('firebase-admin/storage');
-const { options, createAudit, firestoreEvidence, storageEvidence } = require('./admin-operation-audit.cjs');
+const { options, createAudit, firestoreEvidence, storageEvidence, DEMO_PROJECT } = require('./admin-operation-audit.cjs');
 
 const config = options(process.argv.slice(2), ['bucket', 'cleanup', 'probe-id']);
+if (config.project === DEMO_PROJECT && !process.env.FIREBASE_STORAGE_EMULATOR_HOST) {
+  throw new Error('El ensayo demo requiere FIREBASE_STORAGE_EMULATOR_HOST local.');
+}
+const uuidPattern = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
+if (!uuidPattern.test(config.requestId)) throw new Error('El ensayo de recuperación requiere --request-id UUID.');
 const bucketName = config.bucket;
 if (!bucketName || ![`${config.project}.firebasestorage.app`, `${config.project}.appspot.com`].includes(bucketName)) {
   throw new Error('Usa --bucket con el bucket del mismo proyecto explícito.');
@@ -17,7 +22,7 @@ async function main() {
     const db = getFirestore(app);
     const run = createAudit(db, config);
     const probeId = config.cleanup ? config['probe-id'] : `probe-${config.requestId}`;
-    if (config.cleanup && !/^probe-[a-f0-9-]{36}$/.test(probeId || '')) throw new Error('Limpieza requiere --probe-id del centinela sintético.');
+    if (config.cleanup && (!probeId?.startsWith('probe-') || !uuidPattern.test(probeId.slice(6)))) throw new Error('Limpieza requiere --probe-id del centinela sintético.');
     if (!config.cleanup && config['probe-id']) throw new Error('--probe-id sólo se usa con --cleanup.');
     const doc = db.doc(`recovery_probes/${probeId}`);
     const file = getStorage(app).bucket(bucketName).file(`recovery_probe/${probeId}/payload.txt`);
