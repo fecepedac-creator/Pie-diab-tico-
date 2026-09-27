@@ -614,17 +614,36 @@ async function route(req, res, actor) {
     if (member.roles.includes('tens') && !hasAnyRole(member, PRIMARY_CLINICAL_ROLES) && !member.roles.includes('coordinator') && patient.data().intakeAssignedToUid !== actor.uid) throw Object.assign(new Error('El preingreso no está asignado a tu cuenta.'), { status: 403 });
     if (!['right', 'left'].includes(req.body?.side) || !cleanText(req.body?.location, 120)) throw Object.assign(new Error('Lado y ubicación de la herida son obligatorios.'), { status: 400 });
     const ref = db.collection(`centers/${centerId}/episodes`).doc(); const now = new Date().toISOString();
-    const episode = { id: ref.id, centerId, patientId, side: req.body.side, location: cleanText(req.body.location, 120), onsetDate: cleanText(req.body?.onsetDate, 10), etiology: cleanText(req.body?.etiology, 300), referralSource: cleanText(req.body?.referralSource, 200), status: 'active', priority: ['routine', 'soon', 'urgent'].includes(req.body?.priority) ? req.body.priority : 'routine', consentForPhotography: req.body?.consentForPhotography === true, createdAt: now, updatedAt: now };
-    const batch = db.batch(); batch.create(ref, compact(episode)); auditIn(batch, centerId, actor, 'episode.created', 'episode', ref.id); await batch.commit();
+    const consentForPhotography = req.body?.consentForPhotography === true;
+    const episode = { id: ref.id, centerId, patientId, side: req.body.side, location: cleanText(req.body.location, 120), onsetDate: cleanText(req.body?.onsetDate, 10), etiology: cleanText(req.body?.etiology, 300), referralSource: cleanText(req.body?.referralSource, 200), status: 'active', priority: ['routine', 'soon', 'urgent'].includes(req.body?.priority) ? req.body.priority : 'routine', consentForPhotography, ...(consentForPhotography ? { photoConsentLastDecision: 'granted', photoConsentUpdatedAt: now, photoConsentUpdatedByName: actor.name } : {}), createdAt: now, updatedAt: now };
+    const batch = db.batch(); batch.create(ref, compact(episode)); auditIn(batch, centerId, actor, 'episode.created', 'episode', ref.id, { consentForPhotography }); await batch.commit();
     return send(res, 201, { episode: compact(episode) });
   }
 
   const episodeMatch = subpath.match(/^\/episodes\/([^/]+)$/);
   if (episodeMatch && method === 'PUT') {
-    requireRole(member, ['coordinator', 'nurse', 'doctor']); const id = episodeMatch[1]; const ref = db.doc(`centers/${centerId}/episodes/${id}`); const snap = await ref.get();
-    if (!snap.exists) throw Object.assign(new Error('Episodio no encontrado.'), { status: 404 });
-    const update = compact({ status: ['active', 'healed', 'referred', 'closed'].includes(req.body?.status) ? req.body.status : undefined, priority: ['routine', 'soon', 'urgent'].includes(req.body?.priority) ? req.body.priority : undefined, consentForPhotography: typeof req.body?.consentForPhotography === 'boolean' ? req.body.consentForPhotography : undefined, updatedAt: new Date().toISOString() });
-    const batch = db.batch(); batch.update(ref, update); auditIn(batch, centerId, actor, 'episode.updated', 'episode', id); await batch.commit(); return send(res, 200, { episode: { id, ...snap.data(), ...update } });
+    requireRole(member, ['coordinator', 'tens', 'nurse', 'doctor']); const id = episodeMatch[1]; const ref = db.doc(`centers/${centerId}/episodes/${id}`);
+    if (supplied(req.body, 'consentForPhotography') && typeof req.body.consentForPhotography !== 'boolean') throw Object.assign(new Error('La decisión de consentimiento debe ser explícita.'), { status: 400 });
+    const tensOnly = member.roles.includes('tens') && !hasAnyRole(member, ['coordinator', 'nurse', 'doctor']);
+    if (tensOnly && (typeof req.body?.consentForPhotography !== 'boolean' || Object.keys(req.body).some((key) => key !== 'consentForPhotography'))) throw Object.assign(new Error('Tu perfil sólo puede registrar el consentimiento fotográfico.'), { status: 403 });
+    let saved;
+    await db.runTransaction(async (transaction) => {
+      const snap = await transaction.get(ref);
+      if (!snap.exists) throw Object.assign(new Error('Episodio no encontrado.'), { status: 404 });
+      const previous = snap.data();
+      if (tensOnly) {
+        const patient = await transaction.get(db.doc(`centers/${centerId}/patients/${previous.patientId}`));
+        if (patient.data()?.intakeAssignedToUid !== actor.uid) throw Object.assign(new Error('El preingreso no está asignado a tu cuenta.'), { status: 403 });
+      }
+      const changed = typeof req.body?.consentForPhotography === 'boolean' && previous.consentForPhotography !== req.body.consentForPhotography;
+      const now = new Date().toISOString();
+      const update = compact({ status: ['active', 'healed', 'referred', 'closed'].includes(req.body?.status) ? req.body.status : undefined, priority: ['routine', 'soon', 'urgent'].includes(req.body?.priority) ? req.body.priority : undefined, consentForPhotography: changed ? req.body.consentForPhotography : undefined, photoConsentLastDecision: changed ? (req.body.consentForPhotography ? 'granted' : 'withdrawn') : undefined, photoConsentUpdatedAt: changed ? now : undefined, photoConsentUpdatedByName: changed ? actor.name : undefined, updatedAt: now });
+      transaction.update(ref, update);
+      if (changed) auditIn(transaction, centerId, actor, 'episode.photo_consent_updated', 'episode', id, { from: previous.consentForPhotography === true, to: req.body.consentForPhotography });
+      if (Object.keys(update).some((key) => !['updatedAt', 'consentForPhotography', 'photoConsentLastDecision', 'photoConsentUpdatedAt', 'photoConsentUpdatedByName'].includes(key))) auditIn(transaction, centerId, actor, 'episode.updated', 'episode', id);
+      saved = { id, ...previous, ...update };
+    });
+    return send(res, 200, { episode: saved });
   }
 
   if (subpath === '/encounters' && method === 'POST') {

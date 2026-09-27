@@ -146,6 +146,9 @@ export interface WoundEpisode {
   status: 'active' | 'healed' | 'referred' | 'closed';
   priority: Priority;
   consentForPhotography: boolean;
+  photoConsentLastDecision?: 'granted' | 'withdrawn';
+  photoConsentUpdatedAt?: string;
+  photoConsentUpdatedByName?: string;
   createdAt: string;
   updatedAt: string;
 }

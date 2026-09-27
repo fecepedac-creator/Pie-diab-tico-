@@ -1,0 +1,6 @@
+.photo-consent-control { display: grid; gap: .7rem; padding: .9rem; border: 1px solid #cbded8; border-radius: 12px; background: #f6faf9; }
+.photo-consent-control small { display: block; margin-top: .25rem; color: #526d68; }
+.photo-consent-control .helper { margin: .35rem 0 0; }
+.photo-consent-actions { display: grid; gap: .6rem; justify-items: start; }
+.photo-consent-actions .check { display: flex; align-items: flex-start; gap: .5rem; }
+.photo-consent-control button { max-width: 100%; }

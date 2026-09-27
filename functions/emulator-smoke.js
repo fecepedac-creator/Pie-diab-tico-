@@ -148,6 +148,17 @@ async function callNoAuthWithHeaders(path, method = 'GET', body, headers = {}) {
   const logs = await call(`/centers/${centerId}/audit`, idToken); assert.equal(logs.response.status, 200); assert(logs.payload.events.length >= 5);
   await require('./clinical-emulator-checks')({ call, idToken, tensToken, specialistToken, centerId, patientId, episodeId: episodeResult.payload.episode.id, encounterId });
   await require('./admin-emulator-checks')({ call, idToken, centerId, db, hash });
+  const consentPath = `/centers/${centerId}/episodes/${unassignedEpisode.payload.episode.id}`;
+  const specialistConsent = await call(consentPath, specialistToken, 'PUT', { consentForPhotography: true }); assert.equal(specialistConsent.response.status, 403);
+  const grantedConsent = await call(consentPath, tensToken, 'PUT', { consentForPhotography: true }); assert.equal(grantedConsent.response.status, 200); assert.equal(grantedConsent.payload.episode.photoConsentLastDecision, 'granted');
+  const tensPriorityDenied = await call(consentPath, tensToken, 'PUT', { priority: 'urgent' }); assert.equal(tensPriorityDenied.response.status, 403);
+  await db.doc(`centers/${centerId}/patients/${patientId}`).update({ intakeAssignedToUid: 'otra-cuenta' });
+  const unassignedTensConsent = await call(consentPath, tensToken, 'PUT', { consentForPhotography: false }); assert.equal(unassignedTensConsent.response.status, 403);
+  await db.doc(`centers/${centerId}/patients/${patientId}`).update({ intakeAssignedToUid: tensUser.uid });
+  const withdrawnConsent = await call(consentPath, idToken, 'PUT', { consentForPhotography: false }); assert.equal(withdrawnConsent.response.status, 200); assert.equal(withdrawnConsent.payload.episode.photoConsentLastDecision, 'withdrawn');
+  const consentAudit = await db.collection(`centers/${centerId}/auditLogs`).where('action', '==', 'episode.photo_consent_updated').get(); assert.equal(consentAudit.size, 2); assert.deepEqual(consentAudit.docs.map((doc) => doc.data().details.to).sort(), [false, true]);
+  const noConsentEncounter = await call(`/centers/${centerId}/encounters`, idToken, 'POST', { patientId, episodeId: unassignedEpisode.payload.episode.id }); assert.equal(noConsentEncounter.response.status, 201);
+  const withdrawnPhoto = await call(`/centers/${centerId}/encounters/${noConsentEncounter.payload.encounter.id}/photos`, idToken, 'POST', { kind: 'pre', orientationConfirmed: true, scaleIncluded: true, dataUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=' }); assert.equal(withdrawnPhoto.response.status, 400);
   const archivedClinicalCenter = await call(`/platform/centers/${centerId}`, idToken, 'DELETE'); assert.equal(archivedClinicalCenter.response.status, 200); assert.equal(archivedClinicalCenter.payload.center.status, 'archived');
   const blockedState = await call(`/centers/${centerId}/state`, idToken); assert.equal(blockedState.response.status, 403);
   const restoredClinicalCenter = await call(`/platform/centers/${centerId}`, idToken, 'PUT', { status: 'active' }); assert.equal(restoredClinicalCenter.response.status, 200);

@@ -10,6 +10,7 @@ import CommitteeView from './CommitteeView';
 import SpecialistCaseSummary from './SpecialistCaseSummary';
 import { CoordinationPatientView, SocialPatientView } from './RolePatientViews';
 import SocialTaskPanel from './SocialTaskPanel';
+import PhotoConsentControl from './PhotoConsentControl';
 import './clinical-dashboard.css';
 
 // Local aliases keep the clinical screen compact and make mobile navigation explicit.
@@ -64,7 +65,8 @@ export default function ClinicalDashboard({ center, membership, state, onRefresh
 
           <div className="panel">
           <h3>Episodios de herida</h3><div className="stack">{episodes.map((item) => <button className={`episode-row ${episodeId === item.id ? 'selected' : ''}`} key={item.id} onClick={() => setEpisodeId(item.id)}><span><strong>{item.location}</strong><small>Pie {item.side === 'right' ? 'derecho' : 'izquierdo'} · inicio {formatDate(item.createdAt)}</small></span><span className={`pill ${item.priority}`}>{item.priority === 'urgent' ? 'Urgente' : item.priority === 'soon' ? 'Pronto' : 'Habitual'}</span></button>)}</div>
-          {canOpenEpisode && <details><summary>+ Abrir episodio</summary><form className="mini-form horizontal" onSubmit={createEpisode}><label>Lado<select name="side"><option value="right">Derecho</option><option value="left">Izquierdo</option></select></label><label>Ubicación<input name="location" required placeholder="Plantar, hallux…" /></label><label>Prioridad<select name="priority"><option value="routine">Habitual</option><option value="soon">Pronto</option><option value="urgent">Urgente</option></select></label><label className="check"><input type="checkbox" name="consent" /> Consentimiento fotográfico registrado</label><button className="primary">Abrir episodio</button></form></details>}
+          {canOpenEpisode && <details><summary>+ Abrir episodio</summary><form className="mini-form horizontal" onSubmit={createEpisode}><label>Lado<select name="side"><option value="right">Derecho</option><option value="left">Izquierdo</option></select></label><label>Ubicación<input name="location" required placeholder="Plantar, hallux…" /></label><label>Prioridad<select name="priority"><option value="routine">Habitual</option><option value="soon">Pronto</option><option value="urgent">Urgente</option></select></label><label className="check"><input type="checkbox" name="consent" /> Verifiqué que existe consentimiento firmado para fotografiar esta herida.</label><button className="primary">Abrir episodio</button></form></details>}
+          {episode && <PhotoConsentControl key={episode.id} centerId={center.id} episode={episode} membership={membership} patient={patient} onRefresh={onRefresh} demoMode={demoMode} />}
           </div>
         </>}
         {episode && referralView && patient && <SpecialistCaseSummary centerId={center.id} membership={membership} patient={patient} episode={episode} encounters={encounters} tasks={state.tasks.filter((item) => item.episodeId === episode.id)} attachments={state.attachments.filter((item) => item.episodeId === episode.id)} onRefresh={onRefresh} onResolved={() => { setPatientId(''); setEpisodeId(''); setPatientBrowserOpen(true); setMessage('Respuesta registrada. La gestión quedó resuelta y el caso salió de tus derivados.'); }} demoMode={demoMode} />}
