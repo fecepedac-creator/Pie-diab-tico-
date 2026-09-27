@@ -6,6 +6,7 @@ const { getStorage } = require('firebase-admin/storage');
 const crypto = require('node:crypto');
 const workflow = require('./clinical-workflow');
 const nursingCatalog = require('./nursing-catalog');
+const { validatePhotoMeasurement } = require('./photo-measurement');
 
 const {
   CLINICAL_ROLES, cleanText, cleanEmail, hashEmail, normalizeRut,
@@ -716,15 +717,17 @@ async function route(req, res, actor) {
     if (!['pre', 'post'].includes(req.body?.kind) || req.body?.orientationConfirmed !== true) throw Object.assign(new Error('Confirma el momento y la orientación de la fotografía.'), { status: 400 });
     const episode = await db.doc(`centers/${centerId}/episodes/${snap.data().episodeId}`).get();
     if (!episode.exists || episode.data().consentForPhotography !== true) throw Object.assign(new Error('Debes registrar consentimiento para fotografías antes de capturar.'), { status: 400 });
+    if (req.body?.measurement !== undefined && req.body?.scaleIncluded !== true) throw Object.assign(new Error('Confirma la referencia física de escala antes de guardar la medición.'), { status: 400 });
+    const measurement = req.body?.measurement === undefined ? undefined : validatePhotoMeasurement(req.body.measurement);
     const match = String(req.body?.dataUrl || '').match(/^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/);
     if (!match) throw Object.assign(new Error('Formato de imagen no permitido.'), { status: 400 });
     const buffer = Buffer.from(match[2], 'base64'); if (buffer.length > 5 * 1024 * 1024) throw Object.assign(new Error('La imagen supera el máximo de 5 MB.'), { status: 413 });
     const kind = req.body?.kind === 'post' ? 'post' : 'pre'; const photoId = crypto.randomUUID(); const ext = match[1].split('/')[1]; const storagePath = `centers/${centerId}/patients/${snap.data().patientId}/encounters/${id}/${photoId}.${ext}`;
     const photoFile = getStorage().bucket().file(storagePath);
     await photoFile.save(buffer, { resumable: false, contentType: match[1], metadata: { cacheControl: 'private, max-age=0, no-store' } });
-    const photo = { id: photoId, kind, storagePath, capturedAt: new Date().toISOString(), capturedByUid: actor.uid, capturedByName: actor.name, mimeType: match[1], orientationConfirmed: req.body?.orientationConfirmed === true, scaleIncluded: req.body?.scaleIncluded === true, quality: 'pending' };
+    const photo = { id: photoId, kind, storagePath, capturedAt: new Date().toISOString(), capturedByUid: actor.uid, capturedByName: actor.name, mimeType: match[1], orientationConfirmed: req.body?.orientationConfirmed === true, scaleIncluded: req.body?.scaleIncluded === true, ...(measurement ? { measurement } : {}), quality: 'pending' };
     try {
-      await db.runTransaction(async (transaction) => { const current = await transaction.get(ref); if (!current.exists) throw Object.assign(new Error('Atención no encontrada.'), { status: 404 }); workflow.assertMutable(current.data()); const consent = await transaction.get(episode.ref); if (!consent.data()?.consentForPhotography) throw Object.assign(new Error('Consentimiento fotográfico no disponible.'), { status: 400 }); if (tensOnly) { const currentPatient = await transaction.get(db.doc(`centers/${centerId}/patients/${current.data().patientId}`)); if (currentPatient.data()?.intakeAssignedToUid !== actor.uid) throw Object.assign(new Error('El preingreso no está asignado a tu cuenta.'), { status: 403 }); } transaction.update(ref, { photos: FieldValue.arrayUnion(photo), updatedAt: new Date().toISOString(), version: FieldValue.increment(1) }); auditIn(transaction, centerId, actor, 'photo.uploaded', 'encounter', id, { kind }); });
+      await db.runTransaction(async (transaction) => { const current = await transaction.get(ref); if (!current.exists) throw Object.assign(new Error('Atención no encontrada.'), { status: 404 }); workflow.assertMutable(current.data()); const consent = await transaction.get(episode.ref); if (!consent.data()?.consentForPhotography) throw Object.assign(new Error('Consentimiento fotográfico no disponible.'), { status: 400 }); if (tensOnly) { const currentPatient = await transaction.get(db.doc(`centers/${centerId}/patients/${current.data().patientId}`)); if (currentPatient.data()?.intakeAssignedToUid !== actor.uid) throw Object.assign(new Error('El preingreso no está asignado a tu cuenta.'), { status: 403 }); } transaction.update(ref, { photos: FieldValue.arrayUnion(photo), updatedAt: new Date().toISOString(), version: FieldValue.increment(1) }); auditIn(transaction, centerId, actor, 'photo.uploaded', 'encounter', id, { kind, measured: Boolean(measurement) }); });
     } catch (error) { await photoFile.delete({ ignoreNotFound: true }).catch(() => undefined); throw error; }
 
     const current = await ref.get(); return send(res, 201, { encounter: (await withPhotoUrls([hasAnyRole(member, PRIMARY_CLINICAL_ROLES) ? { id, ...current.data() } : workflow.photoOnlyEncounter({ id, ...current.data() })]))[0] });

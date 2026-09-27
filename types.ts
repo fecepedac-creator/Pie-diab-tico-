@@ -153,6 +153,22 @@ export interface WoundEpisode {
   updatedAt: string;
 }
 
+export type PhotoPoint = { x: number; y: number };
+
+export interface PhotoMeasurement {
+  method: 'manual-calibrated-2d';
+  imageWidth: number;
+  imageHeight: number;
+  referenceLengthCm: number;
+  reference: [PhotoPoint, PhotoPoint];
+  length: [PhotoPoint, PhotoPoint];
+  width: [PhotoPoint, PhotoPoint];
+  outline?: PhotoPoint[];
+  lengthCm: number;
+  widthCm: number;
+  areaCm2?: number;
+}
+
 export interface PhotoReference {
   id: string;
   kind: 'pre' | 'post';
@@ -164,6 +180,7 @@ export interface PhotoReference {
   mimeType: string;
   orientationConfirmed: boolean;
   scaleIncluded: boolean;
+  measurement?: PhotoMeasurement;
   quality: 'pending' | 'accepted' | 'repeat';
   reviewReason?: string;
   reviewedByName?: string;
