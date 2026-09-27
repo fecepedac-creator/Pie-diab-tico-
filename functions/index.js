@@ -753,7 +753,7 @@ async function route(req, res, actor) {
       const submittedPhotoIds = ['pre', 'post'].map((kind) => ownPhotos.filter((photo) => photo.kind === kind).at(-1)?.id).filter(Boolean);
       const now = new Date().toISOString();
       transaction.update(ref, { photoRegistration: { ...registration, status: 'submitted', submittedAt: now, submittedByUid: actor.uid, submittedByName: actor.name, submittedPhotoIds, reviewedAt: null, reviewedByUid: null, reviewedByName: null }, updatedAt: now, version: previous.version + 1 });
-      auditIn(transaction, centerId, actor, 'photo_registration.submitted', 'encounter', id, { photoCount: submittedPhotoIds.length });
+      auditIn(transaction, centerId, actor, 'photo_registration.submitted', 'encounter', id, { photoCount: submittedPhotoIds.length, submittedPhotoIds });
     });
     const current = await ref.get();
     return send(res, 200, { encounter: (await withPhotoUrls([workflow.photoOnlyEncounter({ id, ...current.data() })]))[0] });
