@@ -1,12 +1,14 @@
 # Pie Diabético — ruta de publicación restringida
 
+**ARCHIVO HISTÓRICO, NO EJECUTAR SUS COMANDOS.** El proyecto `simulador-clinico` fue descartado porque pertenece a otra aplicación. El [procedimiento operativo vigente](CANARY_R1_ESTADO_Y_PROCEDIMIENTO.md) usa exclusivamente `pie-diabetico-canary-2026`.
+
 > **Destino corregido el 27/09/2026:** el usuario confirmó que `simulador-clinico` corresponde a otra aplicación y eligió `pie-diabetico-canary-2026` para el canary sintético. Este plan conserva decisiones históricas, pero sus comandos con el destino anterior no deben ejecutarse. El estado operativo actualizado está en [CURRENT_STATE.md](CURRENT_STATE.md).
 
 > **Actualización del 27/09/2026:** la integración funcional local pasó validación, emuladores y compilación canary. La inspección remota descubrió que `simulador-clinico` contiene `AVATARES` y `Sesiones_Alumnos`, colecciones ajenas a esta aplicación; Auth no tiene proveedor habilitado y Storage carece de bucket. El destino previsto debe revisarse antes de publicar reglas o datos. La secuencia y tabla históricas siguientes no acreditan un GO.
 
 > **Decisión vigente (26/09/2026): `simulador-clinico` está en Blaze.** La consola mostró «Plan de facturación: Blaze» para ese proyecto, con cuenta «Pago de Firebase» en CLP. Hay dos presupuestos de alerta mensuales iguales de CLP 25 (50 %, 90 % y 100 %), sin límite de gasto; el usuario decidió mantener ese monto por ahora. Blaze habilita la preparación del entorno, pero **no publica código ni autoriza pacientes reales**. La decisión anterior de mantener Spark queda superada.
 
-## Objetivo vigente
+## Objetivo registrado el 26/09/2026 (superado en cuanto al destino)
 
 Publicar **la aplicación completa** en `simulador-clinico.web.app` (Hosting, `api`, reglas Firestore y Storage) para un grupo invitado que pruebe **únicamente casos sintéticos**. El dominio principal `policlinico-de-pie-diabetico.web.app` y sus datos no forman parte de esta publicación. La revisión jurídica y de privacidad puede seguir pendiente para este estado; **ningún paciente real se incorpora** mientras falte.
 
@@ -31,13 +33,13 @@ La publicación técnica **no equivale** a aprobación para datos reales. Un res
 
 La ruta estática prevista durante Spark queda archivada como alternativa, no como sustituto de `PUBLICADA_PARA_VALIDAR` ni de `DESPLEGADA_RESTRINGIDA`. `clinical-preview.html` sigue siendo exclusivo de desarrollo.
 
-## Preparación inmediata tras activar Blaze
+## Preparación registrada para el destino descartado
 
 1. **Entorno y costo:** verificar Auth, Storage, APIs requeridas, datos existentes y responsables de `simulador-clinico`. Mantener por ahora los dos presupuestos de CLP 25; son alertas, no un tope automático de gasto.
 2. **Candidata y alcance:** inventariar e integrar selectivamente los cambios sin confirmar de `main` en checkout aislado, sin sobrescribirlos. La comprobación de integración detectó conflictos en 12 archivos: todavía no existe un commit que reúna de forma verificada todos los cambios locales.
 3. **Puerta local y publicación:** seguir la secuencia siguiente sobre un SHA exacto, sólo con datos sintéticos y acceso por invitación. Registrar por separado resultados locales, remotos y de observación.
 
-## Secuencia para el backend canary
+## Secuencia histórica para el destino descartado — no ejecutar
 
 | Orden | Responsable | Acción y evidencia de salida | Corte si falla |
 | --- | --- | --- | --- |

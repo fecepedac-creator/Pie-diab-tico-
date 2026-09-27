@@ -1,5 +1,7 @@
 # Manifiesto de candidata R1 — 26/09/2026
 
+**Actualización del 27/09/2026:** este cuadro conserva los hashes de la candidata anterior y no describe el bundle del canary nuevo. La candidata técnica actual es `b43517e`, con integración funcional `28defba`; el PR borrador #14 pasó CI para ese SHA en Node 22. El destino actual es únicamente `pie-diabetico-canary-2026`. T6 debe registrar los hashes y releases del SHA exacto que publique en su propio informe. Véanse [estado vigente](CURRENT_STATE.md) y [procedimiento canary](CANARY_R1_ESTADO_Y_PROCEDIMIENTO.md).
+
 Rama aislada: `codex/r1-production-readiness`. La combinación funcional verificada quedó en `51c94d0c508855c71a07ca55f6610c7fff1b232f` (árbol Git `cbe42d0bf45b2915c970fb62df5292883c5f8a6c`); este manifiesto sólo agrega estado documental. Checkout principal intacto.
 
 | Artefacto local de `npm run validate` | SHA-256 |
