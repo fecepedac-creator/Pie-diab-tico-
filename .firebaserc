@@ -1,8 +1,6 @@
 {
   "projects": {
-    "default": "policlinico-de-pie-diabetico",
     "prod": "policlinico-de-pie-diabetico",
-    "staging": "simulador-clinico",
-    "canary": "simulador-clinico"
+    "canary": "pie-diabetico-canary-2026"
   }
 }

@@ -17,7 +17,7 @@
     "verify:prod": "node scripts/verify_staging_readiness.cjs",
     "verify:prod:strict": "node scripts/verify_staging_readiness.cjs --strict",
     "check:canary:health": "node scripts/check-canary-health.cjs",
-    "verify:canary": "node scripts/verify_staging_readiness.cjs --base https://simulador-clinico.web.app --strict"
+    "verify:canary": "node scripts/verify_staging_readiness.cjs --canary --strict"
 
   },
   "dependencies": {

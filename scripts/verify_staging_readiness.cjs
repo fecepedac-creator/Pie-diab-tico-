@@ -16,6 +16,11 @@ function parseArgs() {
   const args = process.argv.slice(2);
   const strict = args.includes('--strict');
   let base = process.env.PD_PROD_BASE_URL || 'https://policlinico-de-pie-diabetico.web.app';
+  if (args.includes('--canary')) {
+    const canaryId = JSON.parse(require('node:fs').readFileSync(require('node:path').join(__dirname, '..', '.firebaserc'), 'utf8')).projects?.canary;
+    if (!canaryId || ['policlinico-de-pie-diabetico', 'simulador-clinico', 'simulador-clinico-2'].includes(canaryId)) throw new Error('Configura un proyecto canary exclusivo para Pie Diabético.');
+    return { base: `https://${canaryId}.web.app`, strict };
+  }
   const baseIndex = args.indexOf('--base');
   if (baseIndex >= 0 && args[baseIndex + 1]) {
     base = args[baseIndex + 1];

@@ -1,8 +1,10 @@
 const https = require('https');
 
-const defaultTargets = [
-  'https://simulador-clinico.web.app',
-];
+const canaryId = JSON.parse(require('node:fs').readFileSync(require('node:path').join(__dirname, '..', '.firebaserc'), 'utf8')).projects?.canary;
+if (!canaryId || ['policlinico-de-pie-diabetico', 'simulador-clinico', 'simulador-clinico-2'].includes(canaryId)) {
+  throw new Error('Configura un proyecto canary exclusivo para Pie Diabético antes de comprobar su salud.');
+}
+const defaultTargets = [`https://${canaryId}.web.app`];
 
 function normalizeTarget(raw) {
   const trimmed = String(raw || '').trim();

@@ -1,5 +1,7 @@
 # Pie Diabético — ruta de publicación restringida
 
+> **Destino corregido el 27/09/2026:** el usuario confirmó que `simulador-clinico` corresponde a otra aplicación y eligió `pie-diabetico-canary-2026` para el canary sintético. Este plan conserva decisiones históricas, pero sus comandos con el destino anterior no deben ejecutarse. El estado operativo actualizado está en [CURRENT_STATE.md](CURRENT_STATE.md).
+
 > **Actualización del 27/09/2026:** la integración funcional local pasó validación, emuladores y compilación canary. La inspección remota descubrió que `simulador-clinico` contiene `AVATARES` y `Sesiones_Alumnos`, colecciones ajenas a esta aplicación; Auth no tiene proveedor habilitado y Storage carece de bucket. El destino previsto debe revisarse antes de publicar reglas o datos. La secuencia y tabla históricas siguientes no acreditan un GO.
 
 > **Decisión vigente (26/09/2026): `simulador-clinico` está en Blaze.** La consola mostró «Plan de facturación: Blaze» para ese proyecto, con cuenta «Pago de Firebase» en CLP. Hay dos presupuestos de alerta mensuales iguales de CLP 25 (50 %, 90 % y 100 %), sin límite de gasto; el usuario decidió mantener ese monto por ahora. Blaze habilita la preparación del entorno, pero **no publica código ni autoriza pacientes reales**. La decisión anterior de mantener Spark queda superada.

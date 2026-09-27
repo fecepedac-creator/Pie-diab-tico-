@@ -2,6 +2,12 @@
 
 Actualizado: 27 de septiembre de 2026. Fuente de verdad para esta versión candidata local; los documentos de go-live fechados el 13 de septiembre son evidencia histórica y no acreditan el estado actual de producción.
 
+## Destino dedicado — 27/09/2026
+
+El usuario confirmó que `simulador-clinico` es otra aplicación y eligió un proyecto separado. Se creó `pie-diabetico-canary-2026` (número `388252582351`), con app web `1:388252582351:web:96bf5a027f7b78a93452ba`. El usuario activó Blaze; la consola lo muestra vinculado a la cuenta de facturación `01F1DC-B2298E-964EFE`, que confirmó mantener. Existe una alerta automática de CLP 100/mes, que **no** limita el gasto; el monto deseado está pendiente de respuesta. Firestore `(default)` se creó vacío en `nam5`, edición Standard con protección contra eliminación. Storage se creó vacío en `US-EAST1` con reglas iniciales de denegación. Auth Google quedó habilitado por confirmación explícita del usuario y `pie-diabetico-canary-2026.web.app` aparece entre los dominios autorizados.
+
+La candidata integrada `28defba` está en el PR borrador #14. El alias `canary` ahora señala exclusivamente al proyecto nuevo; se retiró el alias `default` para exigir selección explícita. `npm run build:canary` pasó con la configuración web del nuevo proyecto; el bundle contiene el ID nuevo y no el proyecto principal. **No se han desplegado Functions, reglas ni Hosting.** Faltan congelar el siguiente SHA, comprobar CI, preparar acceso invitado y hacer el canary remoto sintético. El proyecto principal `policlinico-de-pie-diabetico` mantiene su Function `api` activa y Hosting publicado; no se modificó. Tampoco se desplegó ni se cambiaron reglas en `simulador-clinico`.
+
 ## Integración local y hallazgo remoto — 27/09/2026
 
 En un worktree aislado se conciliaron los cambios funcionales de `main` con `codex/r1-production-readiness`, preservando las restricciones de TENS, trabajo social y especialistas. Se incorporaron el catálogo configurable de curaciones, la evolución descriptiva y la vinculación de lesiones de una visita. El checkout principal no se modificó. La combinación pasó `npm run validate` (19 pruebas unitarias, tipado, compilación y sintaxis), `npm run test:emulators` (61 controles base, siete escenarios de candidata, catálogo y visita vinculada) y `npm run build:canary` con la identidad web de `simulador-clinico`. Esto acredita sólo la candidata local.
