@@ -15,3 +15,8 @@
 .saved-photo figcaption { display: grid; gap: .2rem; padding: .65rem; }
 .saved-photo figcaption strong { color: #174d36; }
 .saved-photo .photo-placeholder { padding: 1rem; text-align: center; }
+.photo-handoff { display: grid; gap: .55rem; }
+.photo-handoff h3, .photo-handoff p { margin: 0; }
+.photo-handoff .primary { width: fit-content; min-height: 48px; }
+.photo-handoff [role="status"] { color: #174d36; }
+.photo-handoff [role="alert"] { color: #8b3b20; }

@@ -104,6 +104,8 @@ export const api = {
     request<{ encounter: Encounter }>(`/centers/${centerId}/encounters/${encounterId}`, json('PUT', input)),
   uploadPhoto: (centerId: string, encounterId: string, input: { dataUrl: string; kind: 'pre' | 'post'; orientationConfirmed: boolean; scaleIncluded: boolean; measurement?: Omit<PhotoMeasurement, 'method' | 'lengthCm' | 'widthCm' | 'areaCm2'> }) =>
     request<{ encounter: Encounter }>(`/centers/${centerId}/encounters/${encounterId}/photos`, json('POST', input)),
+  submitPhotoRegistration: (centerId: string, encounterId: string, version: number) =>
+    request<{ encounter: Encounter }>(`/centers/${centerId}/encounters/${encounterId}/photo-registration/submit`, json('POST', { version })),
   getEncounterPhoto: (centerId: string, encounterId: string, photoId: string) =>
     requestImage(`/centers/${centerId}/encounters/${encounterId}/photos/${photoId}/image`),
 

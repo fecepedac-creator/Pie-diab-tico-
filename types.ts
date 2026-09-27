@@ -187,6 +187,19 @@ export interface PhotoReference {
   reviewedAt?: string;
 }
 
+export interface PhotoRegistration {
+  status: 'in_progress' | 'submitted' | 'needs_repeat' | 'reviewed';
+  submittedAt?: string;
+  submittedByUid?: string;
+  submittedByName?: string;
+  repeatRequestedAt?: string;
+  repeatKind?: 'pre' | 'post';
+  repeatReason?: string;
+  reviewedAt?: string;
+  reviewedByUid?: string;
+  reviewedByName?: string;
+}
+
 export interface WoundAssessment {
   diameterCm?: number;
   lengthCm?: number;
@@ -292,6 +305,7 @@ export interface Encounter {
   nursing: NursingCare;
   medical: MedicalPlan;
   photos: PhotoReference[];
+  photoRegistration?: PhotoRegistration;
   nursingNarrative?: string;
   medicalNarrative?: string;
   version: number;
