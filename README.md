@@ -23,6 +23,8 @@ React/Vite sirve la interfaz. Una Cloud Function verifica el token Firebase, el 
 
 No se envían datos clínicos a servicios de IA. WhatsApp sólo prepara un aviso genérico para abrir la plataforma y requiere configurar el número institucional del centro.
 
+El [plan de mejora del resguardo de pacientes](docs/plan-mejora-resguardo-pacientes-r1.md) define los controles y evidencias pendientes antes de usar datos reales.
+
 ## Desarrollo y validación
 
 ```bash
@@ -54,6 +56,7 @@ Abrir `http://127.0.0.1:5173/` y elegir TENS, enfermería, medicina, Cirugía Ge
 Fisiatría ofrece cuatro botones para preparar apartados de la respuesta: **descarga**, **prevención secundaria tras cierre**, **evaluación protésica** y **evaluación y manejo del dolor**. Los botones sólo añaden encabezados editables; el profesional debe escribir los hallazgos y la conducta. El caso sintético actual representa la indicación de descarga con herida activa. El recorrido posterior al cierre y la evaluación protésica aún requieren un caso de prueba específico.
 
 Verificación rápida de salud/productivo sin credenciales:
+
 
 ```bash
 node scripts/verify_staging_readiness.cjs

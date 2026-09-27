@@ -80,6 +80,7 @@ function emptyMedical() { return { requestedTests: [], verification: { status: '
 
 function listSentence(values) { return values && values.length ? values.join(', ') : 'no consignado'; }
 function measurement(wound) {
+  if (wound.diameterCm != null) return `${wound.diameterCm} cm de diámetro`;
   if (wound.lengthCm == null && wound.widthCm == null && wound.depthCm == null) return 'dimensiones no consignadas';
   return `${wound.lengthCm ?? '-'} x ${wound.widthCm ?? '-'} x ${wound.depthCm ?? '-'} cm (largo x ancho x profundidad)`;
 }
@@ -87,13 +88,60 @@ function measurement(wound) {
 function nursingNarrative(encounter) {
   const w = encounter.wound || emptyWound();
   const n = encounter.nursing || emptyNursing();
+  const side = encounter.episodeSide === 'right' ? 'derecho' : encounter.episodeSide === 'left' ? 'izquierdo' : '';
+  const site = [encounter.episodeLocation, side && `pie ${side}`].filter(Boolean).join(' de ');
+  const tissues = [['granulación', w.granulationPercent], ['esfacelo', w.sloughPercent], ['necrosis', w.necrosisPercent]]
+    .filter(([, value]) => value != null).map(([label, value]) => `${value}% de tejido de ${label}`);
+  const hasAssessment = [w.diameterCm, w.lengthCm, w.widthCm, w.depthCm, w.granulationPercent, w.sloughPercent, w.necrosisPercent, w.exudate, w.odor, w.localColor, w.probeDepthCm, w.boneContact, w.pedalPulse, w.notes].some((value) => value != null && value !== '') || [w.edges, w.periwound, w.infectionSigns, w.exposedStructures, w.pockets].some((value) => value?.length);
+  const description = hasAssessment ? [
+    site ? `Se observa lesión en ${site}` : 'Se observa lesión',
+    (w.diameterCm != null || w.lengthCm != null || w.widthCm != null || w.depthCm != null) ? `de ${measurement(w)}` : '',
+  ].filter(Boolean).join(' ') : site ? `Episodio de lesión en ${site}` : '';
+  const findings = [
+    description ? `${description}.` : '',
+    tissues.length ? `El lecho presenta ${tissues.join(', ')}.` : '',
+    w.exudate ? `Exudado ${({ none: 'ausente', low: 'escaso', moderate: 'moderado', high: 'abundante' })[w.exudate]}${w.exudateDescription ? `, ${w.exudateDescription}` : ''}.` : w.exudateDescription ? `Exudado: ${w.exudateDescription}.` : '',
+    w.odor ? `Olor ${w.odor === 'present' ? 'presente' : 'ausente'}.` : '',
+    w.edges?.length ? `Bordes ${w.edges.join(', ').toLowerCase()}.` : '',
+    w.periwound?.length ? `Piel perilesional ${w.periwound.join(', ').toLowerCase()}.` : '',
+    w.infectionSigns?.length ? `Signos locales observados: ${w.infectionSigns.join(', ')}.` : '',
+    w.exposedStructures?.length ? `Estructuras expuestas: ${w.exposedStructures.join(', ')}.` : '',
+    w.pockets?.some((pocket) => pocket.direction && pocket.depthCm != null) ? `Bolsillos: ${w.pockets.filter((pocket) => pocket.direction && pocket.depthCm != null).map((pocket) => `${pocket.direction} ${pocket.depthCm} cm`).join(', ')}.` : '',
+    w.probeDepthCm != null ? `La pinza se introduce ${w.probeDepthCm} cm${w.boneContact === 'yes' ? ' con contacto óseo' : w.boneContact === 'no' ? ' sin contacto óseo' : ''}.` : w.boneContact ? `Exploración: ${w.boneContact === 'yes' ? 'contacto óseo' : 'sin contacto óseo'}.` : '',
+    w.pedalPulse ? `Pulso pedio ${w.pedalPulse === 'present' ? 'presente' : 'ausente'}.` : '',
+    w.localColor ? `Coloración local ${w.localColor}.` : '',
+    w.painScore != null ? `Dolor EVA ${w.painScore}.` : '',
+    w.notes ? `${w.notes.replace(/\.$/, '')}.` : '',
+  ].filter(Boolean).join(' ');
+  const cleansing = [
+    n.irrigationTechnique && n.initialIrrigation ? `Se irriga la piel mediante ${n.irrigationTechnique} con ${n.initialIrrigation}.` : n.initialIrrigation ? `Se irriga la piel con ${n.initialIrrigation}.` : n.irrigationTechnique ? `Técnica de irrigación registrada: ${n.irrigationTechnique}.` : '',
+    n.repeatIrrigation ? `Se vuelve a irrigar con ${n.repeatIrrigation}.` : '',
+    n.dryingMaterial ? `Se seca con ${n.dryingMaterial}.` : '',
+    n.cleanser ? `Se aplica ${n.cleanser}${n.cleanserCarrier ? ` sobre ${n.cleanserCarrier}` : ''}${n.cleanserMinutes != null ? ` y se deja actuar por ${n.cleanserMinutes} minutos` : ''}.` : '',
+  ].filter(Boolean).join(' ');
+  const debridement = n.debridementDetails
+    ? `${n.debridementDetails.replace(/\.$/, '')}.${n.debridement?.length ? ` Desbridamiento registrado: ${n.debridement.join(', ')}.` : ''}`
+    : n.debridement?.length ? `Desbridamiento: ${n.debridement.join(', ')}.` : '';
+  const dressings = [
+    n.periwoundProtection?.length ? `Se aplica ${n.periwoundProtection.join(', ')} en piel perilesional.` : '',
+    n.primaryDressings?.length ? `En el lecho se deja ${n.primaryDressings.join(', ')}.` : '',
+    n.secondaryDressings?.length ? `Se cubre con ${n.secondaryDressings.join(', ')}.` : '',
+    n.fixation ? `Se fija con ${n.fixation}.` : '',
+    n.advancedTherapies?.length ? `Terapias avanzadas: ${n.advancedTherapies.join(', ')}.` : '',
+    n.offloadingApplied?.length ? `Descarga aplicada: ${n.offloadingApplied.join(', ')}.` : '',
+    n.education?.length ? `Educación entregada: ${n.education.join(', ')}.` : '',
+    n.tolerance ? `Tolerancia: ${n.tolerance}.` : '',
+    n.notes ? `${n.notes.replace(/\.$/, '')}.` : '',
+  ].filter(Boolean).join(' ');
   return [
-    `Registro de enfermería (${n.verification.status === 'confirmed' ? 'confirmado' : 'borrador'}). Herida de ${measurement(w)}.`,
-    `Lecho: granulación ${w.granulationPercent ?? '-'}%, esfacelo ${w.sloughPercent ?? '-'}%, necrosis ${w.necrosisPercent ?? '-'}%. Exudado: ${({ none: 'ausente', low: 'escaso', moderate: 'moderado', high: 'abundante' })[w.exudate] || 'no consignado'}; olor: ${({ none: 'ausente', present: 'presente' })[w.odor] || 'no consignado'}.`,
-    `Bordes: ${listSentence(w.edges)}. Piel perilesional: ${listSentence(w.periwound)}. Signos de infección: ${listSentence(w.infectionSigns)}. Dolor EVA: ${w.painScore ?? 'no consignado'}.`,
-    `Limpieza registrada: ${listSentence(n.cleaning)}; desbridamiento: ${listSentence(n.debridement)}; apósito primario: ${listSentence(n.primaryDressings)}; apósito secundario: ${listSentence(n.secondaryDressings)}.`,
-    `Protección perilesional: ${listSentence(n.periwoundProtection)}. Terapias avanzadas: ${listSentence(n.advancedTherapies)}. Descarga aplicada: ${listSentence(n.offloadingApplied)}. Educación: ${listSentence(n.education)}. Tolerancia: ${n.tolerance || 'no consignada'}.`,
-    n.notes ? `Observaciones de enfermería: ${n.notes}.` : '',
+    `Registro de enfermería (${n.verification.status === 'confirmed' ? 'confirmado' : 'borrador'}).`,
+    n.removedDressingLevel || n.removedDressingContent ? `Se retiran apósitos${n.removedDressingLevel ? ` pasados hasta ${n.removedDressingLevel}` : ''}${n.removedDressingContent ? ` con ${n.removedDressingContent}` : ''}.` : '',
+    cleansing || (n.cleaning?.length ? `Limpieza registrada: ${n.cleaning.join(', ')}.` : ''),
+    findings,
+    debridement,
+    n.cleanser && n.repeatCleanserMinutes != null ? `Se vuelve a aplicar ${n.cleanser}${n.cleanserCarrier ? ` sobre ${n.cleanserCarrier}` : ''} y se deja actuar por ${n.repeatCleanserMinutes} minutos.` : '',
+    dressings,
+
   ].filter(Boolean).join(' ');
 }
 

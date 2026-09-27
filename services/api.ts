@@ -8,6 +8,8 @@ import type {
   ClinicalTask,
   Encounter,
   Membership,
+  NursingCatalog,
+  NursingCatalogOptions,
   Patient,
   SessionInfo,
   WoundEpisode,
@@ -15,6 +17,7 @@ import type {
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 if (import.meta.env.DEV && API_BASE !== '/api') throw new Error('El desarrollo local sólo admite la API sintética del emulador.');
+
 
 export class ApiError extends Error {
   status: number;
@@ -65,6 +68,10 @@ export const api = {
   updateMember: (centerId: string, memberId: string, input: { roles?: CenterRole[]; status?: Membership['status'] }) =>
     request<{ member: Membership }>(`/centers/${centerId}/members/${memberId}`, json('PUT', input)),
 
+  getNursingCatalog: (centerId: string) => request<{ catalog: NursingCatalog }>(`/centers/${centerId}/nursing-catalog`),
+  updateNursingCatalog: (centerId: string, input: { revision: number; options: NursingCatalogOptions }) =>
+    request<{ catalog: NursingCatalog }>(`/centers/${centerId}/nursing-catalog`, json('PUT', input)),
+
   getState: (centerId: string) => request<ClinicalState>(`/centers/${centerId}/state`),
   listTensMembers: (centerId: string) => request<{ members: { uid: string; displayName: string }[] }>(`/centers/${centerId}/tens-members`),
   listSocialMembers: (centerId: string) => request<{ members: { uid: string; displayName: string }[] }>(`/centers/${centerId}/social-members`),
@@ -78,7 +85,7 @@ export const api = {
     request<{ episode: WoundEpisode }>(`/centers/${centerId}/episodes`, json('POST', input)),
   updateEpisode: (centerId: string, episodeId: string, input: Partial<WoundEpisode>) =>
     request<{ episode: WoundEpisode }>(`/centers/${centerId}/episodes/${episodeId}`, json('PUT', input)),
-  createEncounter: (centerId: string, input: Partial<Encounter>) =>
+  createEncounter: (centerId: string, input: Partial<Encounter> & { linkedEncounterId?: string }) =>
     request<{ encounter: Encounter }>(`/centers/${centerId}/encounters`, json('POST', input)),
   updateEncounter: (centerId: string, encounterId: string, input: Partial<Encounter> & { version: number }) =>
     request<{ encounter: Encounter }>(`/centers/${centerId}/encounters/${encounterId}`, json('PUT', input)),

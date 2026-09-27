@@ -7,7 +7,7 @@
   },
   "scripts": {
     "test": "node --test",
-    "lint": "node --check index.js && node --check domain.js"
+    "lint": "node --check index.js && node --check domain.js && node --check nursing-catalog.js"
   },
   "dependencies": {
     "firebase-admin": "14.5.0",

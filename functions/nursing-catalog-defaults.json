@@ -1,0 +1,10 @@
+{
+  "cleaning": ["Suero fisiológico", "PHMB", "Solución limpiadora", "Duchaterapia", "Jabón neutro", "Ácido hipocloroso"],
+  "debridement": ["No realizado", "Cortante conservador", "Autolítico", "Enzimático", "Mecánico", "Quirúrgico"],
+  "primaryDressings": ["Capa de contacto", "Hidrogel", "Alginato", "Fibra gelificante", "Apósito antimicrobiano", "Espuma", "DACC", "Alginato con plata", "Tull con plata", "Hidrogel con plata"],
+  "secondaryDressings": ["Gasa", "Gasa tradicional", "Gasa no tejida", "Apósito tradicional", "Espuma", "Superabsorbente", "Vendaje de fijación"],
+  "periwoundProtection": ["Película barrera", "Óxido de zinc", "Emoliente", "Apósito protector"],
+  "advancedTherapies": ["Presión negativa", "Terapia compresiva", "Otra terapia avanzada"],
+  "offloadingApplied": ["Fieltro", "Calzado posoperatorio", "Bota removible", "Yeso de contacto total", "Reposo indicado"],
+  "education": ["Cuidado del apósito", "Signos de alarma", "Descarga", "Control metabólico", "Cuidados del pie"]
+}

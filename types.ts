@@ -168,6 +168,7 @@ export interface PhotoReference {
 }
 
 export interface WoundAssessment {
+  diameterCm?: number;
   lengthCm?: number;
   widthCm?: number;
   depthCm?: number;
@@ -181,6 +182,12 @@ export interface WoundAssessment {
   exposedStructures: string[];
   infectionSigns: string[];
   painScore?: number;
+  pockets?: { direction: string; depthCm?: number }[];
+  probeDepthCm?: number;
+  boneContact?: 'yes' | 'no';
+  pedalPulse?: 'present' | 'absent';
+  localColor?: string;
+  exudateDescription?: string;
   notes?: string;
   verification: VerificationStamp;
 }
@@ -200,6 +207,18 @@ export interface WifiAssessment {
 }
 
 export interface NursingCare {
+  removedDressingLevel?: string;
+  removedDressingContent?: string;
+  irrigationTechnique?: string;
+  initialIrrigation?: string;
+  repeatIrrigation?: string;
+  dryingMaterial?: string;
+  cleanser?: string;
+  cleanserCarrier?: string;
+  cleanserMinutes?: number;
+  repeatCleanserMinutes?: number;
+  debridementDetails?: string;
+  fixation?: string;
   cleaning: string[];
   debridement: string[];
   primaryDressings: string[];
@@ -211,6 +230,13 @@ export interface NursingCare {
   tolerance?: string;
   notes?: string;
   verification: VerificationStamp;
+}
+
+export type NursingCatalogSection = 'cleaning' | 'debridement' | 'primaryDressings' | 'secondaryDressings' | 'periwoundProtection' | 'advancedTherapies' | 'offloadingApplied' | 'education';
+export type NursingCatalogOptions = Record<NursingCatalogSection, string[]>;
+export interface NursingCatalog {
+  revision: number;
+  options: NursingCatalogOptions;
 }
 
 export interface MedicalPlan {
@@ -228,6 +254,10 @@ export interface MedicalPlan {
 export interface NarrativeReview { text: string; sourceText: string; sourceVersion: number; authorName: string; reviewedAt: string }
 
 export interface Encounter {
+  visitId?: string;
+  episodeLocation?: string;
+  episodeSide?: 'right' | 'left';
+
   narrativeReviews?: Partial<Record<'nursing' | 'medical', NarrativeReview>>;
   careType?: 'nursing' | 'medical' | 'joint';
   addenda?: { id: string; text: string; authorName: string; createdAt: string }[];

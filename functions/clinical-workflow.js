@@ -64,6 +64,10 @@ function requiredSections(encounter) {
 function assertMutable(encounter) {
   if (['completed', 'cancelled'].includes(encounter.status)) throw Object.assign(new Error('La atención está cerrada. Agrega una adenda para corregirla.'), { status: 409 });
 }
+function assertVisitLink(linked, patientId, episodeId, now = Date.now()) {
+  const time = Date.parse(linked?.encounterDate);
+  if (!linked || linked.patientId !== patientId || linked.episodeId === episodeId || linked.status === 'cancelled' || !Number.isFinite(time) || now - time < 0 || now - time > 24 * 60 * 60 * 1000) throw Object.assign(new Error('La atención vinculada debe ser de otra lesión del mismo paciente y de las últimas 24 horas.'), { status: 400 });
+}
 function assertComplete(encounter) {
   const missing = requiredSections(encounter).filter((key) => encounter[key]?.verification?.status !== 'confirmed');
   if (missing.length) throw Object.assign(new Error('Confirma las secciones requeridas antes de finalizar: ' + missing.join(', ')), { status: 400 });
@@ -73,7 +77,10 @@ function validateSection(key, section) {
   if (key === 'wound') {
     const total = ['granulationPercent', 'sloughPercent', 'necrosisPercent'].reduce((sum, field) => sum + (section[field] || 0), 0);
     if (total > 100) throw Object.assign(new Error('Los porcentajes de tejido superan el 100%.'), { status: 400 });
+    if (section.diameterCm != null && (section.lengthCm != null || section.widthCm != null)) throw Object.assign(new Error('Registra diámetro o largo y ancho, sin mezclar ambas medidas.'), { status: 400 });
+    if (section.verification.status === 'confirmed' && section.pockets?.some((pocket) => !pocket.direction || pocket.depthCm == null || pocket.depthCm <= 0)) throw Object.assign(new Error('Completa dirección y profundidad de cada bolsillo antes de confirmar.'), { status: 400 });
   }
+  if (key === 'nursing' && section.verification.status === 'confirmed' && (section.cleanserMinutes != null || section.repeatCleanserMinutes != null) && !section.cleanser) throw Object.assign(new Error('Indica la solución limpiadora antes de confirmar sus tiempos de aplicación.'), { status: 400 });
   if (section.verification.status !== 'confirmed') return;
   const recorded = Object.entries(section).some(([field, value]) => field !== 'verification' && field !== 'assessmentStatus' && (Array.isArray(value) ? value.length : value !== undefined && value !== ''));
   if (!recorded) throw Object.assign(new Error('Registra hallazgos o el motivo de no evaluación antes de confirmar.'), { status: 400 });
@@ -96,4 +103,4 @@ function referralSnapshot(encounter, patient, episode) {
   ].join('\n');
   return { encounterId: encounter.id, version: encounter.version, capturedAt: new Date().toISOString(), text: cleanText(text, 10000) };
 }
-module.exports = { has, primary, referral, minimalPatient, intakePatient, photoOnlyEncounter, operationalTask, projectState, taskGrantsAccess, assertTaskTransition, grade, requiredSections, assertMutable, assertComplete, validateSection, invalidate, referralSnapshot };
+module.exports = { has, primary, referral, minimalPatient, intakePatient, photoOnlyEncounter, operationalTask, projectState, taskGrantsAccess, assertTaskTransition, grade, requiredSections, assertMutable, assertVisitLink, assertComplete, validateSection, invalidate, referralSnapshot };

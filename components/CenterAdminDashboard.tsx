@@ -1,6 +1,8 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { CENTER_ROLES, ROLE_LABELS, type Center, type CenterRole, type Membership } from '../types';
+import NursingCatalogPanel from './NursingCatalogPanel';
+
 import './center-admin.css';
 
 const statusLabels = { invited: 'Invitación pendiente', active: 'Activo', disabled: 'Acceso desactivado' };
@@ -68,6 +70,8 @@ export default function CenterAdminDashboard({ center, demoMode = false, demoMem
         {candidate === member.id && <div className="access-confirmation"><p>Se bloqueará el acceso de {member.displayName} a este centro. Sus registros se conservarán.</p><div className="team-actions"><button className="primary" disabled={busy || demoMode} onClick={() => update(member, { status: 'disabled' })}>Confirmar desactivación</button><button className="ghost" disabled={busy} onClick={() => setCandidate(null)}>Cancelar</button></div></div>}
       </article>)}</div>
     </div></div>
+    <NursingCatalogPanel center={center} demoMode={demoMode} />
+
   </section>;
 }
 

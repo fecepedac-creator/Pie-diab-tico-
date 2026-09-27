@@ -54,6 +54,7 @@ export default function SpecialistCaseSummary({ centerId, membership, patient, e
     {message && <p className="pre-message" role="status">{message}</p>}
   </form>;
 
+
   return <section className="specialist-case stack">
     <header className="specialist-hero"><div><p className="eyebrow">Caso derivado · {membership.roles.map((role) => ROLE_LABELS[role]).join(' · ')}</p><h2>{patient.name}</h2><p>{episode.location}, pie {episode.side === 'right' ? 'derecho' : 'izquierdo'} · {episodeStatus[episode.status]} · episodio iniciado {formatDate(episode.createdAt)}</p></div><span className={`committee-priority ${activeTask?.priority || episode.priority}`}>{priorityLabel(activeTask?.priority || episode.priority)}</span></header>
 
@@ -71,6 +72,7 @@ export default function SpecialistCaseSummary({ centerId, membership, patient, e
     <EncounterEvolution encounters={encounters} tasks={tasks} />
 
     <article className="panel"><div className="card-heading"><div><p className="eyebrow">Registro fotográfico</p><h3>Fotografías ordenadas por fecha</h3></div><span className="pill">{photos.length} imágenes</span></div><div className="dated-photo-grid">{photos.map((photo) => <figure key={photo.id}>{photo.url ? <img src={photo.url} alt={`${photo.kind === 'pre' ? 'Precuración' : 'Postcuración'} del ${formatDate(photo.encounterDate)}`} /> : <div className="photo-placeholder">Imagen no disponible</div>}<figcaption><strong>{photo.kind === 'pre' ? 'Precuración' : 'Postcuración'}</strong><span>{formatDate(photo.encounterDate)}</span><small>{photo.scaleIncluded ? 'Con referencia de escala' : 'Sin escala confirmada'}</small></figcaption></figure>)}{photos.length === 0 && <p className="muted">No hay fotografías registradas.</p>}</div></article>
+
 
   </section>;
 }

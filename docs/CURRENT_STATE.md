@@ -1,6 +1,12 @@
 # Estado vigente — Pie Diabético
 
-Actualizado: 26 de septiembre de 2026. Fuente de verdad para esta versión candidata local; los documentos de go-live fechados el 13 de septiembre son evidencia histórica y no acreditan el estado actual de producción.
+Actualizado: 27 de septiembre de 2026. Fuente de verdad para esta versión candidata local; los documentos de go-live fechados el 13 de septiembre son evidencia histórica y no acreditan el estado actual de producción.
+
+## Integración local y hallazgo remoto — 27/09/2026
+
+En un worktree aislado se conciliaron los cambios funcionales de `main` con `codex/r1-production-readiness`, preservando las restricciones de TENS, trabajo social y especialistas. Se incorporaron el catálogo configurable de curaciones, la evolución descriptiva y la vinculación de lesiones de una visita. El checkout principal no se modificó. La combinación pasó `npm run validate` (19 pruebas unitarias, tipado, compilación y sintaxis), `npm run test:emulators` (61 controles base, siete escenarios de candidata, catálogo y visita vinculada) y `npm run build:canary` con la identidad web de `simulador-clinico`. Esto acredita sólo la candidata local.
+
+La consola confirmó Blaze, pero `simulador-clinico` ya contiene las colecciones raíz `AVATARES` y `Sesiones_Alumnos`, ajenas al modelo de Pie Diabético. No se inspeccionaron documentos ni se alteraron sus datos. Authentication mostró que no hay proveedor de acceso configurado y Storage aún pide crear el bucket predeterminado. `functions:list` sigue vacío. Publicar las reglas previstas en ese proyecto podría afectar la aplicación existente. **Despliegue en pausa** hasta decidir un destino aislado o acreditar compatibilidad y titularidad de los datos; no se ha publicado esta candidata.
 
 ## Objetivo vigente — publicación restringida del 26/09/2026
 

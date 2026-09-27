@@ -70,3 +70,12 @@ test('draft stamps no longer retain a current confirmation', () => {
 test('empty nursing narrative does not assert a performed cleaning', () => {
   const text = d.nursingNarrative(encounter()); assert.doesNotMatch(text, /Se realiza/); assert.match(text, /borrador/);
 });
+test('vincula sólo lesiones distintas del mismo paciente en una visita reciente', () => {
+  const now = Date.parse('2026-09-24T15:00:00Z');
+  const linked = { patientId: 'p1', episodeId: 'lesion-1', encounterDate: '2026-09-24T14:00:00Z', status: 'in_progress' };
+  w.assertVisitLink(linked, 'p1', 'lesion-2', now);
+  assert.throws(() => w.assertVisitLink(linked, 'p2', 'lesion-2', now));
+  assert.throws(() => w.assertVisitLink(linked, 'p1', 'lesion-1', now));
+  assert.throws(() => w.assertVisitLink({ ...linked, encounterDate: '2026-09-22T14:00:00Z' }, 'p1', 'lesion-2', now));
+  assert.throws(() => w.assertVisitLink({ ...linked, status: 'cancelled' }, 'p1', 'lesion-2', now));
+});

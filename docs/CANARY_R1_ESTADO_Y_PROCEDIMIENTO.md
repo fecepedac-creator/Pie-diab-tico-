@@ -1,5 +1,7 @@
 # Canary R1: estado y procedimiento
 
+> Hallazgo del 27/09/2026: la consola identifica dos colecciones raíz, `AVATARES` y `Sesiones_Alumnos`, ajenas a Pie Diabético. Authentication carece de proveedor configurado y Storage solicita crear bucket. Se integró y validó una nueva candidata local (19 pruebas unitarias, emuladores y `build:canary`), sin despliegue. La elección del destino queda pendiente; no ejecutar los pasos de publicación de este documento sobre `simulador-clinico` sin resolver antes la coexistencia de datos y reglas.
+
 > Actualización del 26/09/2026: el objetivo vigente permite publicación técnica restringida con datos sintéticos antes de la revisión jurídica. Véase [plan y protocolo vigente](PLAN_PUBLICACION_RESTRINGIDA_2026-09-26.md). Las condiciones anteriores de aprobación clínica completa siguen aplicando al piloto con pacientes reales. El usuario activó **Blaze** en `simulador-clinico`, verificado en Firebase; hay dos alertas iguales de CLP 25/mes, monto que decidió mantener por ahora. `functions:list` no encontró ninguna Function y `/api/health` sigue en 404. No se desplegó código.
 
 > Preinspección de sólo lectura del 27/09/2026 UTC: el bucket indicado por la configuración web devolvió 404 al consultar metadatos, Auth respondió `auth/configuration-not-found` y Firestore tenía dos colecciones raíz con documentos. Sólo se comprobó existencia, sin inspeccionar contenido. No se escribió ni desplegó nada. Debe verificarse la naturaleza de esos datos antes de cargar casos sintéticos; T6 aún no tiene condiciones de entrada completas.

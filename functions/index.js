@@ -5,6 +5,8 @@ const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { getStorage } = require('firebase-admin/storage');
 const crypto = require('node:crypto');
 const workflow = require('./clinical-workflow');
+const nursingCatalog = require('./nursing-catalog');
+
 const {
   CLINICAL_ROLES, cleanText, cleanEmail, hashEmail, normalizeRut,
   isValidRut, cleanStringArray, cleanDetailMap, sanitizeRoles, stamp, emptyWound, emptyWifi,
@@ -70,6 +72,7 @@ function hostMatches(host, candidate) {
   if (!candidateHost) return false;
   return host === candidateHost || host.endsWith(`.${candidateHost}`);
 }
+
 
 async function isAllowedOrigin(req, res) {
   const origin = req.get('origin');
@@ -193,12 +196,17 @@ function compact(value) {
 function sanitizeWound(input, actor, previous = emptyWound()) {
   const candidate = input || {};
   return compact({
-    lengthCm: safeNumber(candidate.lengthCm, 0, 100), widthCm: safeNumber(candidate.widthCm, 0, 100), depthCm: safeNumber(candidate.depthCm, 0, 30),
+    diameterCm: safeNumber(candidate.diameterCm, 0, 100), lengthCm: safeNumber(candidate.lengthCm, 0, 100), widthCm: safeNumber(candidate.widthCm, 0, 100), depthCm: safeNumber(candidate.depthCm, 0, 30),
     granulationPercent: safeNumber(candidate.granulationPercent, 0, 100), sloughPercent: safeNumber(candidate.sloughPercent, 0, 100), necrosisPercent: safeNumber(candidate.necrosisPercent, 0, 100),
     exudate: ['none', 'low', 'moderate', 'high'].includes(candidate.exudate) ? candidate.exudate : undefined,
     odor: ['none', 'present'].includes(candidate.odor) ? candidate.odor : undefined,
     edges: cleanStringArray(candidate.edges), periwound: cleanStringArray(candidate.periwound), exposedStructures: cleanStringArray(candidate.exposedStructures), infectionSigns: cleanStringArray(candidate.infectionSigns),
-    painScore: safeNumber(candidate.painScore, 0, 10), notes: cleanText(candidate.notes, 1000),
+    painScore: safeNumber(candidate.painScore, 0, 10),
+    pockets: Array.isArray(candidate.pockets) ? candidate.pockets.slice(0, 8).map((item) => ({ direction: cleanText(item?.direction, 60), depthCm: safeNumber(item?.depthCm, 0, 30) })).filter((item) => item.direction || item.depthCm != null) : [],
+    probeDepthCm: safeNumber(candidate.probeDepthCm, 0, 30),
+    boneContact: ['yes', 'no'].includes(candidate.boneContact) ? candidate.boneContact : undefined,
+    pedalPulse: ['present', 'absent'].includes(candidate.pedalPulse) ? candidate.pedalPulse : undefined,
+    localColor: cleanText(candidate.localColor, 100), exudateDescription: cleanText(candidate.exudateDescription, 200), notes: cleanText(candidate.notes, 1000),
     verification: stamp(actor, candidate.verification?.status === 'confirmed' ? 'confirmed' : 'draft', previous.verification),
   });
 }
@@ -209,7 +217,7 @@ function sanitizeWifi(input, actor, previous = emptyWifi()) {
 }
 
 function sanitizeNursing(input, actor, previous = emptyNursing()) {
-  return compact({ cleaning: cleanStringArray(input?.cleaning), debridement: cleanStringArray(input?.debridement), primaryDressings: cleanStringArray(input?.primaryDressings), secondaryDressings: cleanStringArray(input?.secondaryDressings), periwoundProtection: cleanStringArray(input?.periwoundProtection), advancedTherapies: cleanStringArray(input?.advancedTherapies), offloadingApplied: cleanStringArray(input?.offloadingApplied), education: cleanStringArray(input?.education), tolerance: cleanText(input?.tolerance, 500), notes: cleanText(input?.notes, 1000), verification: stamp(actor, input?.verification?.status === 'confirmed' ? 'confirmed' : 'draft', previous.verification) });
+  return compact({ removedDressingLevel: cleanText(input?.removedDressingLevel, 80), removedDressingContent: cleanText(input?.removedDressingContent, 200), irrigationTechnique: cleanText(input?.irrigationTechnique, 100), initialIrrigation: cleanText(input?.initialIrrigation, 200), repeatIrrigation: cleanText(input?.repeatIrrigation, 200), dryingMaterial: cleanText(input?.dryingMaterial, 100), cleanser: cleanText(input?.cleanser, 150), cleanserCarrier: cleanText(input?.cleanserCarrier, 100), cleanserMinutes: safeNumber(input?.cleanserMinutes, 0, 60), repeatCleanserMinutes: safeNumber(input?.repeatCleanserMinutes, 0, 60), debridementDetails: cleanText(input?.debridementDetails, 500), fixation: cleanText(input?.fixation, 200), cleaning: cleanStringArray(input?.cleaning), debridement: cleanStringArray(input?.debridement), primaryDressings: cleanStringArray(input?.primaryDressings), secondaryDressings: cleanStringArray(input?.secondaryDressings), periwoundProtection: cleanStringArray(input?.periwoundProtection), advancedTherapies: cleanStringArray(input?.advancedTherapies), offloadingApplied: cleanStringArray(input?.offloadingApplied), education: cleanStringArray(input?.education), tolerance: cleanText(input?.tolerance, 500), notes: cleanText(input?.notes, 1000), verification: stamp(actor, input?.verification?.status === 'confirmed' ? 'confirmed' : 'draft', previous.verification) });
 }
 
 function sanitizeMedical(input, actor, previous = emptyMedical()) {
@@ -395,12 +403,38 @@ async function route(req, res, actor) {
   const centerId = centerMatch[1]; const subpath = centerMatch[2] || '';
   const member = await membershipFor(centerId, actor);
 
+  if (subpath === '/nursing-catalog' && method === 'GET') {
+    requireRole(member, ['center_admin', 'nurse', 'doctor']);
+    const snap = await db.doc(`centers/${centerId}/config/nursingCatalog`).get();
+    return send(res, 200, { catalog: nursingCatalog.catalogFromData(snap.data()) });
+  }
+
+  if (subpath === '/nursing-catalog' && method === 'PUT') {
+    requireRole(member, ['center_admin']);
+    const options = nursingCatalog.validateOptions(req.body?.options);
+    const ref = db.doc(`centers/${centerId}/config/nursingCatalog`);
+    const actorRef = db.doc(`memberships/${member.id}`);
+    const centerRef = db.doc(`centers/${centerId}`);
+    const catalog = await db.runTransaction(async (transaction) => {
+      const [snap, actorSnap, centerSnap] = await Promise.all([transaction.get(ref), transaction.get(actorRef), transaction.get(centerRef)]);
+      if (centerSnap.data()?.status !== 'active' || actorSnap.data()?.uid !== actor.uid || actorSnap.data()?.status !== 'active' || !actorSnap.data()?.roles?.includes('center_admin')) throw Object.assign(new Error('Tu acceso administrativo cambió.'), { status: 403 });
+      const previous = nursingCatalog.catalogFromData(snap.data());
+      if (!Number.isInteger(req.body?.revision) || req.body.revision !== previous.revision) throw Object.assign(new Error('El catálogo cambió. Actualiza antes de guardar.'), { status: 409 });
+      const next = { revision: previous.revision + 1, options, updatedByUid: actor.uid, updatedByName: actor.name, updatedAt: new Date().toISOString() };
+      transaction.set(ref, next);
+      auditIn(transaction, centerId, actor, 'nursing_catalog.updated', 'nursingCatalog', 'nursingCatalog', { revision: next.revision });
+      return next;
+    });
+    return send(res, 200, { catalog });
+  }
+
   if (subpath === '/settings' && method === 'PUT') {
     requireRole(member, ['center_admin']); const ref = db.doc(`centers/${centerId}`); const snap = await ref.get();
     if (!snap.exists) throw Object.assign(new Error('Centro no encontrado.'), { status: 404 });
     if (!cleanText(req.body?.name, 120)) throw Object.assign(new Error('El nombre del centro es obligatorio.'), { status: 400 });
     const update = compact({ name: cleanText(req.body.name, 120), region: req.body.region === undefined ? undefined : cleanText(req.body.region, 80), address: req.body.address === undefined ? undefined : cleanText(req.body.address, 200), whatsappNumber: req.body.whatsappNumber === undefined ? undefined : cleanText(req.body.whatsappNumber, 30), updatedAt: new Date().toISOString() });
     const batch = db.batch(); batch.update(ref, update); auditIn(batch, centerId, actor, 'center.settings_updated', 'center', centerId); await batch.commit(); return send(res, 200, { center: { id: centerId, ...snap.data(), ...update } });
+
   }
 
   if (subpath === '/members') {
@@ -418,6 +452,7 @@ async function route(req, res, actor) {
         transaction.create(ref, invited);
         auditIn(transaction, centerId, actor, 'member.invited', 'membership', id, { email, roles });
       });
+
       return send(res, 201, { member: invited });
     }
   }
@@ -444,6 +479,7 @@ async function route(req, res, actor) {
       auditIn(transaction, centerId, actor, 'member.updated', 'membership', id, update);
       return { id, ...previous, ...update };
     });
+
     return send(res, 200, { member: updated });
   }
 
@@ -451,7 +487,13 @@ async function route(req, res, actor) {
     requireRole(member, CLINICAL_ROLES);
     const [patients, episodes, encounterDocs, tasks, attachmentDocs] = await Promise.all([docs(db.collection(`centers/${centerId}/patients`)), docs(db.collection(`centers/${centerId}/episodes`)), docs(db.collection(`centers/${centerId}/encounters`)), docs(db.collection(`centers/${centerId}/tasks`)), docs(db.collection(`centers/${centerId}/attachments`))]);
     const visible = workflow.projectState(member, { patients, episodes, encounters: encounterDocs, tasks, attachments: attachmentDocs });
-    return send(res, 200, { ...visible, patients: await withPatientPhotoUrls(visible.patients), encounters: await withPhotoUrls(visible.encounters), attachments: await withAttachmentUrls(visible.attachments) });
+    const response = { ...visible, patients: await withPatientPhotoUrls(visible.patients), encounters: await withPhotoUrls(visible.encounters), attachments: await withAttachmentUrls(visible.attachments) };
+    await audit(centerId, actor, 'clinical_state.access_granted', 'clinical_state', centerId, {
+      patientIds: visible.patients.map((patient) => patient.id),
+      episodeIds: visible.episodes.map((episode) => episode.id),
+      requestId: req.apiRequestId,
+    });
+    return send(res, 200, response);
   }
 
   if (subpath === '/tens-members' && method === 'GET') {
@@ -464,6 +506,7 @@ async function route(req, res, actor) {
     requireRole(member, ['coordinator', 'nurse', 'doctor']);
     const team = await db.collection('memberships').where('centerId', '==', centerId).get();
     return send(res, 200, { members: team.docs.map((doc) => doc.data()).filter((item) => item.status === 'active' && item.uid && item.roles?.includes('social_worker')).map((item) => ({ uid: item.uid, displayName: item.displayName || 'Trabajo social' })) });
+
   }
 
   if (subpath === '/patients' && method === 'POST') {
@@ -501,6 +544,7 @@ async function route(req, res, actor) {
     try { await batch.commit(); } catch (error) { await photoFile.delete({ ignoreNotFound: true }).catch(() => undefined); throw error; }
     const patient = { id, ...snap.data(), photoStoragePath, updatedAt };
     return send(res, 201, { patient: (await withPatientPhotoUrls([hasAnyRole(member, PRIMARY_CLINICAL_ROLES) ? patient : workflow.intakePatient(patient)]))[0] });
+
   }
 
   const patientMatch = subpath.match(/^\/patients\/([^/]+)$/);
@@ -560,6 +604,7 @@ async function route(req, res, actor) {
       saved = { id, ...previous, ...update };
     });
     return send(res, 200, { patient: canValidate ? saved : member.roles.includes('tens') ? workflow.intakePatient(saved) : workflow.minimalPatient(saved, member.roles.includes('social_worker')) });
+
   }
 
   if (subpath === '/episodes' && method === 'POST') {
@@ -587,10 +632,19 @@ async function route(req, res, actor) {
     const [patient, episode] = await Promise.all([db.doc(`centers/${centerId}/patients/${patientId}`).get(), db.doc(`centers/${centerId}/episodes/${episodeId}`).get()]);
     if (!patient.exists || !episode.exists || episode.data().patientId !== patientId) throw Object.assign(new Error('Paciente o episodio no válido.'), { status: 400 });
     if (member.roles.includes('tens') && !hasAnyRole(member, PRIMARY_CLINICAL_ROLES) && patient.data().intakeAssignedToUid !== actor.uid) throw Object.assign(new Error('El preingreso no está asignado a tu cuenta.'), { status: 403 });
+    const linkedEncounterId = cleanText(req.body?.linkedEncounterId, 60);
+    let linkedEncounter;
+    if (linkedEncounterId) {
+      requireRole(member, ['nurse']);
+      const linked = await db.doc(`centers/${centerId}/encounters/${linkedEncounterId}`).get();
+      linkedEncounter = linked.data();
+      workflow.assertVisitLink(linkedEncounter, patientId, episodeId);
+    }
     const ref = db.collection(`centers/${centerId}/encounters`).doc(); const now = new Date().toISOString();
-    const encounter = { id: ref.id, centerId, patientId, episodeId, careType: ['nursing', 'medical', 'joint'].includes(req.body?.careType) ? req.body.careType : 'joint', encounterDate: cleanText(req.body?.encounterDate, 30) || now, status: 'in_progress', wound: emptyWound(), wifi: emptyWifi(), nursing: emptyNursing(), medical: emptyMedical(), photos: [], version: 1, createdAt: now, updatedAt: now };
+    const encounter = { id: ref.id, centerId, patientId, episodeId, visitId: linkedEncounter ? linkedEncounter.visitId || linkedEncounterId : ref.id, episodeLocation: episode.data().location, episodeSide: episode.data().side, careType: ['nursing', 'medical', 'joint'].includes(req.body?.careType) ? req.body.careType : 'joint', encounterDate: linkedEncounter ? linkedEncounter.encounterDate : cleanText(req.body?.encounterDate, 30) || now, status: 'in_progress', wound: emptyWound(), wifi: emptyWifi(), nursing: emptyNursing(), medical: emptyMedical(), photos: [], version: 1, createdAt: now, updatedAt: now };
     encounter.nursingNarrative = nursingNarrative(encounter); encounter.medicalNarrative = medicalNarrative(encounter);
     const batch = db.batch(); batch.create(ref, encounter); auditIn(batch, centerId, actor, 'encounter.created', 'encounter', ref.id); await batch.commit(); return send(res, 201, { encounter: hasAnyRole(member, PRIMARY_CLINICAL_ROLES) ? encounter : workflow.photoOnlyEncounter(encounter) });
+
   }
 
   const encounterMatch = subpath.match(/^\/encounters\/([^/]+)$/);
@@ -602,6 +656,10 @@ async function route(req, res, actor) {
       workflow.assertMutable(previous);
       if (Number(req.body?.version) !== previous.version) throw Object.assign(new Error('Otro profesional actualizó esta atención. Recarga antes de guardar.'), { status: 409 });
       const update = { updatedAt: new Date().toISOString(), version: previous.version + 1 };
+      if (!previous.episodeLocation || !previous.episodeSide) {
+        const episodeSnapshot = await transaction.get(db.doc(`centers/${centerId}/episodes/${previous.episodeId}`));
+        if (episodeSnapshot.exists) { update.episodeLocation = episodeSnapshot.data().location; update.episodeSide = episodeSnapshot.data().side; }
+      }
       if (req.body?.wound) { requireRole(member, ['doctor', 'nurse']); update.wound = sanitizeWound(req.body.wound, actor, previous.wound); }
       if (req.body?.wifi) { requireRole(member, ['doctor']); update.wifi = sanitizeWifi(req.body.wifi, actor, previous.wifi); }
       if (req.body?.nursing) { requireRole(member, ['nurse']); update.nursing = sanitizeNursing(req.body.nursing, actor, previous.nursing); }
@@ -634,6 +692,7 @@ async function route(req, res, actor) {
     if (!snap.exists) throw Object.assign(new Error('Atención no encontrada.'), { status: 404 });
     const tensOnly = member.roles.includes('tens') && !hasAnyRole(member, PRIMARY_CLINICAL_ROLES);
     if (tensOnly && (await db.doc(`centers/${centerId}/patients/${snap.data().patientId}`).get()).data()?.intakeAssignedToUid !== actor.uid) throw Object.assign(new Error('El preingreso no está asignado a tu cuenta.'), { status: 403 });
+
     workflow.assertMutable(snap.data());
     if (!['pre', 'post'].includes(req.body?.kind) || req.body?.orientationConfirmed !== true) throw Object.assign(new Error('Confirma el momento y la orientación de la fotografía.'), { status: 400 });
     const episode = await db.doc(`centers/${centerId}/episodes/${snap.data().episodeId}`).get();
@@ -648,6 +707,7 @@ async function route(req, res, actor) {
     try {
       await db.runTransaction(async (transaction) => { const current = await transaction.get(ref); if (!current.exists) throw Object.assign(new Error('Atención no encontrada.'), { status: 404 }); workflow.assertMutable(current.data()); const consent = await transaction.get(episode.ref); if (!consent.data()?.consentForPhotography) throw Object.assign(new Error('Consentimiento fotográfico no disponible.'), { status: 400 }); if (tensOnly) { const currentPatient = await transaction.get(db.doc(`centers/${centerId}/patients/${current.data().patientId}`)); if (currentPatient.data()?.intakeAssignedToUid !== actor.uid) throw Object.assign(new Error('El preingreso no está asignado a tu cuenta.'), { status: 403 }); } transaction.update(ref, { photos: FieldValue.arrayUnion(photo), updatedAt: new Date().toISOString(), version: FieldValue.increment(1) }); auditIn(transaction, centerId, actor, 'photo.uploaded', 'encounter', id, { kind }); });
     } catch (error) { await photoFile.delete({ ignoreNotFound: true }).catch(() => undefined); throw error; }
+
     const current = await ref.get(); return send(res, 201, { encounter: (await withPhotoUrls([hasAnyRole(member, PRIMARY_CLINICAL_ROLES) ? { id, ...current.data() } : workflow.photoOnlyEncounter({ id, ...current.data() })]))[0] });
   }
 
@@ -666,6 +726,7 @@ async function route(req, res, actor) {
       transaction.update(ref, { photos, version: snap.data().version + 1, updatedAt: new Date().toISOString() });
       auditIn(transaction, centerId, actor, 'photo.reviewed', 'encounter', ref.id);
     });
+
     return send(res, 200, { encounter: (await withPhotoUrls([{ id: ref.id, ...(await ref.get()).data() }]))[0] });
   }
   const narrativeMatch = subpath.match(/^\/encounters\/([^/]+)\/narratives\/(nursing|medical)$/);
@@ -687,6 +748,7 @@ async function route(req, res, actor) {
       transaction.update(ref, { [`narrativeReviews.${section}`]: review });
       auditIn(transaction, centerId, actor, 'narrative.reviewed', 'encounter', ref.id, { section });
     });
+
     return send(res, 200, { review });
   }
   const addendumMatch = subpath.match(/^\/encounters\/([^/]+)\/addenda$/);
@@ -702,6 +764,7 @@ async function route(req, res, actor) {
       transaction.update(ref, { addenda: FieldValue.arrayUnion({ id: crypto.randomUUID(), text, authorUid: actor.uid, authorName: actor.name, createdAt: new Date().toISOString() }), version: snap.data().version + 1 });
       auditIn(transaction, centerId, actor, 'encounter.addendum', 'encounter', ref.id);
     });
+
     return send(res, 200, { encounter: (await withPhotoUrls([{ id: ref.id, ...(await ref.get()).data() }]))[0] });
   }
 
@@ -757,6 +820,7 @@ async function route(req, res, actor) {
       auditIn(transaction, centerId, actor, 'task.created', 'task', ref.id, { recipientRole, priority: task.priority });
     });
     return send(res, 201, { task: compact(task) });
+
   }
 
   const taskMatch = subpath.match(/^\/tasks\/([^/]+)$/);
@@ -800,6 +864,7 @@ async function route(req, res, actor) {
       saved = { id, ...task, ...update };
     });
     return send(res, 200, { task: hasAnyRole(member, PRIMARY_CLINICAL_ROLES) || member.roles.includes(saved.recipientRole) ? saved : workflow.operationalTask(saved) });
+
   }
 
   const whatsappMatch = subpath.match(/^\/tasks\/([^/]+)\/whatsapp$/);

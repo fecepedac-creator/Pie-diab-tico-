@@ -1,5 +1,7 @@
 # Pie Diabético — ruta de publicación restringida
 
+> **Actualización del 27/09/2026:** la integración funcional local pasó validación, emuladores y compilación canary. La inspección remota descubrió que `simulador-clinico` contiene `AVATARES` y `Sesiones_Alumnos`, colecciones ajenas a esta aplicación; Auth no tiene proveedor habilitado y Storage carece de bucket. El destino previsto debe revisarse antes de publicar reglas o datos. La secuencia y tabla históricas siguientes no acreditan un GO.
+
 > **Decisión vigente (26/09/2026): `simulador-clinico` está en Blaze.** La consola mostró «Plan de facturación: Blaze» para ese proyecto, con cuenta «Pago de Firebase» en CLP. Hay dos presupuestos de alerta mensuales iguales de CLP 25 (50 %, 90 % y 100 %), sin límite de gasto; el usuario decidió mantener ese monto por ahora. Blaze habilita la preparación del entorno, pero **no publica código ni autoriza pacientes reales**. La decisión anterior de mantener Spark queda superada.
 
 ## Objetivo vigente
