@@ -2,6 +2,10 @@
 
 Actualizado: 26 de septiembre de 2026. Fuente de verdad para esta versión candidata local; los documentos de go-live fechados el 13 de septiembre son evidencia histórica y no acreditan el estado actual de producción.
 
+## Objetivo vigente — publicación restringida del 26/09/2026
+
+El usuario definió «completamente desplegada» como aplicación publicada con acceso restringido para validación. El destino es `simulador-clinico`, con casos exclusivamente sintéticos y sin modificar el dominio principal. El [plan y protocolo vigente](PLAN_PUBLICACION_RESTRINGIDA_2026-09-26.md) distingue candidata local, publicación para validar, despliegue restringido completo y piloto con pacientes reales. La revisión jurídica/de privacidad puede permanecer abierta sólo para los estados sin pacientes reales. El canary todavía **no está publicado**: la comprobación actual de Functions requiere Blaze y `/api/health` devuelve 404. Los cambios sin confirmar de `main` aún no se integran en el commit candidato.
+
 ## Asignación social desde la interfaz — 26/09/2026
 
 - La interfaz del hilo `codex/r1-social-assignment-ui` (`765ecb6`) se integró como `23e4e24`; el soporte mínimo del servidor y las pruebas quedaron en `be5a6de`, siempre en la rama aislada de coordinación. Coordinación, enfermería y medicina pueden listar integrantes sociales activos de su centro, crear/asignar gestiones y consultar su estado; sólo la persona asignada puede abrir el caso y aceptar, responder o cerrar. La proyección operativa entrega `version` sin exponer texto clínico a coordinación.
