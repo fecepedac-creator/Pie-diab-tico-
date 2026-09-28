@@ -4,7 +4,7 @@
 
 La información que sólo el usuario o la institución pueden aportar se recogerá por rondas con el [cuestionario de cierre](PREGUNTAS_CIERRE_AUDITORIA_ADMIN_R0_2026-09-27.md); las verificaciones técnicas quedan a cargo del equipo ejecutor.
 
-**Corte posterior:** la ronda del usuario está cerrada. [A1 inventarió vías y brechas](A1_INVENTARIO_PRIVILEGIOS_R0.md) y [R1 preparó el expediente para revisión](R1_EXPEDIENTE_DECISIONES_R0.md). Son entregables de preparación; A2/A3, R2/R3, T6 y la validación clínica/móvil siguen abiertos. La auditoría administrativa integral aún no está acreditada.
+**Corte posterior:** la ronda del usuario está cerrada. [A1 inventarió vías y brechas](A1_INVENTARIO_PRIVILEGIOS_R0.md) y [R1 preparó el expediente para revisión](R1_EXPEDIENTE_DECISIONES_R0.md). El [primer P0 de A2](A2_ACCESO_MIEMBROS_P0.md) quedó implementado localmente para invitaciones, bajas/reactivaciones y perfiles; no está publicado en el canary. A2 integral/A3, R2/R3, T6 y la validación clínica/móvil siguen abiertos. La auditoría administrativa integral aún no está acreditada.
 
 ## Mejoras priorizadas tras A1
 
