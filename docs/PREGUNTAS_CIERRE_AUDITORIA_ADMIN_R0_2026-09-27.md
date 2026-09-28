@@ -13,7 +13,7 @@ Este cuestionario acompaña el [plan de cierre](PLAN_CIERRE_AUDITORIA_ADMIN_R0_2
 **Alcance clínico del piloto, propuesta del 27/09:** desde el inicio se usarían atención y fotografías, derivaciones y comité clínico durante los tres meses propuestos; su habilitación con pacientes reales sigue condicionada a autorización y validación institucional.
 **Pausa del piloto, propuesta del 27/09:** ante un problema grave, el coordinador médico o Dirección Médica podrían pausar el uso de inmediato y avisar al otro. La institución debe ratificar esta facultad, los criterios de pausa y el canal de aviso antes de comenzar.
 **Cambios habituales de acceso, preferencia del 27/09:** las altas, bajas y cambios de permisos se harían mediante la administración de Pie Diabético; el acceso directo al sistema de cuentas/datos se reservaría para emergencias documentadas. TI/seguridad debe ratificar el procedimiento y comprobar que la interfaz cubre los cambios necesarios.
-**Autorización de accesos, propuesta del 27/09:** el coordinador médico del piloto autorizaría personalmente el alta de nuevos profesionales y los cambios de función/rol. La institución debe aceptar esta facultad y establecer cómo se deja constancia antes de aplicarla.
+**Gestión local de accesos, decisión operativa del 27/09:** el médico del policlínico tendrá funciones de administrador y de atención clínica. Como administrador decidirá localmente el alta de profesionales y los cambios de función/rol, sin solicitar aprobación institucional para cada cambio. Queda por definir cómo se documenta cada operación. Esta decisión sobre cambios cotidianos no sustituye la autorización institucional inicial del piloto ni las revisiones R0 pendientes.
 
 Tus respuestas permiten preparar decisiones y pruebas; **no equivalen a las seis aprobaciones institucionales** del [acta R0](closure-alcance-release1.md). Si una respuesta corresponde a otra autoridad, basta con indicar quién debe decidir.
 
@@ -41,7 +41,7 @@ Sirve para decidir qué cambios con privilegios se permiten y cómo se demuestra
 
 9. **Responsables de cambios.** ¿Qué cargo puede crear o desactivar cuentas, cambiar roles, modificar centros y operar Firebase/Google Cloud? No compartas usuarios ni credenciales; basta con cargos o equipos.
 10. **Cambios directos.** Durante el piloto, ¿la institución permitiría editar Auth, Firestore o Storage directamente desde consola/CLI, o sólo mediante procedimientos controlados? Una opción es reservar el acceso directo para emergencias documentadas. TI debe ratificarla.
-11. **Autorización previa.** ¿Usan tickets, actas u otro registro para solicitar y aprobar cambios administrativos? ¿Quién los aprueba y qué se hace ante una urgencia fuera de horario?
+11. **Constancia de cambios.** Dado que el administrador local decide altas y roles sin aprobación institucional por cada operación, ¿qué registro mostrará quién hizo el cambio, cuándo, por qué y cuál fue el resultado? ¿Qué se hace ante una urgencia fuera de horario?
 12. **Revisión de registros.** ¿Quién puede consultar los registros de auditoría y quién investiga un acceso o cambio sospechoso? ¿Debe recibir avisos automáticos alguien más?
 
 ## Ronda 4 — conservación, seguridad y recuperación
