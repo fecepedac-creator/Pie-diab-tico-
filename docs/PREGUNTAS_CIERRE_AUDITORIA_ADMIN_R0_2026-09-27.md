@@ -8,6 +8,7 @@ Este cuestionario acompaña el [plan de cierre](PLAN_CIERRE_AUDITORIA_ADMIN_R0_2
 
 **Consentimiento, decisión de alcance del 27/09:** el borrador que se presentará a revisión mantendrá la opción separada de usar datos sin identificadores para posibles publicaciones. Esa elección no incluye publicar imágenes y todavía requiere revisión y aprobación institucional.
 **Fotografía de identificación, decisión de alcance del 27/09:** se propone incluirla en el primer piloto, condicionada a una autorización independiente de la fotografía de pies/heridas y a la aprobación institucional.
+**Firma del consentimiento, propuesta del 27/09:** durante el piloto se recogería en papel y se conservaría en la ficha clínica oficial; la institución debe aprobar el texto, la custodia y cómo se reflejan las decisiones separadas en Pie Diabético.
 
 Tus respuestas permiten preparar decisiones y pruebas; **no equivalen a las seis aprobaciones institucionales** del [acta R0](closure-alcance-release1.md). Si una respuesta corresponde a otra autoridad, basta con indicar quién debe decidir.
 
