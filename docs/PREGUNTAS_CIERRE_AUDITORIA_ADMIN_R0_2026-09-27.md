@@ -4,6 +4,8 @@ Este cuestionario acompaña el [plan de cierre](PLAN_CIERRE_AUDITORIA_ADMIN_R0_2
 
 **Ya definido:** el canary `pie-diabetico-canary-2026` usa datos ficticios; no hay autorización para pacientes reales ni producción. Para el piloto se propuso que enfermería y medicina vean todos los pacientes **de su propio centro**, sin acceso entre centros. Esa preferencia necesita aprobación clínica y de TI, pero no volveremos a preguntarte qué prefieres.
 
+**Respuestas recibidas hasta ahora, sin identificar al centro:** se propone un piloto inicial de tres meses con dos TENS, tres enfermeras de diabetes, un médico internista y un fisiatra; cirugía general y vascular quedan como posible ampliación posterior. El médico internista también administraría la plataforma. La atención ocurriría en una institución donde trabaja, pero todavía debe solicitar autorización institucional a Dirección Médica, que aún no conoce el proyecto. La ficha electrónica institucional seguirá siendo el registro oficial: cada profesional copiará allí el texto final de su atención; el coordinador médico supervisará el uso de Pie Diabético. No se requiere marcador de «copiado» dentro de esta aplicación. El usuario informa que existe un consentimiento fotográfico preparado dentro de la plataforma, sin aprobación institucional; queda por verificar el texto y mecanismo exactos. Ninguna de estas respuestas constituye aprobación R0.
+
 Tus respuestas permiten preparar decisiones y pruebas; **no equivalen a las seis aprobaciones institucionales** del [acta R0](closure-alcance-release1.md). Si una respuesta corresponde a otra autoridad, basta con indicar quién debe decidir.
 
 ## Ronda 1 — centro, alcance y responsables
@@ -19,7 +21,7 @@ Estas respuestas fijan quién tomará las decisiones y para qué piloto. Son las
 
 Sirve para cerrar el alcance y los casos en que la plataforma debe detenerse.
 
-5. **Ficha oficial.** La propuesta dice que la ficha clínica institucional seguirá siendo el registro formal. ¿Es correcto? ¿Qué cargo copiará o verificará lo registrado en Pie Diabético y cómo dejará constancia de que llegó a la ficha oficial?
+5. **Ficha oficial.** Respondida: seguirá siendo el registro formal. Cada profesional copiará el texto final de su atención. No se añadirá una constancia dentro de Pie Diabético; falta aprobación del procedimiento por la institución.
 6. **Fotografías.** ¿Existe un texto de consentimiento aprobado para fotos de pies? ¿Y uno distinto para la foto de identificación? Si alguien retira el permiso, ¿quién debe decidir qué pasa con las fotos ya guardadas?
 7. **Funciones del primer piloto.** ¿Hay alguna función incluida en el [alcance propuesto](closure-alcance-release1.md) que prefieras dejar para una etapa posterior? Si no estás seguro, podemos revisar el listado juntos.
 8. **Cuándo detener el piloto.** ¿Qué situaciones deberían obligar a pausarlo? Por ejemplo: acceso indebido, pérdida de información o error clínico grave. ¿Quién toma esa decisión y a quién se avisa?
