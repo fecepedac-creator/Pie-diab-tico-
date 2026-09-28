@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { onAuthStateChanged, signOut, type Unsubscribe } from 'firebase/auth';
 import { auth, authPersistenceReady, localReviewAuthEnabled } from './firebase';
 import { api, ApiError } from './services/api';
@@ -7,8 +7,18 @@ import LoginView from './components/LoginView';
 import PlatformAdminDashboard from './components/PlatformAdminDashboard';
 import CenterAdminDashboard from './components/CenterAdminDashboard';
 import ClinicalDashboard from './components/ClinicalDashboard';
+import { isApprovedT6CanaryOrigin } from './diagnostics/securityEventGate';
 
 type View = 'clinical' | 'center' | 'platform';
+
+// Vite removes this import and its chunk from every ordinary build.
+const t6DiagnosticRequested = import.meta.env.MODE === 'canary'
+  && import.meta.env.VITE_T6_SECURITY_EVENT_DIAGNOSTIC === 'enabled'
+  && isApprovedT6CanaryOrigin(window.location.origin)
+  && new URLSearchParams(window.location.search).get('t6_security_event') === '1';
+const T6SecurityEventDiagnostic = t6DiagnosticRequested
+  ? lazy(() => import('./diagnostics/T6SecurityEventDiagnostic'))
+  : null;
 
 export default function App() {
   const [session, setSession] = useState<SessionInfo | null>(null);
@@ -105,13 +115,17 @@ export default function App() {
     setState(await api.getState(centerId));
   };
 
-  useEffect(() => { if (centerId && session) void refreshState().catch((cause) => setError(cause instanceof Error ? cause.message : 'No fue posible cargar el centro.')); }, [centerId, session]);
+  useEffect(() => { if (!t6DiagnosticRequested && centerId && session) void refreshState().catch((cause) => setError(cause instanceof Error ? cause.message : 'No fue posible cargar el centro.')); }, [centerId, session]);
 
   const chooseCenter = (id: string) => { setCenterId(id); localStorage.setItem('pd_center', id); setView('clinical'); };
   const replaceEncounter = (encounter: Encounter) => setState((current) => current ? ({ ...current, encounters: current.encounters.map((item) => item.id === encounter.id ? encounter : item) }) : current);
 
   if (loading) return <main className="centered"><div className="spinner" /><p>Cargando acceso seguro…</p></main>;
   if (!auth.currentUser || !session) return <LoginView error={error} />;
+
+  if (T6SecurityEventDiagnostic) return <Suspense fallback={<main className="centered"><p>Cargando diagnóstico…</p></main>}>
+    <T6SecurityEventDiagnostic session={session} />
+  </Suspense>;
 
   return <div className="app-shell">
     <header className="topbar">
