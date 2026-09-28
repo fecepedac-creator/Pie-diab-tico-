@@ -1,0 +1,6 @@
+{
+  "projects": {
+    "prod": "policlinico-de-pie-diabetico",
+    "canary": "pie-diabetico-canary-2026"
+  }
+}

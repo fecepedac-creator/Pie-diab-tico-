@@ -1,4 +1,4 @@
-import { ChangeEvent, FormEvent, useState } from 'react';
+import { ChangeEvent, FormEvent, ReactNode, useState } from 'react';
 import { api } from '../services/api';
 import type { Membership, Patient } from '../types';
 import { formatRut, toggleValue } from '../utils';
@@ -7,8 +7,9 @@ import './pre-admission.css';
 const MEDICAL_OPTIONS = ['HTA', 'DM-1', 'DM-2', 'Dislipidemia', 'Obesidad', 'Cardiopatía coronaria', 'Insuficiencia cardíaca', 'ACV', 'ERC'];
 const SURGICAL_OPTIONS = ['Angioplastia EEII', 'Bypass vascular', 'Desbridamiento quirúrgico', 'Amputación menor', 'Amputación mayor'];
 const MEDICATION_OPTIONS = ['Metformina', 'Insulina', 'AAS', 'Clopidogrel', 'Estatina', 'Anticoagulante'];
-const DIABETES_OPTIONS = ['Sólo dieta', 'Antidiabéticos orales', 'Insulina', 'Tratamiento mixto'];
 const SMOKING_OPTIONS = ['Nunca', 'Exfumador/a', 'Fumador/a activo/a'];
+const ALCOHOL_OPTIONS = ['Nunca', 'Ocasional', 'Frecuente', 'Exconsumo', 'No evaluado'];
+const SUBSTANCE_OPTIONS = ['Nunca', 'Ocasional', 'Frecuente', 'Exconsumo', 'No evaluado'];
 const RENAL_OPTIONS = ['Sin ERC conocida', 'ERC sin diálisis', 'Hemodiálisis', 'Diálisis peritoneal'];
 const NEUROPATHY_OPTIONS = ['No conocida', 'Presente', 'Ausente', 'No evaluada'];
 const AMPUTATION_OPTIONS = ['Sin amputaciones', 'Amputación menor', 'Amputación mayor'];
@@ -20,6 +21,7 @@ const HOUSING_OPTIONS = ['Sin barreras', 'Escaleras', 'Baño no adaptado', 'Haci
 
 const split = (value?: string) => String(value || '').split(',').map((item) => item.trim()).filter(Boolean);
 const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
+type DetailMap = Record<string, string[]>;
 
 function SingleChoice({ options, value, onChange }: { options: string[]; value: string; onChange: (value: string) => void }) {
   return <div className="choice-grid">{options.map((option) => <button type="button" className={`clinical-chip ${value === option ? 'selected' : ''}`} aria-pressed={value === option} key={option} onClick={() => onChange(value === option ? '' : option)}>{option}</button>)}</div>;
@@ -36,7 +38,7 @@ function MultiChoice({ options, values, onChange, exclusiveOption, exclusiveGrou
   return <div className="choice-grid">{options.map((option) => <button type="button" className={`clinical-chip ${values.includes(option) ? 'selected' : ''}`} aria-pressed={values.includes(option)} key={option} onClick={() => toggle(option)}>{option}</button>)}</div>;
 }
 
-function AddableChoice({ title, hint, icon, tone, options, values, onChange, placeholder, exclusiveGroups }: { title: string; hint?: string; icon: string; tone: string; options: string[]; values: string[]; onChange: (values: string[]) => void; placeholder: string; exclusiveGroups?: string[][] }) {
+function AddableChoice({ title, hint, icon, tone, options, values, onChange, placeholder, exclusiveGroups, detailContent }: { title: string; hint?: string; icon: string; tone: string; options: string[]; values: string[]; onChange: (values: string[]) => void; placeholder: string; exclusiveGroups?: string[][]; detailContent?: ReactNode }) {
   const [draft, setDraft] = useState('');
   const custom = values.filter((value) => !options.includes(value));
   const add = () => {
@@ -47,26 +49,70 @@ function AddableChoice({ title, hint, icon, tone, options, values, onChange, pla
   return <section className="pre-section" data-tone={tone}>
     <header><span className="section-icon" aria-hidden="true">{icon}</span><div><h3>{title}</h3>{hint && <p>{hint}</p>}</div></header>
     <MultiChoice options={options} values={values} onChange={onChange} exclusiveGroups={exclusiveGroups} />
+    {detailContent}
     {custom.length > 0 && <div className="custom-chips">{custom.map((value) => <button type="button" key={value} onClick={() => onChange(values.filter((item) => item !== value))}>{value}<span aria-hidden="true">×</span></button>)}</div>}
     <div className="exception-entry"><input value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); add(); } }} placeholder={placeholder} /><button type="button" onClick={add}>Agregar</button></div>
   </section>;
 }
 
-export default function PreAdmissionCard({ centerId, membership, patient, onSaved }: { centerId: string; membership: Membership; patient: Patient; onSaved: () => Promise<void> }) {
-  const canEdit = membership.roles.some((role) => ['nurse', 'doctor', 'social_worker', 'physiatrist', 'coordinator'].includes(role));
-  const canUploadPhoto = membership.roles.some((role) => ['nurse', 'doctor', 'coordinator'].includes(role));
+function detailPlaceholder(option: string, kind: 'medical' | 'surgical') {
+  if (option.startsWith('DM-')) return 'Ej.: diagnóstico hace aproximadamente 10 años';
+  if (option === 'Angioplastia EEII') return 'Ej.: extremidad inferior derecha, 2020';
+  if (option === 'Bypass vascular') return 'Ej.: extremidad inferior izquierda, 2019';
+  if (option.includes('Amputación')) return 'Ej.: 1.er ortejo derecho, 2001';
+  return kind === 'medical' ? 'Ej.: año aproximado, control actual u otro dato relevante' : 'Ej.: procedimiento, lateralidad y año aproximado';
+}
+
+function SelectionDetails({ selected, details, onChange, kind }: { selected: string[]; details: DetailMap; onChange: (details: DetailMap) => void; kind: 'medical' | 'surgical' }) {
+  if (!selected.length) return null;
+  const setEntry = (option: string, index: number, value: string) => {
+    const entries = details[option]?.length ? [...details[option]] : [''];
+    entries[index] = value;
+    onChange({ ...details, [option]: entries });
+  };
+  const addEntry = (option: string) => onChange({ ...details, [option]: [...(details[option]?.length ? details[option] : ['']), ''] });
+  const removeEntry = (option: string, index: number) => {
+    const entries = (details[option] || []).filter((_, entryIndex) => entryIndex !== index);
+    onChange({ ...details, [option]: entries.length ? entries : [''] });
+  };
+  return <div className="selection-details">
+    <p className="detail-intro">Detalle opcional de lo seleccionado</p>
+    {selected.map((option) => {
+      const entries = details[option]?.length ? details[option] : [''];
+      return <div className="selection-detail-card" key={option}>
+        <div className="detail-heading"><strong>{option}</strong><span>{kind === 'surgical' ? 'Puedes registrar más de un procedimiento.' : 'Completa sólo si aporta contexto.'}</span></div>
+        {entries.map((entry, index) => <div className="detail-entry" key={`${option}-${index}`}>
+          <input aria-label={`Detalle de ${option}${entries.length > 1 ? ` ${index + 1}` : ''}`} value={entry} onChange={(event) => setEntry(option, index, event.target.value)} placeholder={detailPlaceholder(option, kind)} />
+          {entries.length > 1 && <button type="button" onClick={() => removeEntry(option, index)} aria-label={`Eliminar detalle ${index + 1} de ${option}`}>×</button>}
+        </div>)}
+        {kind === 'surgical' && <button className="add-detail" type="button" onClick={() => addEntry(option)}>+ Agregar otro registro</button>}
+      </div>;
+    })}
+  </div>;
+}
+
+export default function PreAdmissionCard({ centerId, membership, patient, onSaved, demoMode = false }: { centerId: string; membership: Membership; patient: Patient; onSaved: () => Promise<void>; demoMode?: boolean }) {
+  const canValidate = membership.roles.some((role) => ['nurse', 'doctor'].includes(role));
+  const canEdit = canValidate || (membership.roles.includes('tens') && patient.preAdmissionStatus !== 'validated');
+  const canUploadPhoto = membership.roles.some((role) => ['tens', 'nurse', 'doctor'].includes(role));
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
   const [birthDate, setBirthDate] = useState(patient.birthDate || '');
   const [contact, setContact] = useState(patient.contact || '');
   const [comuna, setComuna] = useState(patient.comuna || '');
-  const [diabetesTreatment, setDiabetesTreatment] = useState(patient.anamnesis.diabetesTreatment || '');
+  const [diabetesTreatment] = useState(patient.anamnesis.diabetesTreatment || '');
   const [medicalHistory, setMedicalHistory] = useState(patient.anamnesis.medicalHistory || []);
+  const [medicalHistoryDetails, setMedicalHistoryDetails] = useState<DetailMap>(patient.anamnesis.medicalHistoryDetails || {});
   const [surgicalHistory, setSurgicalHistory] = useState(patient.anamnesis.surgicalHistory || []);
+  const [surgicalHistoryDetails, setSurgicalHistoryDetails] = useState<DetailMap>(patient.anamnesis.surgicalHistoryDetails || {});
   const [allergyStatus, setAllergyStatus] = useState(patient.anamnesis.allergyStatus || (patient.anamnesis.allergies.length ? 'present' : 'unknown'));
   const [allergies, setAllergies] = useState(patient.anamnesis.allergies || []);
   const [medications, setMedications] = useState(patient.anamnesis.medications || []);
   const [smoking, setSmoking] = useState(patient.anamnesis.smoking || '');
+  const [alcoholUse, setAlcoholUse] = useState(patient.anamnesis.alcoholUse || '');
+  const [alcoholDetails, setAlcoholDetails] = useState(patient.anamnesis.alcoholDetails || '');
+  const [substanceUse, setSubstanceUse] = useState(patient.anamnesis.substanceUse || '');
+  const [substanceDetails, setSubstanceDetails] = useState(patient.anamnesis.substanceDetails || '');
   const [renalDisease, setRenalDisease] = useState(patient.anamnesis.renalDisease || '');
   const [vascularHistory, setVascularHistory] = useState(split(patient.anamnesis.vascularHistory));
   const [neuropathy, setNeuropathy] = useState(patient.anamnesis.neuropathy || '');
@@ -79,30 +125,34 @@ export default function PreAdmissionCard({ centerId, membership, patient, onSave
   const [confirmed, setConfirmed] = useState(patient.preAdmissionStatus === 'validated');
 
   const save = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault(); setSaving(true); setMessage('');
+    event.preventDefault(); if (demoMode) return; setSaving(true); setMessage('');
     try {
+      const intent = ((event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null)?.value;
+      const nextStatus = canValidate && confirmed ? 'validated' : intent === 'review' ? 'pending_validation' : 'in_progress';
       await api.updatePatient(centerId, patient.id, {
+        version: patient.version || 1,
         birthDate, contact, comuna,
-        preAdmissionStatus: confirmed ? 'validated' : 'in_progress',
+        preAdmissionStatus: nextStatus,
         anamnesis: {
-          diabetesTreatment, medicalHistory, surgicalHistory, allergyStatus,
+          diabetesTreatment, medicalHistory, medicalHistoryDetails, surgicalHistory, surgicalHistoryDetails, allergyStatus,
           allergies: allergyStatus === 'none' ? [] : allergies,
-          medications, smoking, renalDisease, vascularHistory: vascularHistory.join(', '),
+          medications, smoking, alcoholUse, alcoholDetails, substanceUse, substanceDetails, renalDisease, vascularHistory: vascularHistory.join(', '),
           neuropathy, previousAmputations,
         },
         social: {
           supportNetwork: supportNetwork.join(', '), mobility,
           transportBarriers: transportBarriers.join(', '), housingBarriers: housingBarriers.join(', '), notes: socialNotes,
         },
-        verification: { status: confirmed ? 'confirmed' : 'draft' },
+        socialVerification: { status: canValidate && confirmed ? 'confirmed' : 'draft' },
+        verification: { status: canValidate && confirmed ? 'confirmed' : 'draft' },
       });
-      await onSaved(); setMessage(confirmed ? 'Preingreso validado y compartido con el equipo.' : 'Borrador de preingreso guardado.');
+      await onSaved(); setMessage(nextStatus === 'validated' ? 'Preingreso validado y compartido con el equipo.' : nextStatus === 'pending_validation' ? 'Preingreso enviado a la bandeja de validación profesional.' : 'Borrador de preingreso guardado.');
     } catch (cause) { setMessage(cause instanceof Error ? cause.message : 'No fue posible guardar.'); }
     finally { setSaving(false); }
   };
 
   const uploadPhoto = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]; if (!file) return;
+    if (demoMode) return; const file = event.target.files?.[0]; if (!file) return;
     if (file.size > 5 * 1024 * 1024) { setMessage('La fotografía supera el máximo de 5 MB.'); return; }
     const reader = new FileReader(); setSaving(true); setMessage('');
     reader.onload = async () => {
@@ -117,7 +167,7 @@ export default function PreAdmissionCard({ centerId, membership, patient, onSave
   return <article className="pre-admission-card">
     <aside className="patient-identity">
       <div className="patient-photo">{patient.photoUrl ? <img src={patient.photoUrl} alt={`Fotografía de ${patient.name}`} /> : <span>{initials(patient.name)}</span>}</div>
-      {canUploadPhoto && <label className="photo-upload">{patient.photoUrl ? 'Cambiar fotografía' : 'Agregar fotografía'}<input hidden type="file" accept="image/jpeg,image/png,image/webp" capture="user" onChange={uploadPhoto} disabled={saving} /></label>}
+      {canUploadPhoto && <label className="photo-upload">{patient.photoUrl ? 'Cambiar fotografía' : 'Agregar fotografía'}<input hidden type="file" accept="image/jpeg,image/png,image/webp" capture="user" onChange={uploadPhoto} disabled={saving || demoMode} /></label>}
       <small>Imagen privada para identificación dentro del equipo.</small>
       <div className="patient-name"><p>Paciente</p><h2>{patient.name}</h2><strong>{formatRut(patient.rut)}</strong></div>
       <dl>
@@ -125,21 +175,21 @@ export default function PreAdmissionCard({ centerId, membership, patient, onSave
         <div><dt>Contacto</dt><dd>{contact || 'Pendiente'}</dd></div>
         <div><dt>Comuna</dt><dd>{comuna || 'Pendiente'}</dd></div>
       </dl>
-      <span className={`pre-status ${confirmed ? 'validated' : ''}`}>{confirmed ? '✓ Preingreso validado' : '○ Preingreso en preparación'}</span>
+      <span className={`pre-status ${patient.preAdmissionStatus === 'validated' ? 'validated' : ''}`}>{patient.preAdmissionStatus === 'validated' ? '✓ Preingreso validado' : patient.preAdmissionStatus === 'pending_validation' ? '◷ Pendiente de validación profesional' : '○ Preingreso en preparación'}</span>
     </aside>
 
     <form className="pre-admission-form" onSubmit={save}>
       <header className="pre-title"><div><p className="eyebrow">Ficha compartida</p><h2>Preingreso clínico y social</h2><p>Selecciona opciones rápidas. Escribe sólo cuando necesites agregar un detalle particular.</p></div></header>
-      <fieldset disabled={!canEdit || saving}>
+      <fieldset disabled={!canEdit || saving || demoMode}>
         <section className="pre-section identity-fields" data-tone="teal">
           <header><span className="section-icon" aria-hidden="true">●</span><div><h3>Datos de contacto</h3><p>Información básica para coordinación del equipo.</p></div></header>
           <div className="compact-fields"><label>Fecha de nacimiento<input type="date" value={birthDate} onChange={(event) => setBirthDate(event.target.value)} /></label><label>Teléfono<input inputMode="tel" value={contact} onChange={(event) => setContact(event.target.value)} /></label><label>Comuna<input value={comuna} onChange={(event) => setComuna(event.target.value)} /></label></div>
         </section>
 
-        <AddableChoice title="Antecedentes mórbidos" hint="Presiona para activar o desactivar." icon="♥" tone="red" options={MEDICAL_OPTIONS} values={medicalHistory} onChange={setMedicalHistory} placeholder="Otra patología relevante…" exclusiveGroups={[["DM-1", "DM-2"]]} />
-        <AddableChoice title="Antecedentes quirúrgicos" hint="Procedimientos relacionados y cirugías previas." icon="✦" tone="indigo" options={SURGICAL_OPTIONS} values={surgicalHistory} onChange={setSurgicalHistory} placeholder="Otra cirugía…" />
+        <AddableChoice title="Antecedentes mórbidos" hint="Presiona para activar o desactivar. Cada selección permite un detalle opcional." icon="♥" tone="red" options={MEDICAL_OPTIONS} values={medicalHistory} onChange={setMedicalHistory} placeholder="Otra patología relevante…" exclusiveGroups={[["DM-1", "DM-2"]]} detailContent={<SelectionDetails selected={medicalHistory} details={medicalHistoryDetails} onChange={setMedicalHistoryDetails} kind="medical" />} />
+        <AddableChoice title="Antecedentes quirúrgicos" hint="Selecciona y precisa lateralidad, procedimiento y año cuando corresponda." icon="✦" tone="indigo" options={SURGICAL_OPTIONS} values={surgicalHistory} onChange={setSurgicalHistory} placeholder="Otra cirugía…" detailContent={<SelectionDetails selected={surgicalHistory} details={surgicalHistoryDetails} onChange={setSurgicalHistoryDetails} kind="surgical" />} />
 
-        <section className="pre-section" data-tone="blue"><header><span className="section-icon" aria-hidden="true">◆</span><div><h3>Diabetes y hábitos</h3><p>Una selección por cada grupo.</p></div></header><label className="choice-label">Tratamiento de diabetes</label><SingleChoice options={DIABETES_OPTIONS} value={diabetesTreatment} onChange={setDiabetesTreatment} /><label className="choice-label">Tabaquismo</label><SingleChoice options={SMOKING_OPTIONS} value={smoking} onChange={setSmoking} /><label className="choice-label">Función renal</label><SingleChoice options={RENAL_OPTIONS} value={renalDisease} onChange={setRenalDisease} /></section>
+        <section className="pre-section habits-section" data-tone="blue"><header><span className="section-icon" aria-hidden="true">◆</span><div><h3>Hábitos y función renal</h3><p>Selecciona una opción por grupo. Los medicamentos habituales se registran en su sección propia.</p></div></header><label className="choice-label">Tabaquismo</label><SingleChoice options={SMOKING_OPTIONS} value={smoking} onChange={setSmoking} /><label className="choice-label">Consumo de alcohol</label><SingleChoice options={ALCOHOL_OPTIONS} value={alcoholUse} onChange={setAlcoholUse} />{['Ocasional', 'Frecuente', 'Exconsumo'].includes(alcoholUse) && <label className="habit-detail">Detalle opcional<input value={alcoholDetails} onChange={(event) => setAlcoholDetails(event.target.value)} placeholder="Ej.: tipo, frecuencia o cantidad aproximada" /></label>}<label className="choice-label">Consumo de otras sustancias</label><SingleChoice options={SUBSTANCE_OPTIONS} value={substanceUse} onChange={setSubstanceUse} />{['Ocasional', 'Frecuente', 'Exconsumo'].includes(substanceUse) && <label className="habit-detail">Detalle opcional<input value={substanceDetails} onChange={(event) => setSubstanceDetails(event.target.value)} placeholder="Ej.: sustancia, frecuencia y último consumo" /></label>}<label className="choice-label">Función renal</label><SingleChoice options={RENAL_OPTIONS} value={renalDisease} onChange={setRenalDisease} /></section>
 
         <section className="pre-section" data-tone="purple"><header><span className="section-icon" aria-hidden="true">◇</span><div><h3>Riesgo de pie diabético</h3><p>Antecedentes que modifican la planificación.</p></div></header><label className="choice-label">Neuropatía</label><SingleChoice options={NEUROPATHY_OPTIONS} value={neuropathy} onChange={setNeuropathy} /><label className="choice-label">Antecedente vascular</label><MultiChoice options={VASCULAR_OPTIONS} values={vascularHistory} onChange={setVascularHistory} exclusiveOption="Sin antecedente vascular" /><label className="choice-label">Amputaciones previas</label><SingleChoice options={AMPUTATION_OPTIONS} value={previousAmputations} onChange={setPreviousAmputations} /></section>
 
@@ -150,7 +200,7 @@ export default function PreAdmissionCard({ centerId, membership, patient, onSave
         <section className="pre-section social-section" data-tone="orange"><header><span className="section-icon" aria-hidden="true">⌂</span><div><h3>Situación social y funcional</h3><p>Información relevante para adherencia, traslado y descarga.</p></div></header><label className="choice-label">Red de apoyo</label><MultiChoice options={SUPPORT_OPTIONS} values={supportNetwork} onChange={setSupportNetwork} /><label className="choice-label">Movilidad</label><SingleChoice options={MOBILITY_OPTIONS} value={mobility} onChange={setMobility} /><label className="choice-label">Barreras de transporte</label><MultiChoice options={TRANSPORT_OPTIONS} values={transportBarriers} onChange={setTransportBarriers} exclusiveOption="Sin barreras" /><label className="choice-label">Barreras de vivienda</label><MultiChoice options={HOUSING_OPTIONS} values={housingBarriers} onChange={setHousingBarriers} exclusiveOption="Sin barreras" /><label className="notes-field">Observación social excepcional<textarea value={socialNotes} onChange={(event) => setSocialNotes(event.target.value)} placeholder="Escribe sólo aquello que no quede representado en las opciones anteriores." /></label></section>
       </fieldset>
 
-      {canEdit ? <footer className="pre-actions"><button type="button" className={`validation-toggle ${confirmed ? 'selected' : ''}`} aria-pressed={confirmed} onClick={() => setConfirmed(!confirmed)}>{confirmed ? '✓ Antecedentes revisados' : 'Marcar como revisado'}</button><button className="primary" disabled={saving}>{saving ? 'Guardando…' : confirmed ? 'Guardar y validar' : 'Guardar borrador'}</button></footer> : <p className="readonly-note">Vista de lectura para tu perfil.</p>}
+      {canEdit ? <footer className="pre-actions">{canValidate ? <><button type="button" disabled={demoMode} className={`validation-toggle ${confirmed ? 'selected' : ''}`} aria-pressed={confirmed} onClick={() => setConfirmed(!confirmed)}>{confirmed ? '✓ Antecedentes revisados' : 'Marcar como revisado'}</button><button className="primary" value="validate" disabled={saving || demoMode}>{saving ? 'Guardando…' : confirmed ? 'Guardar y validar' : 'Guardar borrador'}</button></> : <><button className="ghost" value="draft" disabled={saving || demoMode}>{saving ? 'Guardando…' : 'Guardar borrador'}</button><button className="primary" value="review" disabled={saving || demoMode}>Enviar para validación</button></>}</footer> : <p className="readonly-note">Vista de lectura para tu perfil.</p>}
       {message && <p className="pre-message" role="status">{message}</p>}
     </form>
   </article>;

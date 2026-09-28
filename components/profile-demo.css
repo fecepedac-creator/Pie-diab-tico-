@@ -1,0 +1,52 @@
+.profile-demo-shell { position: fixed; inset: 0; z-index: 80; overflow: hidden; background: #eef5f3; color: #173334; }
+.profile-demo-header { display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; min-height: 112px; padding: 1.25rem 2rem; border-bottom: 1px solid #cadbd7; background: #fff; }
+.profile-demo-header h1 { margin: .35rem 0 .1rem; font-size: 1.7rem; }
+.profile-demo-header p { margin: 0; color: #637777; }
+.demo-badge { display: inline-flex; padding: .38rem .65rem; border-radius: 999px; background: #fff0cf; color: #7d4c00; font-size: .7rem; font-weight: 900; letter-spacing: .07em; }
+.profile-demo-layout { display: grid; grid-template-columns: 280px minmax(0, 1fr); height: calc(100vh - 112px); }
+.profile-demo-roles { overflow-y: auto; padding: 1.2rem; border-right: 1px solid #cadbd7; background: #f8fbfa; }
+.profile-demo-roles h2 { margin: 0 0 .8rem; font-size: .9rem; text-transform: uppercase; letter-spacing: .08em; }
+.profile-demo-roles button { display: block; width: 100%; margin-bottom: .45rem; padding: .78rem; border: 1px solid transparent; border-radius: 13px; background: transparent; color: #173334; text-align: left; }
+.profile-demo-roles button:hover { background: #edf6f3; }
+.profile-demo-roles button.selected { border-color: #9acbc2; background: #dff0ec; box-shadow: 0 4px 14px #1733340c; }
+.profile-demo-roles strong, .profile-demo-roles small { display: block; }
+.profile-demo-roles strong { font-size: .82rem; }
+.profile-demo-roles small { margin-top: .25rem; color: #647977; font-size: .68rem; line-height: 1.35; }
+.profile-demo-content { overflow-y: auto; padding: 1rem 2rem 3rem; }
+.demo-readonly-banner { position: sticky; top: 0; z-index: 15; display: flex; align-items: center; gap: .7rem; margin: 0 0 1rem; padding: .75rem 1rem; border: 1px solid #eccb83; border-radius: 13px; background: #fff8e8f2; color: #744800; box-shadow: 0 5px 18px #5d420d12; backdrop-filter: blur(8px); }
+.demo-readonly-banner span { font-size: .78rem; }
+.profile-demo-content .section-heading { margin-top: .25rem; }
+.profile-demo-content fieldset:disabled, .profile-demo-content button:disabled, .profile-demo-content input:disabled, .profile-demo-content select:disabled, .profile-demo-content textarea:disabled { cursor: not-allowed; }
+.profile-demo-content form,
+.profile-demo-content .photo-upload,
+.profile-demo-content .attachment-actions,
+.profile-demo-content .photo-actions,
+.profile-demo-content .save-row,
+.profile-demo-content .status-actions,
+.profile-demo-content .task-action,
+.profile-demo-content .top-actions .primary { pointer-events: none; }
+.profile-demo-content form button,
+.profile-demo-content .photo-upload,
+.profile-demo-content .attachment-actions label,
+.profile-demo-content .photo-actions label,
+.profile-demo-content .save-row button,
+.profile-demo-content .status-actions select,
+.profile-demo-content .task-action,
+.profile-demo-content .top-actions .primary { opacity: .55; }
+
+.profile-demo-launcher { display: flex; align-items: center; justify-content: space-between; gap: 1.2rem; margin-bottom: 1.25rem; padding: 1.15rem 1.25rem; border: 1px solid #a9d1ca; border-radius: 18px; background: linear-gradient(120deg, #e4f4f0, #f9fcfb); box-shadow: 0 8px 24px #1733340b; }
+.profile-demo-launcher h2 { margin: 0 0 .35rem; }
+.profile-demo-launcher p { margin: 0; color: #5f7472; }
+.profile-demo-launcher .primary { flex: 0 0 auto; }
+
+@media (max-width: 820px) {
+  .profile-demo-header { min-height: 132px; padding: 1rem; }
+  .profile-demo-header p { display: none; }
+  .profile-demo-layout { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); height: calc(100vh - 132px); }
+  .profile-demo-roles { display: flex; gap: .45rem; overflow-x: auto; padding: .7rem; border-right: 0; border-bottom: 1px solid #cadbd7; }
+  .profile-demo-roles h2 { display: none; }
+  .profile-demo-roles button { flex: 0 0 180px; margin: 0; }
+  .profile-demo-content { padding: .75rem .75rem 2rem; }
+  .demo-readonly-banner { align-items: flex-start; flex-direction: column; gap: .2rem; }
+  .profile-demo-launcher { align-items: stretch; flex-direction: column; }
+}

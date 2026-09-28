@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { onAuthStateChanged, signOut, type Unsubscribe } from 'firebase/auth';
-import { auth, authPersistenceReady } from './firebase';
+import { auth, authPersistenceReady, localReviewAuthEnabled } from './firebase';
 import { api, ApiError } from './services/api';
 import type { Center, ClinicalState, Encounter, Membership, SessionInfo } from './types';
 import LoginView from './components/LoginView';
@@ -49,7 +49,7 @@ export default function App() {
         if (!user) { setSession(null); setState(null); setLoading(false); return; }
 
         const enteredWithGoogle = user.providerData.some((provider) => provider.providerId === 'google.com');
-        if (!enteredWithGoogle || !user.emailVerified) {
+        if ((!enteredWithGoogle && !localReviewAuthEnabled) || !user.emailVerified) {
           setSession(null); setState(null);
           await signOut(auth);
           setError('Se cerró una sesión antigua de prueba. Ingresa nuevamente con Google y elige tu cuenta institucional.');
@@ -80,7 +80,18 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const handler = (event: Event) => setError((event as CustomEvent<string>).detail);
+    const handler = async (event: Event) => {
+      const message = String((event as CustomEvent<string>).detail || 'No fue posible completar el acceso.');
+      setError(message);
+      const normalized = message.toLowerCase();
+      if (normalized.includes('inicia sesión nuevamente') || normalized.includes('tu sesión') || normalized.includes('debe iniciar sesión') || normalized.includes('sesión')) {
+        try {
+          await signOut(auth);
+          setSession(null);
+          setState(null);
+        } catch {}
+      }
+    };
     window.addEventListener('auth-error', handler); return () => window.removeEventListener('auth-error', handler);
   }, []);
 
@@ -90,7 +101,7 @@ export default function App() {
   const canAdminCenter = membership?.roles.includes('center_admin') ?? false;
 
   const refreshState = async () => {
-    if (!centerId || !membership || !membership.roles.some((role) => role !== 'center_admin')) { setState(null); return; }
+    if (!centerId || !membership || !membership.roles.some((role) => !['center_admin', 'auditor'].includes(role))) { setState(null); return; }
     setState(await api.getState(centerId));
   };
 
@@ -104,7 +115,7 @@ export default function App() {
 
   return <div className="app-shell">
     <header className="topbar">
-      <div className="brand"><span className="brand-mark small">PD</span><div><strong>Pie Diabético</strong><small>Gestión clínica coordinada</small></div></div>
+      <div className="brand"><span className="brand-mark small">PD</span><div><strong>Pie Diabético</strong><small>{localReviewAuthEnabled ? 'Prueba local · datos ficticios' : 'Gestión clínica coordinada'}</small></div></div>
       <div className="top-actions">
         {center?.logoUrl && <img className="active-center-logo" src={center.logoUrl} alt={`Logo de ${center.name}`} />}
         {session.centers.length > 0 && <select aria-label="Centro activo" value={centerId} onChange={(event) => chooseCenter(event.target.value)}>{session.centers.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>}
@@ -119,7 +130,7 @@ export default function App() {
     {error && <div className="notice danger page-notice">{error}<button onClick={() => setError('')}>×</button></div>}
     <main className="page">
       {view === 'platform' && session.platformAdmin && <PlatformAdminDashboard onChanged={refreshSession} />}
-      {view === 'center' && center && canAdminCenter && <CenterAdminDashboard center={center} />}
+      {view === 'center' && center && canAdminCenter && <CenterAdminDashboard key={center.id} center={center} onChanged={refreshSession} />}
       {view === 'clinical' && center && membership && canUseClinical && <ClinicalDashboard center={center} membership={membership} state={state} onRefresh={refreshState} onEncounterChanged={replaceEncounter} />}
       {view === 'clinical' && !canUseClinical && <section className="empty-state"><h2>Perfil administrativo activo</h2><p>Este perfil no permite abrir información clínica. Puedes administrar el centro o la plataforma desde las pestañas superiores.</p></section>}
     </main>

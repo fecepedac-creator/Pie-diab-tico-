@@ -92,22 +92,30 @@ export interface VerificationStamp {
 export interface Patient {
   id: string;
   centerId: string;
+  version?: number;
   rut: string;
   name: string;
   birthDate?: string;
   contact?: string;
   comuna?: string;
+  intakeAssignedToUid?: string | null;
   photoStoragePath?: string;
   photoUrl?: string;
-  preAdmissionStatus: 'minimal' | 'in_progress' | 'validated';
+  preAdmissionStatus: 'minimal' | 'in_progress' | 'pending_validation' | 'validated';
   anamnesis: {
     diabetesTreatment?: string;
     medicalHistory: string[];
+    medicalHistoryDetails?: Record<string, string[]>;
     surgicalHistory: string[];
+    surgicalHistoryDetails?: Record<string, string[]>;
     allergyStatus?: 'unknown' | 'none' | 'present';
     allergies: string[];
     medications: string[];
     smoking?: string;
+    alcoholUse?: string;
+    alcoholDetails?: string;
+    substanceUse?: string;
+    substanceDetails?: string;
     renalDisease?: string;
     vascularHistory?: string;
     neuropathy?: string;
@@ -120,6 +128,7 @@ export interface Patient {
     housingBarriers?: string;
     notes?: string;
   };
+  socialVerification?: VerificationStamp;
   verification: VerificationStamp;
   createdAt: string;
   updatedAt: string;
@@ -137,8 +146,27 @@ export interface WoundEpisode {
   status: 'active' | 'healed' | 'referred' | 'closed';
   priority: Priority;
   consentForPhotography: boolean;
+  photoConsentLastDecision?: 'granted' | 'withdrawn';
+  photoConsentUpdatedAt?: string;
+  photoConsentUpdatedByName?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export type PhotoPoint = { x: number; y: number };
+
+export interface PhotoMeasurement {
+  method: 'manual-calibrated-2d';
+  imageWidth: number;
+  imageHeight: number;
+  referenceLengthCm: number;
+  reference: [PhotoPoint, PhotoPoint];
+  length: [PhotoPoint, PhotoPoint];
+  width: [PhotoPoint, PhotoPoint];
+  outline?: PhotoPoint[];
+  lengthCm: number;
+  widthCm: number;
+  areaCm2?: number;
 }
 
 export interface PhotoReference {
@@ -152,10 +180,29 @@ export interface PhotoReference {
   mimeType: string;
   orientationConfirmed: boolean;
   scaleIncluded: boolean;
+  measurement?: PhotoMeasurement;
   quality: 'pending' | 'accepted' | 'repeat';
+  reviewReason?: string;
+  reviewedByName?: string;
+  reviewedAt?: string;
+}
+
+export interface PhotoRegistration {
+  status: 'in_progress' | 'submitted' | 'needs_repeat' | 'reviewed';
+  submittedAt?: string;
+  submittedByUid?: string;
+  submittedByName?: string;
+  submittedPhotoIds?: string[];
+  repeatRequestedAt?: string;
+  repeatKind?: 'pre' | 'post';
+  repeatReason?: string;
+  reviewedAt?: string;
+  reviewedByUid?: string;
+  reviewedByName?: string;
 }
 
 export interface WoundAssessment {
+  diameterCm?: number;
   lengthCm?: number;
   widthCm?: number;
   depthCm?: number;
@@ -169,11 +216,21 @@ export interface WoundAssessment {
   exposedStructures: string[];
   infectionSigns: string[];
   painScore?: number;
+  pockets?: { direction: string; depthCm?: number }[];
+  probeDepthCm?: number;
+  boneContact?: 'yes' | 'no';
+  pedalPulse?: 'present' | 'absent';
+  localColor?: string;
+  exudateDescription?: string;
   notes?: string;
   verification: VerificationStamp;
 }
 
 export interface WifiAssessment {
+  measuredAt?: string;
+  source?: string;
+  anklePressure?: number;
+  tcpo2?: number;
   wound?: 0 | 1 | 2 | 3;
   ischemia?: 0 | 1 | 2 | 3;
   footInfection?: 0 | 1 | 2 | 3;
@@ -184,6 +241,18 @@ export interface WifiAssessment {
 }
 
 export interface NursingCare {
+  removedDressingLevel?: string;
+  removedDressingContent?: string;
+  irrigationTechnique?: string;
+  initialIrrigation?: string;
+  repeatIrrigation?: string;
+  dryingMaterial?: string;
+  cleanser?: string;
+  cleanserCarrier?: string;
+  cleanserMinutes?: number;
+  repeatCleanserMinutes?: number;
+  debridementDetails?: string;
+  fixation?: string;
   cleaning: string[];
   debridement: string[];
   primaryDressings: string[];
@@ -195,6 +264,13 @@ export interface NursingCare {
   tolerance?: string;
   notes?: string;
   verification: VerificationStamp;
+}
+
+export type NursingCatalogSection = 'cleaning' | 'debridement' | 'primaryDressings' | 'secondaryDressings' | 'periwoundProtection' | 'advancedTherapies' | 'offloadingApplied' | 'education';
+export type NursingCatalogOptions = Record<NursingCatalogSection, string[]>;
+export interface NursingCatalog {
+  revision: number;
+  options: NursingCatalogOptions;
 }
 
 export interface MedicalPlan {
@@ -209,7 +285,16 @@ export interface MedicalPlan {
   verification: VerificationStamp;
 }
 
+export interface NarrativeReview { text: string; sourceText: string; sourceVersion: number; authorName: string; reviewedAt: string }
+
 export interface Encounter {
+  visitId?: string;
+  episodeLocation?: string;
+  episodeSide?: 'right' | 'left';
+
+  narrativeReviews?: Partial<Record<'nursing' | 'medical', NarrativeReview>>;
+  careType?: 'nursing' | 'medical' | 'joint';
+  addenda?: { id: string; text: string; authorName: string; createdAt: string }[];
   id: string;
   centerId: string;
   patientId: string;
@@ -221,6 +306,7 @@ export interface Encounter {
   nursing: NursingCare;
   medical: MedicalPlan;
   photos: PhotoReference[];
+  photoRegistration?: PhotoRegistration;
   nursingNarrative?: string;
   medicalNarrative?: string;
   version: number;
@@ -229,8 +315,12 @@ export interface Encounter {
 }
 
 export interface ClinicalTask {
+  referralSnapshot?: { text: string; encounterId?: string; version?: number; capturedAt?: string };
+  respondedByName?: string;
+  respondedAt?: string;
   id: string;
   centerId: string;
+  version?: number;
   patientId: string;
   episodeId: string;
   encounterId?: string;

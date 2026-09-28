@@ -5,17 +5,61 @@ const crypto = require('node:crypto');
 const assert = require('node:assert/strict');
 
 const projectId = process.env.GCLOUD_PROJECT || 'demo-pie-diabetico';
+const functionApiBase = process.env.PD_TEST_API_BASE || `/${projectId}/southamerica-west1/api`;
 const app = initializeApp({ projectId }); const auth = getAuth(app); const db = getFirestore(app);
 const email = 'medico.prueba@hospital.cl'; const password = 'SyntheticOnly-4829!'; const centerId = 'centro-sintetico'; const hash = crypto.createHash('sha256').update(email).digest('hex');
 
-async function token() {
-  const response = await fetch('http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=fake', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password, returnSecureToken: true }) });
-  const body = await response.json(); assert.equal(response.ok, true, JSON.stringify(body)); return body.idToken;
+async function token(loginEmail = email, loginPassword = password) {
+  const response = await fetch(`http://127.0.0.1:${process.env.PD_TEST_AUTH_PORT || 9099}/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=fake`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: loginEmail, password: loginPassword, returnSecureToken: true }) });
+  const raw = await response.text();
+  let body;
+  try { body = JSON.parse(raw); } catch {
+    throw Object.assign(new Error(`Respuesta no-JSON al autenticar ${loginEmail}: ${raw}`), { status: 500 });
+  }
+  assert.equal(response.ok, true, JSON.stringify(body));
+  return body.idToken;
 }
 
 async function call(path, idToken, method = 'GET', body) {
-  const response = await fetch(`http://127.0.0.1:5002/api${path}`, { method, headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' }, ...(body ? { body: JSON.stringify(body) } : {}) });
-  const payload = await response.json(); return { response, payload };
+  const response = await fetch(`http://127.0.0.1:${process.env.PD_TEST_API_PORT || 5001}${functionApiBase}${path}`, { method, headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' }, ...(body ? { body: JSON.stringify(body) } : {}) });
+  const raw = await response.text();
+  let payload;
+  try { payload = JSON.parse(raw); } catch {
+    throw Object.assign(new Error(`Respuesta no-JSON en ${method} ${path}: ${raw.slice(0, 200)}`), { status: 500 });
+  }
+  return { response, payload };
+}
+
+async function callNoAuth(path, method = 'GET', body) {
+  const response = await fetch(`http://127.0.0.1:${process.env.PD_TEST_API_PORT || 5001}${functionApiBase}${path}`, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+  const raw = await response.text();
+  let payload;
+  try {
+    payload = JSON.parse(raw);
+  } catch {
+    payload = { error: raw.slice(0, 200) };
+  }
+  return { response, payload };
+}
+
+async function callNoAuthWithHeaders(path, method = 'GET', body, headers = {}) {
+  const response = await fetch(`http://127.0.0.1:${process.env.PD_TEST_API_PORT || 5001}${functionApiBase}${path}`, {
+    method,
+    headers: { 'Content-Type': 'application/json', ...headers },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+  const raw = await response.text();
+  let payload;
+  try {
+    payload = JSON.parse(raw);
+  } catch {
+    payload = { error: raw.slice(0, 200) };
+  }
+  return { response, payload };
 }
 
 (async () => {
@@ -26,8 +70,37 @@ async function call(path, idToken, method = 'GET', body) {
   const idToken = await token();
   const health = await call('/health', idToken); assert.equal(health.response.status, 200);
   const session = await call('/session', idToken); assert.equal(session.response.status, 200); assert.equal(session.payload.platformAdmin, true); assert.equal(session.payload.memberships[0].centerId, centerId);
+  assert.match(session.response.headers.get('x-request-id'), /^[0-9a-f-]{36}$/);
+  const unauthSession = await callNoAuth('/session'); assert.equal(unauthSession.response.status, 401);
+  assert.equal(typeof unauthSession.payload.requestId, 'string');
+  assert.match(unauthSession.payload.requestId, /^[0-9a-f-]{36}$/);
+  assert.equal(typeof unauthSession.payload.code, 'string');
+  assert.equal(unauthSession.payload.code, 'validation_or_authorization_error');
+  assert.equal(unauthSession.response.headers.get('x-request-id'), unauthSession.payload.requestId);
+  const clientId = await callNoAuthWithHeaders('/session', 'GET', undefined, { 'X-Request-Id': 'patient-secret-id' });
+  assert.equal(clientId.response.status, 401);
+  assert.notEqual(clientId.payload.requestId, 'patient-secret-id');
+  const invalidTokenSession = await callNoAuth('/session', 'GET', undefined);
+  assert.equal(invalidTokenSession.response.status, 401);
+  const forcedInvalidToken = await fetch(`http://127.0.0.1:${process.env.PD_TEST_API_PORT || 5001}${functionApiBase}/session`, {
+    method: 'GET',
+    headers: { Authorization: 'Bearer not-a-token', 'Content-Type': 'application/json' },
+  });
+  assert.equal(forcedInvalidToken.status, 401);
+  const unverifiedEmail = 'unverified.synthetic@hospital.cl'; const unverifiedPassword = 'SyntheticOnly-1193!';
+  await auth.createUser({ email: unverifiedEmail, password: unverifiedPassword, emailVerified: false });
+  const unverifiedSession = await call('/session', await token(unverifiedEmail, unverifiedPassword));
+  assert.equal(unverifiedSession.response.status, 403);
+  assert.equal(unverifiedSession.response.headers.get('x-request-id'), unverifiedSession.payload.requestId);
+  const corsAllowedOrigin = await callNoAuthWithHeaders('/centers/centro-sintetico/state', 'OPTIONS', undefined, { Origin: 'https://hospital.cl' });
+  assert.equal(corsAllowedOrigin.response.status, 204);
+  assert.equal(corsAllowedOrigin.response.headers.get('access-control-allow-origin'), 'https://hospital.cl');
+  const corsNoOrigin = await callNoAuthWithHeaders('/health', 'OPTIONS', undefined);
+  assert.equal(corsNoOrigin.response.status, 204);
+  assert.equal(corsNoOrigin.response.headers.get('access-control-allow-origin'), null);
   const brandedCenter = await call('/platform/centers', idToken, 'POST', { name: 'Centro con Identidad', code: 'LOGO-01', adminEmail: 'admin.logo@hospital.cl', logoDataUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=' }); assert.equal(brandedCenter.response.status, 201, JSON.stringify(brandedCenter.payload)); assert.match(brandedCenter.payload.center.logoStoragePath, /\/branding\/logo\.png$/);
-  const publicLogo = await fetch(`http://127.0.0.1:5002${brandedCenter.payload.center.logoUrl}`); assert.equal(publicLogo.status, 200); assert.equal(publicLogo.headers.get('content-type'), 'image/png');
+  const logoPath = String(brandedCenter.payload.center.logoUrl || '').replace(/^\/api/, functionApiBase);
+  const publicLogo = await fetch(`http://127.0.0.1:${process.env.PD_TEST_API_PORT || 5001}${logoPath}`); assert.equal(publicLogo.status, 200); assert.equal(publicLogo.headers.get('content-type'), 'image/png');
   const centerList = await call('/platform/centers', idToken); assert.equal(centerList.response.status, 200); assert(centerList.payload.centers.some((item) => item.id === brandedCenter.payload.center.id && item.logoStoragePath));
   const editedCenter = await call(`/platform/centers/${brandedCenter.payload.center.id}`, idToken, 'PUT', { name: 'Centro Editado', code: 'EDIT-01', region: 'Maule', removeLogo: true }); assert.equal(editedCenter.response.status, 200, JSON.stringify(editedCenter.payload)); assert.equal(editedCenter.payload.center.name, 'Centro Editado'); assert.equal(editedCenter.payload.center.logoStoragePath, undefined);
   const archivedCenter = await call(`/platform/centers/${brandedCenter.payload.center.id}`, idToken, 'DELETE'); assert.equal(archivedCenter.response.status, 200); assert.equal(archivedCenter.payload.center.status, 'archived');
@@ -35,18 +108,122 @@ async function call(path, idToken, method = 'GET', body) {
   const patientResult = await call(`/centers/${centerId}/patients`, idToken, 'POST', { name: 'Paciente Sintético', rut: '123456785' }); assert.equal(patientResult.response.status, 201, JSON.stringify(patientResult.payload));
   const patientId = patientResult.payload.patient.id;
   const patientPhoto = await call(`/centers/${centerId}/patients/${patientId}/photo`, idToken, 'POST', { dataUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=' }); assert.equal(patientPhoto.response.status, 201, JSON.stringify(patientPhoto.payload)); assert.match(patientPhoto.payload.patient.photoStoragePath, new RegExp(`^centers/${centerId}/patients/${patientId}/profile/`));
+  const updatedPatient = await call(`/centers/${centerId}/patients/${patientId}`, idToken, 'PUT', { version: 1, preAdmissionStatus: 'validated', verification: { status: 'confirmed' }, anamnesis: { medicalHistory: ['DM-2', 'HTA'], medicalHistoryDetails: { 'DM-2': ['Diagnóstico hace aproximadamente 10 años'], extra: ['No debe persistir'] }, surgicalHistory: ['Amputación menor'], surgicalHistoryDetails: { 'Amputación menor': ['1.er ortejo derecho, 2001', '2.º ortejo derecho, 2003'] }, allergyStatus: 'none', allergies: [], medications: ['Metformina'], smoking: 'Exfumador/a', alcoholUse: 'Ocasional', alcoholDetails: '1 a 2 unidades por semana', substanceUse: 'Nunca', renalDisease: 'Sin ERC conocida' }, social: {} }); assert.equal(updatedPatient.response.status, 200, JSON.stringify(updatedPatient.payload)); assert.deepEqual(updatedPatient.payload.patient.anamnesis.medicalHistoryDetails, { 'DM-2': ['Diagnóstico hace aproximadamente 10 años'] });
   const duplicate = await call(`/centers/${centerId}/patients`, idToken, 'POST', { name: 'Duplicado', rut: '123456785' }); assert.equal(duplicate.response.status, 409);
   const episodeResult = await call(`/centers/${centerId}/episodes`, idToken, 'POST', { patientId, side: 'right', location: 'Plantar', priority: 'urgent', consentForPhotography: true }); assert.equal(episodeResult.response.status, 201, JSON.stringify(episodeResult.payload));
   const encounterResult = await call(`/centers/${centerId}/encounters`, idToken, 'POST', { patientId, episodeId: episodeResult.payload.episode.id }); assert.equal(encounterResult.response.status, 201, JSON.stringify(encounterResult.payload));
   const encounterId = encounterResult.payload.encounter.id;
-  const woundResult = await call(`/centers/${centerId}/encounters/${encounterId}`, idToken, 'PUT', { version: 1, wound: { lengthCm: 2.4, widthCm: 1.2, depthCm: 0.3, granulationPercent: 80, edges: ['definidos'], periwound: ['macerada'], exposedStructures: [], infectionSigns: [], verification: { status: 'confirmed' } } }); assert.equal(woundResult.response.status, 200, JSON.stringify(woundResult.payload));
-  const nursingResult = await call(`/centers/${centerId}/encounters/${encounterId}`, idToken, 'PUT', { version: 2, nursing: { cleaning: ['suero fisiológico'], debridement: ['cortante conservador'], primaryDressings: ['espuma'], secondaryDressings: [], periwoundProtection: ['barrera'], advancedTherapies: [], offloadingApplied: ['fieltro'], education: ['signos de alarma'], verification: { status: 'confirmed' } } }); assert.equal(nursingResult.response.status, 200, JSON.stringify(nursingResult.payload));
-  const state = await call(`/centers/${centerId}/state`, idToken); assert.equal(state.response.status, 200); const shared = state.payload.encounters[0]; assert.equal(shared.wound.lengthCm, 2.4); assert.match(shared.nursingNarrative, /2.4 x 1.2 x 0.3 cm/); assert.match(shared.nursingNarrative, /suero fisiológico/); assert.match(state.payload.patients[0].photoStoragePath, /\/profile\//);
+  const encounterPhoto = await call(`/centers/${centerId}/encounters/${encounterId}/photos`, idToken, 'POST', { kind: 'pre', orientationConfirmed: true, scaleIncluded: true, dataUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=' }); assert.equal(encounterPhoto.response.status, 201, JSON.stringify(encounterPhoto.payload));
+  const imagePath = `/centers/${centerId}/encounters/${encounterId}/photos/${encounterPhoto.payload.encounter.photos[0].id}/image`;
+  const imageResponse = await fetch(`http://127.0.0.1:${process.env.PD_TEST_API_PORT || 5001}${functionApiBase}${imagePath}`, { headers: { Authorization: `Bearer ${idToken}` } });
+  assert.equal(imageResponse.status, 200); assert.equal(imageResponse.headers.get('content-type'), 'image/png'); assert((await imageResponse.arrayBuffer()).byteLength > 50);
+  const anonymousImage = await callNoAuth(imagePath); assert.equal(anonymousImage.response.status, 401);
+  const woundResult = await call(`/centers/${centerId}/encounters/${encounterId}`, idToken, 'PUT', { version: 2, wound: { lengthCm: 2.4, widthCm: 1.2, depthCm: 0.3, granulationPercent: 80, edges: ['definidos'], periwound: ['macerada'], exposedStructures: [], infectionSigns: [], verification: { status: 'confirmed' } } }); assert.equal(woundResult.response.status, 200, JSON.stringify(woundResult.payload));
+  const nursingResult = await call(`/centers/${centerId}/encounters/${encounterId}`, idToken, 'PUT', { version: 3, nursing: { cleaning: ['suero fisiológico'], debridement: ['cortante conservador'], primaryDressings: ['espuma'], secondaryDressings: [], periwoundProtection: ['barrera'], advancedTherapies: [], offloadingApplied: ['fieltro'], education: ['signos de alarma'], verification: { status: 'confirmed' } } }); assert.equal(nursingResult.response.status, 200, JSON.stringify(nursingResult.payload));
+  const state = await call(`/centers/${centerId}/state`, idToken); assert.equal(state.response.status, 200); const shared = state.payload.encounters[0]; const sharedPatient = state.payload.patients.find((item) => item.id === patientId); assert.equal(shared.wound.lengthCm, 2.4); assert.match(shared.nursingNarrative, /2.4 x 1.2 x 0.3 cm/); assert.match(shared.nursingNarrative, /suero fisiológico/); assert.match(sharedPatient.photoStoragePath, /\/profile\//); assert.equal(sharedPatient.anamnesis.surgicalHistoryDetails['Amputación menor'].length, 2); assert.equal(sharedPatient.anamnesis.alcoholUse, 'Ocasional');
+  const clinicalReads = await db.collection(`centers/${centerId}/auditLogs`).where('action', '==', 'clinical_state.access_granted').get();
+  const doctorRead = clinicalReads.docs.map((doc) => doc.data()).find((event) => event.actorUid === user.uid && event.details.patientIds.includes(patientId));
+  assert(doctorRead, 'La lectura clínica autorizada debe quedar asociada al usuario y paciente');
+  assert(doctorRead.createdAt && doctorRead.details.requestId);
+  assert.equal(JSON.stringify(doctorRead.details).includes('Paciente Sintético'), false, 'La bitácora no debe copiar contenido clínico ni identidad textual');
+  const tensEmail = 'tens.prueba@hospital.cl'; const tensPassword = 'SyntheticOnly-5830!'; const tensUser = await auth.createUser({ email: tensEmail, password: tensPassword, emailVerified: true, displayName: 'TENS Sintética' }); const tensHash = crypto.createHash('sha256').update(tensEmail).digest('hex'); await db.doc(`memberships/${centerId}_${tensHash}`).set({ id: `${centerId}_${tensHash}`, centerId, uid: tensUser.uid, email: tensEmail, emailLower: tensEmail, displayName: 'TENS Sintética', roles: ['tens'], status: 'active', createdAt: now, updatedAt: now }); const tensToken = await token(tensEmail, tensPassword);
+  const otherCenterLogs = db.collection(`centers/${brandedCenter.payload.center.id}/auditLogs`);
+  const otherCenterLogCount = (await otherCenterLogs.get()).size;
+  const foreignAudit = await call(`/centers/${brandedCenter.payload.center.id}/audit`, tensToken);
+  assert.equal(foreignAudit.response.status, 403);
+  assert.equal(foreignAudit.response.headers.get('x-request-id'), foreignAudit.payload.requestId);
+  assert.equal((await otherCenterLogs.get()).size, otherCenterLogCount, 'A foreign denial must not enter that center audit log');
+  const assignedMainPatient = await call(`/centers/${centerId}/patients/${patientId}`, idToken, 'PUT', { version: updatedPatient.payload.patient.version, intakeAssignedToUid: tensUser.uid }); assert.equal(assignedMainPatient.response.status, 200);
+  await require('./candidate-emulator-checks')({ call, token, auth, db, centerId, idToken, tensToken, tensUid: tensUser.uid, now });
+  const tensState = await call(`/centers/${centerId}/state`, tensToken); assert.equal(tensState.response.status, 200); assert.equal(tensState.payload.tasks.length, 0); assert.equal(tensState.payload.attachments.length, 0); assert.equal(tensState.payload.encounters[0].wound.lengthCm, undefined); assert.equal(tensState.payload.encounters[0].photos.length, 1);
+  const tensImage = await fetch(`http://127.0.0.1:${process.env.PD_TEST_API_PORT || 5001}${functionApiBase}${imagePath}`, { headers: { Authorization: `Bearer ${tensToken}` } }); assert.equal(tensImage.status, 200);
+  const tensDraft = await call(`/centers/${centerId}/patients/${patientId}`, tensToken, 'PUT', { version: updatedPatient.payload.patient.version, preAdmissionStatus: 'validated', anamnesis: sharedPatient.anamnesis, social: sharedPatient.social, verification: { status: 'confirmed' } }); assert.equal(tensDraft.response.status, 403);
+
+  const tensDeniedWound = await call(`/centers/${centerId}/encounters/${encounterId}`, tensToken, 'PUT', { version: nursingResult.payload.encounter.version, wound: { lengthCm: 9 } }); assert.equal(tensDeniedWound.response.status, 403);
+  const referral = await call(`/centers/${centerId}/tasks`, idToken, 'POST', { patientId, episodeId: episodeResult.payload.episode.id, encounterId, type: 'vascular', recipientRole: 'vascular_surgeon', title: 'Evaluación vascular sintética', reason: 'Revisar perfusión', priority: 'soon' }); assert.equal(referral.response.status, 201, JSON.stringify(referral.payload));
+  const duplicateReferral = await call(`/centers/${centerId}/tasks`, idToken, 'POST', { patientId, episodeId: episodeResult.payload.episode.id, encounterId, type: 'vascular', recipientRole: 'vascular_surgeon', title: 'Evaluación vascular sintética', reason: 'Revisar perfusión', priority: 'soon' }); assert.equal(duplicateReferral.response.status, 409);
+  const specialistEmail = 'vascular.prueba@hospital.cl'; const specialistPassword = 'SyntheticOnly-6941!'; const specialistUser = await auth.createUser({ email: specialistEmail, password: specialistPassword, emailVerified: true, displayName: 'Especialista Sintético' }); const specialistHash = crypto.createHash('sha256').update(specialistEmail).digest('hex'); await db.doc(`memberships/${centerId}_${specialistHash}`).set({ id: `${centerId}_${specialistHash}`, centerId, uid: specialistUser.uid, email: specialistEmail, emailLower: specialistEmail, displayName: 'Especialista Sintético', roles: ['vascular_surgeon'], status: 'active', createdAt: now, updatedAt: now }); const specialistToken = await token(specialistEmail, specialistPassword);
+  const otherSpecialistEmail = 'vascular.otro@hospital.cl'; const otherSpecialistPassword = 'SyntheticOnly-6942!'; const otherSpecialistUser = await auth.createUser({ email: otherSpecialistEmail, password: otherSpecialistPassword, emailVerified: true }); const otherSpecialistHash = crypto.createHash('sha256').update(otherSpecialistEmail).digest('hex'); await db.doc(`memberships/${centerId}_${otherSpecialistHash}`).set({ id: `${centerId}_${otherSpecialistHash}`, centerId, uid: otherSpecialistUser.uid, email: otherSpecialistEmail, emailLower: otherSpecialistEmail, roles: ['vascular_surgeon'], status: 'active', createdAt: now, updatedAt: now }); const otherSpecialistToken = await token(otherSpecialistEmail, otherSpecialistPassword);
+  const invalidAssignee = await call(`/centers/${centerId}/tasks/${referral.payload.task.id}`, idToken, 'PUT', { version: 1, assignedToUid: 'cuenta-ajena' }); assert.equal(invalidAssignee.response.status, 400);
+  const assignedReferral = await call(`/centers/${centerId}/tasks/${referral.payload.task.id}`, idToken, 'PUT', { version: 1, assignedToUid: specialistUser.uid }); assert.equal(assignedReferral.response.status, 200);
+  const unrelatedImage = await call(imagePath, otherSpecialistToken); assert.equal(unrelatedImage.response.status, 403);
+  const otherSpecialistState = await call(`/centers/${centerId}/state`, otherSpecialistToken); assert.equal(otherSpecialistState.response.status, 200); assert.equal(otherSpecialistState.payload.encounters.length, 0);
+  const specialistState = await call(`/centers/${centerId}/state`, specialistToken); assert.equal(specialistState.response.status, 200); assert.equal(specialistState.payload.patients.length, 1); assert.equal(specialistState.payload.tasks.length, 1); assert.equal(specialistState.payload.encounters[0].wound.lengthCm, 2.4);
+  const specialistDeniedWound = await call(`/centers/${centerId}/encounters/${encounterId}`, specialistToken, 'PUT', { version: nursingResult.payload.encounter.version, wound: { lengthCm: 8 } }); assert.equal(specialistDeniedWound.response.status, 403);
+  const specialistDeniedTask = await call(`/centers/${centerId}/tasks`, specialistToken, 'POST', { patientId, episodeId: episodeResult.payload.episode.id, type: 'other', recipientRole: 'doctor', reason: 'No debe crearse' }); assert.equal(specialistDeniedTask.response.status, 403);
+  const specialistAttachment = await call(`/centers/${centerId}/episodes/${episodeResult.payload.episode.id}/attachments`, specialistToken, 'POST', { kind: 'pvr', title: 'PVR sintético', dataUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=' }); assert.equal(specialistAttachment.response.status, 201, JSON.stringify(specialistAttachment.payload));
+  const unassignedEpisode = await call(`/centers/${centerId}/episodes`, idToken, 'POST', { patientId, side: 'left', location: 'Hallux', priority: 'routine', consentForPhotography: false }); assert.equal(unassignedEpisode.response.status, 201);
+  const specialistDeniedAttachment = await call(`/centers/${centerId}/episodes/${unassignedEpisode.payload.episode.id}/attachments`, specialistToken, 'POST', { kind: 'pvr', title: 'No autorizado', dataUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=' }); assert.equal(specialistDeniedAttachment.response.status, 403);
+  const prematureResolution = await call(`/centers/${centerId}/tasks/${referral.payload.task.id}`, specialistToken, 'PUT', { version: 2, status: 'resolved', result: 'No debe aceptarse' }); assert.equal(prematureResolution.response.status, 409);
+  const acceptedReferral = await call(`/centers/${centerId}/tasks/${referral.payload.task.id}`, specialistToken, 'PUT', { version: 2, status: 'accepted' }); assert.equal(acceptedReferral.response.status, 200); assert.equal(acceptedReferral.payload.task.assignedToUid, specialistUser.uid);
+  const staleTaskUpdate = await call(`/centers/${centerId}/tasks/${referral.payload.task.id}`, specialistToken, 'PUT', { version: 2, status: 'in_progress' }); assert.equal(staleTaskUpdate.response.status, 409);
+  const specialistResponse = await call(`/centers/${centerId}/tasks/${referral.payload.task.id}`, specialistToken, 'PUT', { version: 3, status: 'resolved', result: 'Conducta vascular sintética' }); assert.equal(specialistResponse.response.status, 200); assert.equal(specialistResponse.payload.task.status, 'resolved');
+  const endedReferralAccess = await call(`/centers/${centerId}/state`, specialistToken); assert.equal(endedReferralAccess.response.status, 200); assert.equal(endedReferralAccess.payload.encounters.length, 0); assert.equal(endedReferralAccess.payload.patients.length, 0); assert.equal(endedReferralAccess.payload.attachments.length, 0);
+  const closedSpecialistUpload = await call(`/centers/${centerId}/episodes/${episodeResult.payload.episode.id}/attachments`, specialistToken, 'POST', { kind: 'pvr', title: 'Caso cerrado', dataUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=' }); assert.equal(closedSpecialistUpload.response.status, 403);
+  const closedTaskMutation = await call(`/centers/${centerId}/tasks/${referral.payload.task.id}`, specialistToken, 'PUT', { version: 4, status: 'in_progress' }); assert.equal(closedTaskMutation.response.status, 409);
+  const coordinatorEmail = 'coordinacion.prueba@hospital.cl'; const coordinatorPassword = 'SyntheticOnly-7052!'; const coordinatorUser = await auth.createUser({ email: coordinatorEmail, password: coordinatorPassword, emailVerified: true, displayName: 'Coordinación Sintética' }); const coordinatorHash = crypto.createHash('sha256').update(coordinatorEmail).digest('hex'); await db.doc(`memberships/${centerId}_${coordinatorHash}`).set({ id: `${centerId}_${coordinatorHash}`, centerId, uid: coordinatorUser.uid, email: coordinatorEmail, emailLower: coordinatorEmail, displayName: 'Coordinación Sintética', roles: ['coordinator'], status: 'active', createdAt: now, updatedAt: now }); const coordinatorToken = await token(coordinatorEmail, coordinatorPassword); const coordinatorState = await call(`/centers/${centerId}/state`, coordinatorToken); assert.equal(coordinatorState.response.status, 200); assert.equal(coordinatorState.payload.encounters.length, 0); assert.equal(coordinatorState.payload.patients[0].anamnesis.medicalHistory.length, 0); const coordinatorDeniedEncounter = await call(`/centers/${centerId}/encounters`, coordinatorToken, 'POST', { patientId, episodeId: episodeResult.payload.episode.id }); assert.equal(coordinatorDeniedEncounter.response.status, 403);
+  const auditorEmail = 'auditoria.prueba@hospital.cl'; const auditorPassword = 'SyntheticOnly-8163!'; const auditorUser = await auth.createUser({ email: auditorEmail, password: auditorPassword, emailVerified: true, displayName: 'Auditor Sintético' }); const auditorHash = crypto.createHash('sha256').update(auditorEmail).digest('hex'); await db.doc(`memberships/${centerId}_${auditorHash}`).set({ id: `${centerId}_${auditorHash}`, centerId, uid: auditorUser.uid, email: auditorEmail, emailLower: auditorEmail, displayName: 'Auditor Sintético', roles: ['auditor'], status: 'active', createdAt: now, updatedAt: now }); const auditorToken = await token(auditorEmail, auditorPassword); const auditorState = await call(`/centers/${centerId}/state`, auditorToken); assert.equal(auditorState.response.status, 403);
+  const readsAfterDenial = await db.collection(`centers/${centerId}/auditLogs`).where('action', '==', 'clinical_state.access_granted').get();
+  assert.equal(readsAfterDenial.docs.some((doc) => doc.data().actorUid === auditorUser.uid), false, 'Un acceso denegado no debe figurar como lectura concedida');
+  assert.equal(auditorState.response.headers.get('x-request-id'), auditorState.payload.requestId);
   const deniedLogs = await call(`/centers/${centerId}/audit`, idToken); assert.equal(deniedLogs.response.status, 403);
   await db.doc(`memberships/${centerId}_${hash}`).update({ roles: ['doctor', 'nurse', 'auditor'] });
   const logs = await call(`/centers/${centerId}/audit`, idToken); assert.equal(logs.response.status, 200); assert(logs.payload.events.length >= 5);
+  await require('./clinical-emulator-checks')({ call, idToken, tensToken, specialistToken, centerId, patientId, episodeId: episodeResult.payload.episode.id, encounterId });
+  await require('./admin-emulator-checks')({ call, idToken, centerId, db, hash });
+  const measuredEncounter = await call(`/centers/${centerId}/encounters`, idToken, 'POST', { patientId, episodeId: episodeResult.payload.episode.id }); assert.equal(measuredEncounter.response.status, 201);
+  const measurement = { imageWidth: 1000, imageHeight: 1000, referenceLengthCm: 1, reference: [{ x: 0.1, y: 0.1 }, { x: 0.2, y: 0.1 }], length: [{ x: 0.3, y: 0.3 }, { x: 0.55, y: 0.3 }], width: [{ x: 0.4, y: 0.3 }, { x: 0.4, y: 0.42 }], outline: [{ x: 0.3, y: 0.3 }, { x: 0.55, y: 0.3 }, { x: 0.55, y: 0.42 }, { x: 0.3, y: 0.42 }] };
+  const measuredPhotoInput = { kind: 'pre', orientationConfirmed: true, measurement, dataUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=' };
+  const noScaleMeasurement = await call(`/centers/${centerId}/encounters/${measuredEncounter.payload.encounter.id}/photos`, idToken, 'POST', { ...measuredPhotoInput, scaleIncluded: false }); assert.equal(noScaleMeasurement.response.status, 400);
+  const measuredPhoto = await call(`/centers/${centerId}/encounters/${measuredEncounter.payload.encounter.id}/photos`, idToken, 'POST', { ...measuredPhotoInput, scaleIncluded: true }); assert.equal(measuredPhoto.response.status, 201); assert.equal(measuredPhoto.payload.encounter.photos[0].measurement.lengthCm, 2.5); assert.equal(measuredPhoto.payload.encounter.photos[0].measurement.areaCm2, 3);
+  await db.doc(`centers/${centerId}/patients/${patientId}`).update({ intakeAssignedToUid: tensUser.uid });
+  const handoff = await call(`/centers/${centerId}/encounters`, tensToken, 'POST', { patientId, episodeId: episodeResult.payload.episode.id }); assert.equal(handoff.response.status, 201);
+  const handoffId = handoff.payload.encounter.id; const handoffPath = `/centers/${centerId}/encounters/${handoffId}/photo-registration/submit`;
+  const emptyHandoff = await call(handoffPath, tensToken, 'POST', { version: 1 }); assert.equal(emptyHandoff.response.status, 400);
+  const clinicianHandoff = await call(handoffPath, idToken, 'POST', { version: 1 }); assert.equal(clinicianHandoff.response.status, 403);
+  const otherCenterHandoff = await call(`/centers/centro-ajeno/encounters/${handoffId}/photo-registration/submit`, tensToken, 'POST', { version: 1 }); assert.equal(otherCenterHandoff.response.status, 403);
+  const handoffPhoto = await call(`/centers/${centerId}/encounters/${handoffId}/photos`, tensToken, 'POST', { kind: 'pre', orientationConfirmed: true, scaleIncluded: false, dataUrl: measuredPhotoInput.dataUrl }); assert.equal(handoffPhoto.response.status, 201);
+  const staleHandoff = await call(handoffPath, tensToken, 'POST', { version: 1 }); assert.equal(staleHandoff.response.status, 409);
+  await db.doc(`centers/${centerId}/patients/${patientId}`).update({ intakeAssignedToUid: 'otra-cuenta' });
+  const unassignedHandoff = await call(handoffPath, tensToken, 'POST', { version: 2 }); assert.equal(unassignedHandoff.response.status, 403);
+  await db.doc(`centers/${centerId}/patients/${patientId}`).update({ intakeAssignedToUid: tensUser.uid });
+  const submittedHandoff = await call(handoffPath, tensToken, 'POST', { version: 2 }); assert.equal(submittedHandoff.response.status, 200); assert.equal(submittedHandoff.payload.encounter.photoRegistration.status, 'submitted'); assert.equal(submittedHandoff.payload.encounter.status, 'in_progress'); assert.deepEqual(submittedHandoff.payload.encounter.photoRegistration.submittedPhotoIds, [handoffPhoto.payload.encounter.photos[0].id]);
+  const duplicateHandoff = await call(handoffPath, tensToken, 'POST', { version: 3 }); assert.equal(duplicateHandoff.response.status, 409);
+  const uploadedAfterHandoff = await call(`/centers/${centerId}/encounters/${handoffId}/photos`, tensToken, 'POST', { kind: 'post', orientationConfirmed: true, scaleIncluded: false, dataUrl: measuredPhotoInput.dataUrl }); assert.equal(uploadedAfterHandoff.response.status, 409);
+  const clinicianPhoto = await call(`/centers/${centerId}/encounters/${handoffId}/photos`, idToken, 'POST', { kind: 'pre', orientationConfirmed: true, scaleIncluded: false, dataUrl: measuredPhotoInput.dataUrl }); assert.equal(clinicianPhoto.response.status, 201);
+  const clinicianPhotoId = clinicianPhoto.payload.encounter.photos.at(-1).id;
+  const clinicianAccepted = await call(`/centers/${centerId}/encounters/${handoffId}/photos/${clinicianPhotoId}`, idToken, 'PUT', { version: 4, quality: 'accepted', reason: '' }); assert.equal(clinicianAccepted.response.status, 200); assert.equal(clinicianAccepted.payload.encounter.photoRegistration.status, 'submitted');
+  const clinicianRepeated = await call(`/centers/${centerId}/encounters/${handoffId}/photos/${clinicianPhotoId}`, idToken, 'PUT', { version: 5, quality: 'repeat', reason: 'Foto clínica sintética' }); assert.equal(clinicianRepeated.response.status, 200); assert.equal(clinicianRepeated.payload.encounter.photoRegistration.status, 'submitted');
+  const repeatHandoff = await call(`/centers/${centerId}/encounters/${handoffId}/photos/${handoffPhoto.payload.encounter.photos[0].id}`, idToken, 'PUT', { version: 6, quality: 'repeat', reason: 'Imagen sintética borrosa' }); assert.equal(repeatHandoff.response.status, 200); assert.equal(repeatHandoff.payload.encounter.photoRegistration.status, 'needs_repeat');
+  const prematureResubmit = await call(handoffPath, tensToken, 'POST', { version: 7 }); assert.equal(prematureResubmit.response.status, 400);
+  const wrongMomentPhoto = await call(`/centers/${centerId}/encounters/${handoffId}/photos`, tensToken, 'POST', { kind: 'post', orientationConfirmed: true, scaleIncluded: false, dataUrl: measuredPhotoInput.dataUrl }); assert.equal(wrongMomentPhoto.response.status, 201);
+  const wrongMomentResubmit = await call(handoffPath, tensToken, 'POST', { version: 8 }); assert.equal(wrongMomentResubmit.response.status, 400);
+  const repeatedPhoto = await call(`/centers/${centerId}/encounters/${handoffId}/photos`, tensToken, 'POST', { kind: 'pre', orientationConfirmed: true, scaleIncluded: false, dataUrl: measuredPhotoInput.dataUrl }); assert.equal(repeatedPhoto.response.status, 201);
+  const resubmittedHandoff = await call(handoffPath, tensToken, 'POST', { version: 9 }); assert.equal(resubmittedHandoff.response.status, 200); assert.equal(resubmittedHandoff.payload.encounter.photoRegistration.status, 'submitted'); assert.deepEqual(resubmittedHandoff.payload.encounter.photoRegistration.submittedPhotoIds, [repeatedPhoto.payload.encounter.photos.at(-1).id, wrongMomentPhoto.payload.encounter.photos.at(-1).id]);
+  const acceptedPre = await call(`/centers/${centerId}/encounters/${handoffId}/photos/${repeatedPhoto.payload.encounter.photos.at(-1).id}`, idToken, 'PUT', { version: 10, quality: 'accepted', reason: '' }); assert.equal(acceptedPre.response.status, 200); assert.equal(acceptedPre.payload.encounter.photoRegistration.status, 'submitted');
+  const acceptedHandoff = await call(`/centers/${centerId}/encounters/${handoffId}/photos/${wrongMomentPhoto.payload.encounter.photos.at(-1).id}`, idToken, 'PUT', { version: 11, quality: 'accepted', reason: '' }); assert.equal(acceptedHandoff.response.status, 200); assert.equal(acceptedHandoff.payload.encounter.photoRegistration.status, 'reviewed'); assert.equal(acceptedHandoff.payload.encounter.status, 'in_progress');
+  const unrelatedRepeatAfterReview = await call(`/centers/${centerId}/encounters/${handoffId}/photos/${clinicianPhotoId}`, idToken, 'PUT', { version: 12, quality: 'repeat', reason: 'Foto clínica ajena' }); assert.equal(unrelatedRepeatAfterReview.response.status, 200); assert.equal(unrelatedRepeatAfterReview.payload.encounter.photoRegistration.status, 'reviewed');
+  const handoffAudits = await db.collection(`centers/${centerId}/auditLogs`).where('action', '==', 'photo_registration.submitted').get(); assert.equal(handoffAudits.size, 2);
+  assert.deepEqual(handoffAudits.docs.map((doc) => doc.data().details.submittedPhotoIds).sort((a, b) => a.length - b.length), [submittedHandoff.payload.encounter.photoRegistration.submittedPhotoIds, resubmittedHandoff.payload.encounter.photoRegistration.submittedPhotoIds]);
+  const consentPath = `/centers/${centerId}/episodes/${unassignedEpisode.payload.episode.id}`;
+  const specialistConsent = await call(consentPath, specialistToken, 'PUT', { consentForPhotography: true }); assert.equal(specialistConsent.response.status, 403);
+  const grantedConsent = await call(consentPath, tensToken, 'PUT', { consentForPhotography: true }); assert.equal(grantedConsent.response.status, 200); assert.equal(grantedConsent.payload.episode.photoConsentLastDecision, 'granted');
+  const tensPriorityDenied = await call(consentPath, tensToken, 'PUT', { priority: 'urgent' }); assert.equal(tensPriorityDenied.response.status, 403);
+  await db.doc(`centers/${centerId}/patients/${patientId}`).update({ intakeAssignedToUid: 'otra-cuenta' });
+  const unassignedTensConsent = await call(consentPath, tensToken, 'PUT', { consentForPhotography: false }); assert.equal(unassignedTensConsent.response.status, 403);
+  await db.doc(`centers/${centerId}/patients/${patientId}`).update({ intakeAssignedToUid: tensUser.uid });
+  const withdrawnConsent = await call(consentPath, idToken, 'PUT', { consentForPhotography: false }); assert.equal(withdrawnConsent.response.status, 200); assert.equal(withdrawnConsent.payload.episode.photoConsentLastDecision, 'withdrawn');
+  const consentAudit = await db.collection(`centers/${centerId}/auditLogs`).where('action', '==', 'episode.photo_consent_updated').get(); assert.equal(consentAudit.size, 2); assert.deepEqual(consentAudit.docs.map((doc) => doc.data().details.to).sort(), [false, true]);
+  const noConsentEncounter = await call(`/centers/${centerId}/encounters`, idToken, 'POST', { patientId, episodeId: unassignedEpisode.payload.episode.id }); assert.equal(noConsentEncounter.response.status, 201);
+  const withdrawnPhoto = await call(`/centers/${centerId}/encounters/${noConsentEncounter.payload.encounter.id}/photos`, idToken, 'POST', { kind: 'pre', orientationConfirmed: true, scaleIncluded: true, dataUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=' }); assert.equal(withdrawnPhoto.response.status, 400);
   const archivedClinicalCenter = await call(`/platform/centers/${centerId}`, idToken, 'DELETE'); assert.equal(archivedClinicalCenter.response.status, 200); assert.equal(archivedClinicalCenter.payload.center.status, 'archived');
   const blockedState = await call(`/centers/${centerId}/state`, idToken); assert.equal(blockedState.response.status, 403);
   const restoredClinicalCenter = await call(`/platform/centers/${centerId}`, idToken, 'PUT', { status: 'active' }); assert.equal(restoredClinicalCenter.response.status, 200);
-  console.log(JSON.stringify({ ok: true, checks: 31, auditEvents: logs.payload.events.length }));
+  const ownMembership = db.doc(`memberships/${centerId}_${hash}`);
+  await ownMembership.update({ centerId: 'otro-centro' });
+  const mismatchedMembership = await call(`/centers/${centerId}/state`, idToken);
+  assert.equal(mismatchedMembership.response.status, 403);
+  await ownMembership.update({ centerId });
+  console.log(JSON.stringify({ ok: true, baselineChecks: 61, candidateScenarios: ['concurrent-rut', 'tens-draft', 'patient-version', 'social-assignment', 'task-assignment', 'task-lifecycle', 'atomic-audit'], auditEvents: logs.payload.events.length }));
+
 })().finally(() => deleteApp(app)).catch((error) => { console.error(error); process.exitCode = 1; });
