@@ -12,6 +12,7 @@ Este cuestionario acompaña el [plan de cierre](PLAN_CIERRE_AUDITORIA_ADMIN_R0_2
 **Retiro del permiso fotográfico, respuesta del 27/09:** queda pendiente de revisión institucional quién decide el tratamiento de imágenes ya guardadas; no se presume autorización para borrarlas ni una política de conservación.
 **Alcance clínico del piloto, propuesta del 27/09:** desde el inicio se usarían atención y fotografías, derivaciones y comité clínico durante los tres meses propuestos; su habilitación con pacientes reales sigue condicionada a autorización y validación institucional.
 **Pausa del piloto, propuesta del 27/09:** ante un problema grave, el coordinador médico o Dirección Médica podrían pausar el uso de inmediato y avisar al otro. La institución debe ratificar esta facultad, los criterios de pausa y el canal de aviso antes de comenzar.
+**Cambios habituales de acceso, preferencia del 27/09:** las altas, bajas y cambios de permisos se harían mediante la administración de Pie Diabético; el acceso directo al sistema de cuentas/datos se reservaría para emergencias documentadas. TI/seguridad debe ratificar el procedimiento y comprobar que la interfaz cubre los cambios necesarios.
 
 Tus respuestas permiten preparar decisiones y pruebas; **no equivalen a las seis aprobaciones institucionales** del [acta R0](closure-alcance-release1.md). Si una respuesta corresponde a otra autoridad, basta con indicar quién debe decidir.
 
