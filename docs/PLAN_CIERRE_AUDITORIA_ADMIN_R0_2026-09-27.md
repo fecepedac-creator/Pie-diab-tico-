@@ -2,6 +2,8 @@
 
 **Estado inicial (27/09/2026):** NO-GO para pacientes reales y producción. En `pie-diabetico-canary-2026`, la matriz mínima de sesión y rechazos 401/403 quedó correlacionada con `security_event` y Hosting volvió a su versión original. El registro prospectivo de `scripts/recovery-smoke.cjs` y el bootstrap restringido al emulador pasaron pruebas locales; no acreditan todavía todas las operaciones administrativas remotas. Las seis decisiones institucionales R0, retención, MFA y RTO/RPO siguen pendientes. Fuente: [estado vigente](CURRENT_STATE.md), [matriz remota T6](T6_SECURITY_EVENT_REMOTE_PROTOCOL.md), [auditoría inicial](T6_AUDIT_2026-09-27.md), [ensayo Admin SDK local](T6_ADMIN_OPERATIONS_AUDIT.md) y [acta R0 propuesta](closure-alcance-release1.md).
 
+La información que sólo el usuario o la institución pueden aportar se recogerá por rondas con el [cuestionario de cierre](PREGUNTAS_CIERRE_AUDITORIA_ADMIN_R0_2026-09-27.md); las verificaciones técnicas quedan a cargo del equipo ejecutor.
+
 ## Unidades de trabajo y dependencias
 
 | Unidad / hilo propuesto | Responsable de ejecución | Resultado verificable | Entrada / salida |
