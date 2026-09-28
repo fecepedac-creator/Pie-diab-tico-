@@ -76,9 +76,9 @@ export const api = {
     request<{ center: Center }>(`/centers/${centerId}/settings`, json('PUT', input)),
 
   listMembers: (centerId: string) => request<{ members: Membership[] }>(`/centers/${centerId}/members`),
-  inviteMember: (centerId: string, input: { email: string; displayName: string; roles: CenterRole[] }) =>
+  inviteMember: (centerId: string, input: { email: string; displayName: string; roles: CenterRole[]; reason: string; operationId: string }) =>
     request<{ member: Membership }>(`/centers/${centerId}/members`, json('POST', input)),
-  updateMember: (centerId: string, memberId: string, input: { roles?: CenterRole[]; status?: Membership['status'] }) =>
+  updateMember: (centerId: string, memberId: string, input: { roles?: CenterRole[]; status?: Membership['status']; reason: string; operationId: string }) =>
     request<{ member: Membership }>(`/centers/${centerId}/members/${memberId}`, json('PUT', input)),
 
   getNursingCatalog: (centerId: string) => request<{ catalog: NursingCatalog }>(`/centers/${centerId}/nursing-catalog`),

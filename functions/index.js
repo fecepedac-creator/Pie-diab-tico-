@@ -9,6 +9,7 @@ const { routeFamily, securityEvent } = require('./security-events');
 const workflow = require('./clinical-workflow');
 const nursingCatalog = require('./nursing-catalog');
 const { validatePhotoMeasurement } = require('./photo-measurement');
+const { accessReason, operationId, requestHash, accessState, isReplay } = require('./member-access-audit');
 
 const {
   CLINICAL_ROLES, cleanText, cleanEmail, hashEmail, normalizeRut,
@@ -174,6 +175,15 @@ function requireRole(member, roles) {
 function auditIn(writer, centerId, actor, action, targetType, targetId, details = {}) {
   const ref = db.collection(`centers/${centerId}/auditLogs`).doc();
   writer.set(ref, { centerId, action, actorUid: actor.uid, actorEmail: actor.email, targetType, targetId, details, createdAt: new Date().toISOString() });
+}
+
+function memberAuditIn(transaction, centerId, actor, action, targetId, operation, requestId, hash, reason, before, after, status) {
+  const ref = db.doc(`centers/${centerId}/auditLogs/${operation}`);
+  transaction.create(ref, {
+    centerId, action, actorUid: actor.uid, actorEmail: actor.email, targetType: 'membership', targetId,
+    operationId: operation, requestId, requestHash: hash, reason, before, after,
+    result: 'succeeded', httpStatus: status, createdAt: new Date().toISOString(),
+  });
 }
 
 async function audit(centerId, actor, action, targetType, targetId, details = {}) {
@@ -475,46 +485,69 @@ async function route(req, res, actor) {
     requireRole(member, ['center_admin']);
     if (method === 'GET') return send(res, 200, { members: await docs(db.collection('memberships').where('centerId', '==', centerId)) });
     if (method === 'POST') {
+      const reason = accessReason(req.body?.reason); const operation = operationId(req.body?.operationId);
+      req.memberOperationId = operation;
       const email = cleanEmail(req.body?.email); const roles = sanitizeRoles(req.body?.roles);
       if (!roles.length) throw Object.assign(new Error('Selecciona al menos un perfil.'), { status: 400 });
       if (!Array.isArray(req.body.roles) || req.body.roles.some((role) => !sanitizeRoles([role]).length)) throw Object.assign(new Error('Selecciona perfiles válidos.'), { status: 400 });
       const id = `${centerId}_${hashEmail(email)}`; const ref = db.doc(`memberships/${id}`); const now = new Date().toISOString();
       const invited = { id, centerId, email, emailLower: email, displayName: cleanText(req.body?.displayName || email, 120), roles, status: 'invited', createdAt: now, updatedAt: now };
-      await db.runTransaction(async (transaction) => {
-        const previous = await transaction.get(ref);
+      const hash = requestHash({ email, displayName: invited.displayName, roles, reason });
+      const result = await db.runTransaction(async (transaction) => {
+        const [auditSnap, previous, actorSnap, centerSnap] = await Promise.all([
+          transaction.get(db.doc(`centers/${centerId}/auditLogs/${operation}`)), transaction.get(ref),
+          transaction.get(db.doc(`memberships/${member.id}`)), transaction.get(db.doc(`centers/${centerId}`)),
+        ]);
+        if (centerSnap.data()?.status !== 'active' || actorSnap.data()?.uid !== actor.uid || actorSnap.data()?.status !== 'active' || !actorSnap.data()?.roles?.includes('center_admin')) throw Object.assign(new Error('Tu acceso administrativo cambió. Actualiza la sesión.'), { status: 403 });
+        if (auditSnap.exists) {
+          if (isReplay(auditSnap.data(), actor, 'member.invited', id, hash) && previous.exists && JSON.stringify(accessState(previous.data())) === JSON.stringify(accessState(invited))) return { member: { id, ...previous.data() }, replayed: true };
+          throw Object.assign(new Error('Esta operación ya se registró o el acceso cambió. Actualiza el equipo antes de continuar.'), { status: 409 });
+        }
         if (previous.exists) throw Object.assign(new Error('Este correo ya pertenece al equipo. Edita sus perfiles o reactiva su acceso.'), { status: 409 });
         transaction.create(ref, invited);
-        auditIn(transaction, centerId, actor, 'member.invited', 'membership', id, { email, roles });
+        memberAuditIn(transaction, centerId, actor, 'member.invited', id, operation, req.apiRequestId, hash, reason, null, accessState(invited), 201);
+        return { member: invited, replayed: false };
       });
 
-      return send(res, 201, { member: invited });
+      return send(res, 201, result);
     }
   }
 
   const memberMatch = subpath.match(/^\/members\/([^/]+)$/);
   if (memberMatch && method === 'PUT') {
     requireRole(member, ['center_admin']); const id = memberMatch[1]; const ref = db.doc(`memberships/${id}`);
+    const reason = accessReason(req.body?.reason); const operation = operationId(req.body?.operationId);
+    req.memberOperationId = operation;
     if (req.body?.status !== undefined && !['active', 'disabled'].includes(req.body.status)) throw Object.assign(new Error('Estado de acceso inválido.'), { status: 400 });
     if (req.body?.roles !== undefined && (!Array.isArray(req.body.roles) || !req.body.roles.length || req.body.roles.some((role) => !sanitizeRoles([role]).length))) throw Object.assign(new Error('Selecciona perfiles válidos.'), { status: 400 });
     const update = compact({ roles: req.body?.roles ? sanitizeRoles(req.body.roles) : undefined, status: ['invited', 'active', 'disabled'].includes(req.body?.status) ? req.body.status : undefined, updatedAt: new Date().toISOString() });
     if (update.roles && !update.roles.length) throw Object.assign(new Error('Debe conservar al menos un perfil.'), { status: 400 });
-    const updated = await db.runTransaction(async (transaction) => {
-      const snap = await transaction.get(ref);
+    if (!update.roles && !update.status) throw Object.assign(new Error('Indica el cambio de acceso que deseas realizar.'), { status: 400 });
+    const hash = requestHash({ roles: update.roles || null, status: update.status || null, reason });
+    const result = await db.runTransaction(async (transaction) => {
+      const [auditSnap, snap, centerSnap] = await Promise.all([
+        transaction.get(db.doc(`centers/${centerId}/auditLogs/${operation}`)), transaction.get(ref), transaction.get(db.doc(`centers/${centerId}`)),
+      ]);
       if (!snap.exists || snap.data().centerId !== centerId) throw Object.assign(new Error('Miembro no encontrado.'), { status: 404 });
       const previous = snap.data();
       const team = await transaction.get(db.collection('memberships').where('centerId', '==', centerId));
       const currentActor = team.docs.find((doc) => doc.id === member.id)?.data();
-      if (currentActor?.status !== 'active' || !currentActor.roles.includes('center_admin')) throw Object.assign(new Error('Tu acceso administrativo cambió. Actualiza la sesión.'), { status: 403 });
+      if (centerSnap.data()?.status !== 'active' || currentActor?.uid !== actor.uid || currentActor?.status !== 'active' || !currentActor.roles.includes('center_admin')) throw Object.assign(new Error('Tu acceso administrativo cambió. Actualiza la sesión.'), { status: 403 });
+      if (auditSnap.exists) {
+        if (isReplay(auditSnap.data(), actor, 'member.updated', id, hash) && JSON.stringify(accessState(previous)) === JSON.stringify(auditSnap.data().after)) return { member: { id, ...previous }, replayed: true };
+        throw Object.assign(new Error('Esta operación ya se registró o el acceso cambió. Actualiza el equipo antes de continuar.'), { status: 409 });
+      }
       const next = { ...previous, ...update };
       if (previous.status === 'active' && previous.roles.includes('center_admin') && (next.status !== 'active' || !next.roles.includes('center_admin')) && !team.docs.some((doc) => doc.id !== id && doc.data().status === 'active' && doc.data().roles.includes('center_admin'))) throw Object.assign(new Error('Debe conservarse un administrador activo.'), { status: 409 });
       if (id === member.id && (update.status === 'disabled' || (update.roles && !update.roles.includes('center_admin')))) throw Object.assign(new Error('Otro administrador debe cambiar tu acceso administrativo.'), { status: 409 });
       if (update.status === 'active' && !previous.uid) update.status = 'invited';
+      if (JSON.stringify(accessState(previous)) === JSON.stringify(accessState({ ...previous, ...update }))) throw Object.assign(new Error('El acceso ya tiene esos perfiles y estado.'), { status: 409 });
       transaction.update(ref, update);
-      auditIn(transaction, centerId, actor, 'member.updated', 'membership', id, update);
-      return { id, ...previous, ...update };
+      memberAuditIn(transaction, centerId, actor, 'member.updated', id, operation, req.apiRequestId, hash, reason, accessState(previous), accessState({ ...previous, ...update }), 200);
+      return { member: { id, ...previous, ...update }, replayed: false };
     });
 
-    return send(res, 200, { member: updated });
+    return send(res, 200, result);
   }
 
   if (subpath === '/state' && method === 'GET') {
@@ -987,11 +1020,24 @@ exports.api = onRequest({ region: 'southamerica-west1', memory: '512MiB', timeou
     return await route(req, res, actor);
   } catch (error) {
     const status = error?.status ?? (error?.code?.startsWith?.('auth/') ? 401 : 500);
+    if (routeFamily(req.path) === 'center.members' && ['POST', 'PUT'].includes(req.method)) {
+      const event = {
+        event: 'member_access_change', result: 'failed', requestId, operationId: req.memberOperationId || null,
+        actorUid: req.verifiedActorUid || null, centerId: req.authorizedCenterId || null,
+        method: req.method, status,
+      };
+      if (status >= 500) logger.error('member_access_change', event);
+      else logger.warn('member_access_change', event);
+    }
     if (status === 401 || status === 403) {
       logger.warn('security_event', securityEvent(req, 'access.denied', status, error?.auditReason));
     } else {
       logger.error('api_error', { requestId, status, route: routeFamily(req.path) });
     }
-    return send(res, status, requestErrorPayload({ apiRequestId: requestId }, status, { ...error, requestId }));
+    const memberChange = routeFamily(req.path) === 'center.members' && ['POST', 'PUT'].includes(req.method);
+    const reportedError = memberChange
+      ? { requestId, code: status >= 500 ? 'internal_error' : error?.code, message: status >= 500 ? 'No se pudo confirmar el cambio de acceso. Revisa el equipo antes de reintentar.' : error?.message }
+      : { ...error, requestId };
+    return send(res, status, requestErrorPayload({ apiRequestId: requestId }, status, reportedError));
   }
 });
