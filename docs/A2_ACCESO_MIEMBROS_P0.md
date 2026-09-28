@@ -1,5 +1,7 @@
 # A2 P0 — motivo y rastro de cambios de acceso del centro
 
+**Canary publicado el 28/09/2026:** desde `c178f5a115f18c3c6296ae1222168d555697b712`, después de CI `SUCCESS` en Node 22 (run `36371952037`), sólo en `pie-diabetico-canary-2026`. Function `api` hash `ab4564456713118f62f13538dd331f7820fd98be`; Hosting versión `1a27fe2be7f524f8`, release `1790607426012000`. La página y el JS remoto coinciden con la compilación canary; salud 200 y sesión anónima 401. No se hizo un cambio remoto autenticado de membresía, por lo que ese cotejo operativo sigue pendiente. Antes de administrar accesos hay que recargar sesiones abiertas antes de esta publicación. La publicación no autoriza pacientes reales ni producción.
+
 **Candidata local:** rama `codex/a2-admin-member-audit`, base `7bccd42061a47ee3278695a6bdddd2acaa02efd3`. Este alcance cubre sólo invitación, desactivación/reactivación y perfiles de membresías mediante la API del centro. No crea, deshabilita ni borra cuentas de Firebase Auth.
 
 La interfaz exige un motivo administrativo de 10 a 200 caracteres y advierte que no se incluyan datos de pacientes. La API exige ese motivo y un UUID de operación; rechaza formatos habituales de correo, RUT, número largo y enlace. Este filtro reduce errores evidentes, pero no puede demostrar que todo texto libre esté libre de datos clínicos. El `center_admin` activo conserva la decisión local sin aprobación institucional por cambio.
