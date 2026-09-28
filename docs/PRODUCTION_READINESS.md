@@ -21,6 +21,8 @@ Estado: **EN CURSO / NO-GO para aplicación remota completa y pacientes reales**
 | T7 | Validación clínica y móvil | T2 aprobado y T6 | V06, V10 y V11 con usuarios autorizados, dispositivos reales y evidencia; ningún bloqueo alto | Pendiente |
 | T8 | Auditoría final independiente | T5–T7 | Repetir arquitectura, permisos, privacidad, integridad, UX, pruebas, operación y versión desplegada; dictamen GO/NO-GO con evidencia y límites | Pendiente |
 
+El [plan de cierre de auditoría administrativa y R0](PLAN_CIERRE_AUDITORIA_ADMIN_R0_2026-09-27.md) define unidades, responsables, evidencias y dependencias para los bloqueos actuales de T2 y T6; es una propuesta de ejecución, no una aprobación institucional.
+
 ## Puertas de salida
 
 La publicación restringida puede hacerse **antes de la revisión jurídica**, sólo con el proyecto aislado, datos sintéticos, versión exacta, servicios habilitados, acceso por invitación, pruebas locales y plan de reversión del [protocolo vigente](CANARY_R1_ESTADO_Y_PROCEDIMIENTO.md). V06/V10/V11, respaldo y restauración remotos, MFA y aprobación clínica/TI cierran el estado `DESPLEGADA_RESTRINGIDA`; no se declaran completos por el solo hecho de publicar Hosting. La observación de 24–48 h se inicia tras el despliegue y continúa como control operativo.
