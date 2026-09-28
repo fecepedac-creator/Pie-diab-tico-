@@ -10,6 +10,7 @@ Este cuestionario acompaña el [plan de cierre](PLAN_CIERRE_AUDITORIA_ADMIN_R0_2
 **Fotografía de identificación, decisión de alcance del 27/09:** se propone incluirla en el primer piloto, condicionada a una autorización independiente de la fotografía de pies/heridas y a la aprobación institucional.
 **Firma del consentimiento, propuesta del 27/09:** durante el piloto se recogería en papel y se conservaría en la ficha clínica oficial; la institución debe aprobar el texto, la custodia y cómo se reflejan las decisiones separadas en Pie Diabético.
 **Retiro del permiso fotográfico, respuesta del 27/09:** queda pendiente de revisión institucional quién decide el tratamiento de imágenes ya guardadas; no se presume autorización para borrarlas ni una política de conservación.
+**Alcance clínico del piloto, propuesta del 27/09:** desde el inicio se usarían atención y fotografías, derivaciones y comité clínico durante los tres meses propuestos; su habilitación con pacientes reales sigue condicionada a autorización y validación institucional.
 
 Tus respuestas permiten preparar decisiones y pruebas; **no equivalen a las seis aprobaciones institucionales** del [acta R0](closure-alcance-release1.md). Si una respuesta corresponde a otra autoridad, basta con indicar quién debe decidir.
 
