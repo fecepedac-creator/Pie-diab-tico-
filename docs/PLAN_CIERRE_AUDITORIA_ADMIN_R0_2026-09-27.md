@@ -4,6 +4,18 @@
 
 La información que sólo el usuario o la institución pueden aportar se recogerá por rondas con el [cuestionario de cierre](PREGUNTAS_CIERRE_AUDITORIA_ADMIN_R0_2026-09-27.md); las verificaciones técnicas quedan a cargo del equipo ejecutor.
 
+**Corte posterior:** la ronda del usuario está cerrada. [A1 inventarió vías y brechas](A1_INVENTARIO_PRIVILEGIOS_R0.md) y [R1 preparó el expediente para revisión](R1_EXPEDIENTE_DECISIONES_R0.md). Son entregables de preparación; A2/A3, R2/R3, T6 y la validación clínica/móvil siguen abiertos. La auditoría administrativa integral aún no está acreditada.
+
+## Mejoras priorizadas tras A1
+
+| Prioridad | Cambio necesario | Evidencia de aceptación |
+| --- | --- | --- |
+| **P0 — acceso cotidiano** | Pedir motivo breve sin datos clínicos en cada invitación, baja/reactivación y cambio de perfiles. La API debe rechazar omisiones y registrar actor comprobado, centro, valor anterior/nuevo, resultado y correlación; la UI debe solicitar el motivo. | Pruebas de permiso y transacción para éxito, rechazo y fallo de auditoría; cotejo de un caso ficticio en A3. La preferencia del usuario de autorizar localmente no exige aprobación institucional por cada operación. |
+| **P0 — vías técnicas directas** | Restringir o protocolizar Auth, Firestore, Storage, Admin SDK, IAM, despliegues y reversión fuera de la aplicación. Asociar principal técnico real, motivo/referencia, SHA y comparación antes/después; mantener scripts de semilla sólo en emuladores. | Matriz A1 sin vía privilegiada sin dueño ni rastro, IAM revisado por TI y conciliación de una operación sintética por vía permitida. |
+| **P0 — preservación y recuperación** | Decidir en R2 conservación y protección/exportación de cada log y copia; ensayar restauración operativa de fotografías, que en el piloto quedarían sólo en Pie Diabético. Contrastar las 48 horas propuestas con RTO/RPO reales. | Política aprobada por categoría y prueba de restauración de imagen/vínculo sin datos reales; no inferir garantías de los 30/400 días observados en Cloud Logging. |
+| **P1 — administración ampliada** | Añadir motivo, antes/después y resultado a configuración del centro, catálogo, logo y otros cambios administrativos; reconciliar efectos Firestore/Storage y eventos `started` abiertos. | Pruebas de fallo parcial/reintento y una muestra sintética completa de la bitácora. |
+| **P1 — detección** | Alertar al administrador por actividad inesperada o acciones de otros actores, y aceptar reportes del equipo; evaluar con TI si la revisión sólo ante incidentes y por el propio administrador necesita segundo revisor. | Evento de prueba con destinatario, canal, respuesta y responsable documentados; no generar alertas redundantes por cada cambio propio. |
+
 ## Unidades de trabajo y dependencias
 
 | Unidad / hilo propuesto | Responsable de ejecución | Resultado verificable | Entrada / salida |
